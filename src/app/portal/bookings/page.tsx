@@ -2,9 +2,11 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { stripe } from "@/lib/stripe"
 import { Button } from "@/components/ui/button"
 import { formatPence } from "@/lib/format"
 import { CancelBookingButton } from "@/components/portal/cancel-booking-button"
+import { PayButton } from "@/components/marketing/pay-button"
 
 export const metadata: Metadata = {
   title: "Bookings",
@@ -24,7 +26,7 @@ export default async function PortalBookingsPage() {
   const bookings = await prisma.booking.findMany({
     where: { customerId: session!.user.id },
     orderBy: { startDate: "desc" },
-    include: { service: true },
+    include: { service: true, payments: true },
   })
 
   return (
@@ -38,30 +40,58 @@ export default async function PortalBookingsPage() {
 
       {bookings.length > 0 ? (
         <ul className="divide-y divide-border rounded-lg border border-border">
-          {bookings.map((booking) => (
-            <li key={booking.id} className="flex items-center justify-between gap-4 p-4 text-sm">
-              <div>
-                <p className="font-medium">{booking.service.name}</p>
-                <p className="text-muted-foreground">
-                  {booking.startDate.toLocaleDateString("en-GB")}
-                  {booking.endDate.getTime() !== booking.startDate.getTime()
-                    ? ` – ${booking.endDate.toLocaleDateString("en-GB")}`
-                    : ""}
-                </p>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="text-right">
-                  <p className="font-medium">{formatPence(booking.totalPence)}</p>
-                  <p className="text-muted-foreground capitalize">
-                    {booking.status.toLowerCase().replace(/_/g, " ")}
+          {bookings.map((booking) => {
+            const depositPaid = booking.payments.some(
+              (p) => p.type === "DEPOSIT" && p.status === "SUCCEEDED"
+            )
+            const balancePaid = booking.payments.some(
+              (p) => p.type === "BALANCE" && p.status === "SUCCEEDED"
+            )
+            const balancePence = booking.totalPence - booking.depositPence
+
+            return (
+              <li key={booking.id} className="flex flex-wrap items-center justify-between gap-4 p-4 text-sm">
+                <div>
+                  <p className="font-medium">{booking.service.name}</p>
+                  <p className="text-muted-foreground">
+                    {booking.startDate.toLocaleDateString("en-GB")}
+                    {booking.endDate.getTime() !== booking.startDate.getTime()
+                      ? ` – ${booking.endDate.toLocaleDateString("en-GB")}`
+                      : ""}
                   </p>
                 </div>
-                {!NON_CANCELLABLE_STATUSES.includes(booking.status) && (
-                  <CancelBookingButton bookingId={booking.id} />
-                )}
-              </div>
-            </li>
-          ))}
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="font-medium">{formatPence(booking.totalPence)}</p>
+                    <p className="text-muted-foreground capitalize">
+                      {booking.status.toLowerCase().replace(/_/g, " ")}
+                    </p>
+                  </div>
+                  {stripe && booking.status === "PENDING_PAYMENT" && !depositPaid && (
+                    <PayButton
+                      bookingId={booking.id}
+                      type="DEPOSIT"
+                      label="Pay deposit"
+                      size="sm"
+                      fullWidth={false}
+                    />
+                  )}
+                  {stripe && booking.status === "CONFIRMED" && !balancePaid && balancePence > 0 && (
+                    <PayButton
+                      bookingId={booking.id}
+                      type="BALANCE"
+                      label="Pay balance"
+                      size="sm"
+                      fullWidth={false}
+                    />
+                  )}
+                  {!NON_CANCELLABLE_STATUSES.includes(booking.status) && (
+                    <CancelBookingButton bookingId={booking.id} />
+                  )}
+                </div>
+              </li>
+            )
+          })}
         </ul>
       ) : (
         <p className="text-sm text-muted-foreground">

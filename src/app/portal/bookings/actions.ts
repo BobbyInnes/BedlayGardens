@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { getSetting } from "@/lib/settings"
+import { stripe } from "@/lib/stripe"
+import { formatPence } from "@/lib/format"
 
 export type CancelBookingResult = { status: "success"; message: string } | { status: "error"; message: string }
 
@@ -16,11 +18,36 @@ const NON_CANCELLABLE_STATUSES = [
   "NO_SHOW",
 ]
 
+type PolicyTier = "free" | "deposit_forfeit" | "no_refund"
+
+async function refundPayment(
+  bookingId: string,
+  payment: { id: string; stripePaymentIntentId: string | null; amountPence: number }
+) {
+  if (!stripe || !payment.stripePaymentIntentId) return false
+  try {
+    await stripe.refunds.create({ payment_intent: payment.stripePaymentIntentId })
+    await prisma.$transaction([
+      prisma.payment.update({ where: { id: payment.id }, data: { status: "REFUNDED" } }),
+      prisma.payment.create({
+        data: { bookingId, type: "REFUND", amountPence: payment.amountPence, status: "SUCCEEDED" },
+      }),
+    ])
+    return true
+  } catch (error) {
+    console.error(`[cancelBooking] failed to refund payment ${payment.id}`, error)
+    return false
+  }
+}
+
 export async function cancelBooking(bookingId: string): Promise<CancelBookingResult> {
   const session = await auth()
   if (!session?.user) return { status: "error", message: "Unauthorized" }
 
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId } })
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { payments: true },
+  })
   if (!booking || booking.customerId !== session.user.id) {
     return { status: "error", message: "Booking not found." }
   }
@@ -32,11 +59,40 @@ export async function cancelBooking(bookingId: string): Promise<CancelBookingRes
   const noRefundHours = Number(await getSetting("cancellation_no_refund_hours", "48"))
   const hoursUntilStart = (booking.startDate.getTime() - Date.now()) / (1000 * 60 * 60)
 
-  let policyNote: string
+  let tier: PolicyTier
   if (hoursUntilStart >= freeDays * 24) {
-    policyNote = "Cancelled — this falls outside the free cancellation window, so a full refund applies once payments are enabled."
+    tier = "free"
   } else if (hoursUntilStart >= noRefundHours) {
-    policyNote = "Cancelled — per our policy the deposit is forfeit for cancellations within the free window."
+    tier = "deposit_forfeit"
+  } else {
+    tier = "no_refund"
+  }
+
+  const successfulDeposit = booking.payments.find((p) => p.type === "DEPOSIT" && p.status === "SUCCEEDED")
+  const successfulBalance = booking.payments.find((p) => p.type === "BALANCE" && p.status === "SUCCEEDED")
+
+  let refundedPence = 0
+  if (stripe) {
+    if (tier === "free") {
+      if (successfulDeposit && (await refundPayment(booking.id, successfulDeposit)))
+        refundedPence += successfulDeposit.amountPence
+      if (successfulBalance && (await refundPayment(booking.id, successfulBalance)))
+        refundedPence += successfulBalance.amountPence
+    } else if (tier === "deposit_forfeit") {
+      if (successfulBalance && (await refundPayment(booking.id, successfulBalance)))
+        refundedPence += successfulBalance.amountPence
+    }
+  }
+
+  let policyNote: string
+  if (tier === "free") {
+    policyNote = stripe
+      ? `Cancelled — this is outside the free cancellation window, so ${formatPence(refundedPence)} has been refunded.`
+      : "Cancelled — this falls outside the free cancellation window, so a full refund applies once payments are enabled."
+  } else if (tier === "deposit_forfeit") {
+    policyNote = stripe
+      ? `Cancelled — per our policy the deposit is forfeit. ${refundedPence > 0 ? `${formatPence(refundedPence)} of the balance has been refunded.` : ""}`
+      : "Cancelled — per our policy the deposit is forfeit for cancellations within the free window."
   } else {
     policyNote = "Cancelled — per our policy no refund applies this close to the stay."
   }

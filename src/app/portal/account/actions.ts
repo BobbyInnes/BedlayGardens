@@ -1,11 +1,13 @@
 "use server"
 
 import { randomUUID } from "node:crypto"
+import { redirect } from "next/navigation"
 import bcrypt from "bcryptjs"
 import { z } from "zod"
 import { Prisma } from "@/generated/prisma/client"
 import { auth, signOut } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { stripe, getSiteUrl } from "@/lib/stripe"
 
 export type ActionState = { status: "idle" | "success" | "error"; message?: string }
 
@@ -78,6 +80,30 @@ export async function changePassword(
   await prisma.user.update({ where: { id: user.id }, data: { passwordHash: newHash } })
 
   return { status: "success", message: "Password updated." }
+}
+
+export async function openBillingPortal(): Promise<ActionState> {
+  const session = await auth()
+  if (!session?.user) return { status: "error", message: "Unauthorized" }
+
+  if (!stripe) {
+    return { status: "error", message: "Online payment isn't enabled yet." }
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } })
+  if (!user?.stripeCustomerId) {
+    return {
+      status: "error",
+      message: "You don't have any saved payment methods yet — this becomes available after your first payment.",
+    }
+  }
+
+  const portalSession = await stripe.billingPortal.sessions.create({
+    customer: user.stripeCustomerId,
+    return_url: `${getSiteUrl()}/portal/account`,
+  })
+
+  redirect(portalSession.url)
 }
 
 export async function deleteAccount() {

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { ProfileForm } from "@/components/portal/profile-form"
 import { PasswordForm } from "@/components/portal/password-form"
 import { DeleteAccountDialog } from "@/components/portal/delete-account-dialog"
+import { BillingPortalButton } from "@/components/portal/billing-portal-button"
 
 export const metadata: Metadata = {
   title: "Account",
@@ -35,6 +36,16 @@ export default async function AccountPage() {
           <PasswordForm />
         </section>
       )}
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Billing</h2>
+          <p className="text-sm text-muted-foreground">
+            View saved cards and payment history via Stripe.
+          </p>
+        </div>
+        <BillingPortalButton />
+      </section>
 
       <section className="space-y-4 rounded-lg border border-destructive/30 p-4">
         <div>

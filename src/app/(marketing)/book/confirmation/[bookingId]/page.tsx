@@ -4,8 +4,10 @@ import { notFound } from "next/navigation"
 import { CheckCircle2 } from "lucide-react"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { stripe } from "@/lib/stripe"
 import { Button } from "@/components/ui/button"
 import { formatPence } from "@/lib/format"
+import { PayButton } from "@/components/marketing/pay-button"
 
 export const metadata: Metadata = {
   title: "Booking Confirmed",
@@ -93,12 +95,26 @@ export default async function BookingConfirmationPage({
         </div>
       </div>
 
-      <p className="mt-6 text-sm text-muted-foreground">
-        Online payment isn&rsquo;t enabled yet — we&rsquo;ll be in touch to arrange your
-        deposit. You can view or cancel this booking any time from your account.
-      </p>
+      {booking.status === "PENDING_PAYMENT" && stripe ? (
+        <div className="mt-6 space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Pay your deposit now to confirm this booking. Your card is saved securely
+            with Stripe so we can collect the balance automatically before check-in.
+          </p>
+          <PayButton bookingId={booking.id} type="DEPOSIT" label={`Pay deposit — ${formatPence(booking.depositPence)}`} />
+        </div>
+      ) : booking.status === "PENDING_PAYMENT" ? (
+        <p className="mt-6 text-sm text-muted-foreground">
+          Online payment isn&rsquo;t enabled yet — we&rsquo;ll be in touch to arrange your
+          deposit.
+        </p>
+      ) : (
+        <p className="mt-6 text-sm text-muted-foreground">
+          You can view or cancel this booking any time from your account.
+        </p>
+      )}
 
-      <Button className="mt-6 w-full" asChild>
+      <Button variant="outline" className="mt-3 w-full" asChild>
         <Link href="/portal/bookings">View my bookings</Link>
       </Button>
     </div>
