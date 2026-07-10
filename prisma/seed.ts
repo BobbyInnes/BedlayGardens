@@ -82,7 +82,16 @@ async function main() {
     { key: "cancellation_free_days", value: "14" },
     { key: "cancellation_no_refund_hours", value: "48" },
     { key: "vat_enabled", value: "false" },
-    { key: "opening_hours", value: "Mon-Sun 8:00-18:00" },
+    { key: "opening_hours", value: "Mon-Sun 8:00am-6:00pm" },
+    { key: "business_name", value: "Bedlay Gardens Kennels" },
+    { key: "business_tagline", value: "Secure countryside boarding near Glasgow" },
+    { key: "business_phone", value: "01236 000000" },
+    { key: "business_email", value: "hello@bedlaygardens.co.uk" },
+    { key: "business_address_line1", value: "Bedlay Gardens" },
+    { key: "business_address_line2", value: "Chryston, Glasgow" },
+    { key: "business_postcode", value: "G69 0AA" },
+    { key: "business_lat", value: "55.9106" },
+    { key: "business_lng", value: "-4.0800" },
   ]
   for (const setting of settings) {
     await prisma.setting.upsert({
@@ -105,11 +114,162 @@ async function main() {
         "Select Dog Walking in the booking flow, choose a van run with free capacity, and confirm your pickup address and access notes.",
       sortOrder: 2,
     },
+    {
+      question: "What is your cancellation policy?",
+      answer:
+        "Cancellations 14 or more days before check-in receive a full refund. Within 14 days the deposit is forfeit, and within 48 hours no refund is given.",
+      sortOrder: 3,
+    },
+    {
+      question: "Can two dogs share a kennel?",
+      answer:
+        "Yes — our medium and large kennels can house two dogs from the same family at a discounted per-night rate, provided neither dog has a 'no shared kennel' flag on their profile.",
+      sortOrder: 4,
+    },
   ]
   for (const faq of faqs) {
     const existing = await prisma.faq.findFirst({ where: { question: faq.question } })
     if (!existing) {
       await prisma.faq.create({ data: faq })
+    }
+  }
+
+  const testimonials = [
+    {
+      author: "Fiona M.",
+      text: "Our spaniel comes home from Bedlay Gardens happier and more tired out than after any other kennels we've tried. The forest walks make all the difference.",
+    },
+    {
+      author: "Graham & Susan",
+      text: "The van pickup for weekly walks has been brilliant for our schedules — always on time, and we get a photo update every session.",
+    },
+    {
+      author: "Priya K.",
+      text: "Booking online took minutes and the staff clearly knew every detail of our dog's routine at check-in. Thoroughly recommend.",
+    },
+  ]
+  for (const testimonial of testimonials) {
+    const existing = await prisma.testimonial.findFirst({ where: { author: testimonial.author } })
+    if (!existing) {
+      await prisma.testimonial.create({ data: testimonial })
+    }
+  }
+
+  const boarding = await prisma.service.findUnique({ where: { slug: "overnight-boarding" } })
+  if (boarding) {
+    const addons = [
+      { name: "Extra playtime session", description: "20 minutes of 1:1 play with a staff member", pricePence: 500 },
+      { name: "Birthday treat pack", description: "A small gift and treats for a birthday stay", pricePence: 350 },
+    ]
+    for (const addon of addons) {
+      const existing = await prisma.addon.findFirst({ where: { name: addon.name, serviceId: boarding.id } })
+      if (!existing) {
+        await prisma.addon.create({ data: { ...addon, serviceId: boarding.id } })
+      }
+    }
+  }
+
+  const mediaItems: {
+    url: string
+    category: string
+    caption: string
+    altText: string
+    sortOrder: number
+    usage: "GALLERY" | "HERO" | "ABOUT"
+  }[] = [
+    {
+      url: "/images/placeholders/hero.svg",
+      category: "kennels",
+      caption: "Bedlay Gardens Kennels",
+      altText: "Illustrated placeholder banner for Bedlay Gardens Kennels",
+      sortOrder: 0,
+      usage: "HERO",
+    },
+    {
+      url: "/images/placeholders/kennels-1.svg",
+      category: "kennels",
+      caption: "Our kennel block",
+      altText: "Placeholder image representing the kennel block",
+      sortOrder: 1,
+      usage: "GALLERY",
+    },
+    {
+      url: "/images/placeholders/kennels-2.svg",
+      category: "kennels",
+      caption: "Individual kennel run",
+      altText: "Placeholder image representing an individual kennel run",
+      sortOrder: 2,
+      usage: "GALLERY",
+    },
+    {
+      url: "/images/placeholders/forest-walks-1.svg",
+      category: "forest walks",
+      caption: "Secure forest walk",
+      altText: "Placeholder image representing a secure forest walk",
+      sortOrder: 3,
+      usage: "GALLERY",
+    },
+    {
+      url: "/images/placeholders/forest-walks-2.svg",
+      category: "forest walks",
+      caption: "Woodland session",
+      altText: "Placeholder image representing a woodland walking session",
+      sortOrder: 4,
+      usage: "GALLERY",
+    },
+    {
+      url: "/images/placeholders/van-runs-1.svg",
+      category: "van runs",
+      caption: "Collection van",
+      altText: "Placeholder image representing the dog walking collection van",
+      sortOrder: 5,
+      usage: "GALLERY",
+    },
+    {
+      url: "/images/placeholders/van-runs-2.svg",
+      category: "van runs",
+      caption: "Morning run",
+      altText: "Placeholder image representing a morning van run",
+      sortOrder: 6,
+      usage: "GALLERY",
+    },
+    {
+      url: "/images/placeholders/happy-guests-1.svg",
+      category: "happy guests",
+      caption: "A happy guest",
+      altText: "Placeholder image representing a happy dog guest",
+      sortOrder: 7,
+      usage: "GALLERY",
+    },
+    {
+      url: "/images/placeholders/happy-guests-2.svg",
+      category: "happy guests",
+      caption: "Another happy guest",
+      altText: "Placeholder image representing a happy dog guest",
+      sortOrder: 8,
+      usage: "GALLERY",
+    },
+    {
+      url: "/images/placeholders/about-team.svg",
+      category: "about",
+      caption: "Our team",
+      altText: "Placeholder image representing the Bedlay Gardens team",
+      sortOrder: 9,
+      usage: "ABOUT",
+    },
+    {
+      url: "/images/placeholders/about-facility.svg",
+      category: "about",
+      caption: "Our facility",
+      altText: "Placeholder image representing the Bedlay Gardens facility",
+      sortOrder: 10,
+      usage: "ABOUT",
+    },
+  ]
+  for (const media of mediaItems) {
+    const existing = await prisma.mediaItem.findFirst({ where: { url: media.url } })
+    if (!existing) {
+      await prisma.mediaItem.create({ data: { ...media, type: "IMAGE" } })
     }
   }
 
