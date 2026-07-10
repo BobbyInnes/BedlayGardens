@@ -50,3 +50,7 @@ next-env.d.ts
 # private file storage (uploads: vaccination certs, dog photos)
 /storage/uploads/*
 !/storage/uploads/.gitkeep
+
+# admin-uploaded public media (gallery/hero images and videos)
+/public/uploads/*
+!/public/uploads/.gitkeep

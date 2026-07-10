@@ -9,6 +9,14 @@ export const authConfig = {
     strategy: "jwt",
   },
   callbacks: {
+    signIn({ user }) {
+      // The Credentials provider already checks `active` in its `authorize()`
+      // before returning a user, so this only matters for the Resend
+      // magic-link provider — which otherwise has no way to block a banned
+      // customer, since it never calls `authorize()`.
+      if (user && "active" in user && user.active === false) return false
+      return true
+    },
     authorized({ auth, request }) {
       const isLoggedIn = !!auth?.user
       const { pathname } = request.nextUrl

@@ -38,12 +38,14 @@ function isUniqueConstraintError(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
 }
 
-export async function createBooking(
-  input: z.infer<typeof baseSchema>
-): Promise<BookingActionState> {
-  const session = await auth()
-  if (!session?.user) return { status: "error", message: "Please log in to book." }
+export type BookingCreationResult = BookingActionState & { bookingId?: string }
 
+export async function resolveBookingCreation(
+  customerId: string,
+  input: z.infer<typeof baseSchema>,
+  options?: { skipVaccinationGate?: boolean }
+): Promise<BookingCreationResult> {
+  const skipVaccinationGate = options?.skipVaccinationGate ?? false
   const parsed = baseSchema.safeParse(input)
   if (!parsed.success) {
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid submission." }
@@ -56,7 +58,7 @@ export async function createBooking(
   }
 
   const dogs = await prisma.dog.findMany({ where: { id: { in: data.dogIds } } })
-  if (dogs.length !== data.dogIds.length || dogs.some((dog) => dog.ownerId !== session.user.id)) {
+  if (dogs.length !== data.dogIds.length || dogs.some((dog) => dog.ownerId !== customerId)) {
     return { status: "error", message: "One or more dogs could not be found." }
   }
 
@@ -73,12 +75,18 @@ export async function createBooking(
     }
     const startDate = startOfDay(new Date(data.startDate))
     const endDate = startOfDay(new Date(data.endDate))
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      return { status: "error", message: "Enter valid dates." }
+    }
     const nights = nightsBetween(startDate, endDate)
     if (nights.length === 0) {
       return { status: "error", message: "Check-out must be after check-in." }
     }
+    if (nights.length > 60) {
+      return { status: "error", message: "Stays longer than 60 nights aren't supported — check the dates." }
+    }
 
-    const gate = await checkVaccinationGate(data.dogIds, endDate)
+    const gate = skipVaccinationGate ? { ok: true, perDog: [] } : await checkVaccinationGate(data.dogIds, endDate)
     if (!gate.ok) {
       return {
         status: "error",
@@ -115,7 +123,7 @@ export async function createBooking(
         const booking = await prisma.$transaction(async (tx) => {
           const created = await tx.booking.create({
             data: {
-              customerId: session.user.id,
+              customerId,
               serviceId: service.id,
               startDate,
               endDate,
@@ -162,7 +170,7 @@ export async function createBooking(
     if (!data.date) return { status: "error", message: "Select a date." }
     const date = startOfDay(new Date(data.date))
 
-    const gate = await checkVaccinationGate(data.dogIds, date)
+    const gate = skipVaccinationGate ? { ok: true, perDog: [] } : await checkVaccinationGate(data.dogIds, date)
     if (!gate.ok) {
       return {
         status: "error",
@@ -202,7 +210,7 @@ export async function createBooking(
       }
       const created = await tx.booking.create({
         data: {
-          customerId: session.user.id,
+          customerId,
           serviceId: service.id,
           startDate: date,
           endDate: date,
@@ -232,7 +240,7 @@ export async function createBooking(
     })
     if (!slot) return { status: "error", message: "Walk slot not found." }
 
-    const gate = await checkVaccinationGate(data.dogIds, slot.date)
+    const gate = skipVaccinationGate ? { ok: true, perDog: [] } : await checkVaccinationGate(data.dogIds, slot.date)
     if (!gate.ok) {
       return {
         status: "error",
@@ -261,7 +269,7 @@ export async function createBooking(
       }
       const created = await tx.booking.create({
         data: {
-          customerId: session.user.id,
+          customerId,
           serviceId: service.id,
           startDate: current.date,
           endDate: current.date,
@@ -311,7 +319,7 @@ export async function createBooking(
     const run = await prisma.vanRun.findUnique({ where: { id: data.vanRunId } })
     if (!run) return { status: "error", message: "Van run not found." }
 
-    const gate = await checkVaccinationGate(data.dogIds, run.date)
+    const gate = skipVaccinationGate ? { ok: true, perDog: [] } : await checkVaccinationGate(data.dogIds, run.date)
     if (!gate.ok) {
       return {
         status: "error",
@@ -337,7 +345,7 @@ export async function createBooking(
       }
       const created = await tx.booking.create({
         data: {
-          customerId: session.user.id,
+          customerId,
           serviceId: service.id,
           startDate: current.date,
           endDate: current.date,
@@ -373,6 +381,18 @@ export async function createBooking(
     return { status: "error", message: "Booking isn't available for this service yet." }
   }
 
+  return { status: "idle", bookingId: bookingId! }
+}
+
+export async function createBooking(
+  input: z.infer<typeof baseSchema>
+): Promise<BookingActionState> {
+  const session = await auth()
+  if (!session?.user) return { status: "error", message: "Please log in to book." }
+
+  const result = await resolveBookingCreation(session.user.id, input)
+  if (result.status === "error") return result
+
   revalidatePath("/portal/bookings")
-  redirect(`/book/confirmation/${bookingId}`)
+  redirect(`/book/confirmation/${result.bookingId}`)
 }

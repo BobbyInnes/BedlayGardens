@@ -133,6 +133,7 @@ model User {
   active           Boolean   @default(true)
   photoUrl         String?
   stripeCustomerId String?
+  adminNotes       String?
   createdAt        DateTime  @default(now())
 
   accounts               Account[]
