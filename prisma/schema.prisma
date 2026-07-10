@@ -1,0 +1,657 @@
+// Bedlay Gardens Kennels — Prisma schema
+// See PRD-bedlay-gardens-website.md §9 (core) and §13.4 (extended features)
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  CUSTOMER
+  STAFF
+  ADMIN
+}
+
+enum PricingModel {
+  PER_NIGHT
+  PER_DAY
+  PER_SESSION
+}
+
+enum VaccinationStatus {
+  UNVERIFIED
+  VERIFIED
+  EXPIRED
+}
+
+enum BookingStatus {
+  DRAFT
+  PENDING_PAYMENT
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  COMPLETED
+  CANCELLED_BY_CUSTOMER
+  CANCELLED_BY_ADMIN
+  NO_SHOW
+}
+
+enum PaymentType {
+  DEPOSIT
+  BALANCE
+  REFUND
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum VanRunStopStatus {
+  PENDING
+  COLLECTED
+  WALKED
+  DROPPED_OFF
+}
+
+enum CareTaskType {
+  FEED
+  MEDICATION
+  WALK
+  OTHER
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  EMBED
+}
+
+enum MediaUsage {
+  GALLERY
+  HERO
+  SERVICE
+  ABOUT
+}
+
+enum TrialOutcome {
+  PASSED
+  RETRY
+  NOT_SUITABLE
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DogFlagType {
+  NOT_DOG_SOCIABLE
+  NO_SHARED_KENNEL
+  NO_GROUP_WALKS
+  RESOURCE_GUARDING
+  ESCAPE_RISK
+}
+
+enum WaitlistStatus {
+  WAITING
+  OFFERED
+  CLAIMED
+  EXPIRED
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  BOTH
+}
+
+// ---------------------------------------------------------------------------
+// Core
+// ---------------------------------------------------------------------------
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  emailVerified    DateTime?
+  passwordHash     String?
+  name             String
+  phone            String?
+  address          String?
+  role             Role      @default(CUSTOMER)
+  active           Boolean   @default(true)
+  photoUrl         String?
+  stripeCustomerId String?
+  createdAt        DateTime  @default(now())
+
+  accounts               Account[]
+  sessions               Session[]
+  dogs                   Dog[]
+  bookings               Booking[]
+  contactMessages        ContactMessage[]
+  auditLogs              AuditLog[]              @relation("AuditActor")
+  verifiedVaccinations   VaccinationRecord[]     @relation("VaccinationVerifier")
+  vanRuns                VanRun[]
+  completedCareTasks     CareTask[]              @relation("CareTaskCompletedBy")
+  incidentReports        IncidentReport[]        @relation("IncidentReportedBy")
+  subscriptions          Subscription[]
+  waitlistEntries        WaitlistEntry[]
+  reviews                Review[]
+  purchasedVouchers      Voucher[]               @relation("VoucherPurchaser")
+  creditLedgerEntries    CreditLedger[]
+  signedAgreements       SignedAgreement[]
+  notificationPreference NotificationPreference?
+  messageLogs            MessageLog[]
+
+  @@index([role])
+}
+
+// Auth.js (NextAuth) required models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Service {
+  id             String       @id @default(cuid())
+  name           String
+  slug           String       @unique
+  description    String
+  pricingModel   PricingModel
+  basePricePence Int
+  active         Boolean      @default(true)
+  sortOrder      Int          @default(0)
+
+  bookings        Booking[]
+  addons          Addon[]
+  priceRules      PriceRule[]
+  subscriptions   Subscription[]
+  waitlistEntries WaitlistEntry[]
+}
+
+model Dog {
+  id               String    @id @default(cuid())
+  ownerId          String
+  owner            User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name             String
+  breed            String
+  dob              DateTime?
+  sex              String?
+  neutered         Boolean   @default(false)
+  weightKg         Float?
+  photoUrl         String?
+  feedingNotes     String?
+  medicationNotes  String?
+  behaviourNotes   String?
+  vetName          String?
+  vetPhone         String?
+  emergencyContact String?
+
+  vaccinationRecords VaccinationRecord[]
+  bookingDogs        BookingDog[]
+  walkBookings       WalkBooking[]
+  vanRunStops        VanRunStop[]
+  careTasks          CareTask[]
+  incidentReports    IncidentReport[]
+  flags              DogFlag[]
+  pupdates           Pupdate[]
+  subscriptions      Subscription[]
+  waitlistEntries    WaitlistEntry[]
+  trialVisits        TrialVisit[]
+
+  @@index([ownerId])
+}
+
+model VaccinationRecord {
+  id           String            @id @default(cuid())
+  dogId        String
+  dog          Dog               @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  type         String
+  dateGiven    DateTime
+  expiryDate   DateTime
+  documentUrl  String?
+  status       VaccinationStatus @default(UNVERIFIED)
+  verifiedById String?
+  verifiedBy   User?             @relation("VaccinationVerifier", fields: [verifiedById], references: [id])
+  verifiedAt   DateTime?
+
+  @@index([dogId])
+  @@index([expiryDate])
+}
+
+model KennelUnit {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  size        String
+  dogCapacity Int     @default(1)
+  active      Boolean @default(true)
+
+  bookings     Booking[]
+  blockedDates BlockedDate[]
+}
+
+model Booking {
+  id                 String        @id @default(cuid())
+  customerId         String
+  customer           User          @relation(fields: [customerId], references: [id])
+  serviceId          String
+  service            Service       @relation(fields: [serviceId], references: [id])
+  startDate          DateTime
+  endDate            DateTime
+  status             BookingStatus @default(DRAFT)
+  kennelUnitId       String?
+  kennelUnit         KennelUnit?   @relation(fields: [kennelUnitId], references: [id])
+  totalPence         Int
+  depositPence       Int
+  balanceDueDate     DateTime?
+  cancellationReason String?
+  createdAt          DateTime      @default(now())
+
+  bookingDogs     BookingDog[]
+  bookingAddons   BookingAddon[]
+  payments        Payment[]
+  walkBookings    WalkBooking[]
+  vanRunStops     VanRunStop[]
+  careTasks       CareTask[]
+  incidentReports IncidentReport[]
+  pupdates        Pupdate[]
+  trialVisits     TrialVisit[]
+
+  @@index([customerId])
+  @@index([serviceId])
+  @@index([status])
+  @@index([kennelUnitId, startDate, endDate])
+}
+
+model BookingDog {
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  dogId     String
+  dog       Dog     @relation(fields: [dogId], references: [id], onDelete: Cascade)
+
+  @@id([bookingId, dogId])
+}
+
+model Addon {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  pricePence  Int
+  serviceId   String?
+  service     Service? @relation(fields: [serviceId], references: [id])
+  active      Boolean  @default(true)
+
+  bookingAddons BookingAddon[]
+}
+
+model BookingAddon {
+  id         String  @id @default(cuid())
+  bookingId  String
+  booking    Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  addonId    String
+  addon      Addon   @relation(fields: [addonId], references: [id])
+  quantity   Int     @default(1)
+  pricePence Int
+
+  @@index([bookingId])
+}
+
+model Payment {
+  id                    String        @id @default(cuid())
+  bookingId             String
+  booking               Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  stripePaymentIntentId String?       @unique
+  type                  PaymentType
+  amountPence           Int
+  status                PaymentStatus @default(PENDING)
+  createdAt             DateTime      @default(now())
+
+  @@index([bookingId])
+}
+
+model WalkSlot {
+  id          String   @id @default(cuid())
+  date        DateTime
+  time        String
+  durationMin Int
+  maxDogs     Int
+
+  walkBookings WalkBooking[]
+}
+
+model WalkBooking {
+  id         String   @id @default(cuid())
+  walkSlotId String
+  walkSlot   WalkSlot @relation(fields: [walkSlotId], references: [id], onDelete: Cascade)
+  bookingId  String?
+  booking    Booking? @relation(fields: [bookingId], references: [id])
+  dogId      String
+  dog        Dog      @relation(fields: [dogId], references: [id])
+
+  @@index([walkSlotId])
+}
+
+model VanRun {
+  id        String   @id @default(cuid())
+  date      DateTime
+  name      String
+  startTime String
+  maxDogs   Int
+  staffId   String?
+  staff     User?    @relation(fields: [staffId], references: [id])
+
+  stops VanRunStop[]
+
+  @@index([date])
+}
+
+model VanRunStop {
+  id            String           @id @default(cuid())
+  vanRunId      String
+  vanRun        VanRun           @relation(fields: [vanRunId], references: [id], onDelete: Cascade)
+  bookingId     String
+  booking       Booking          @relation(fields: [bookingId], references: [id])
+  dogId         String
+  dog           Dog              @relation(fields: [dogId], references: [id])
+  pickupAddress String
+  accessNotes   String?
+  sortOrder     Int              @default(0)
+  status        VanRunStopStatus @default(PENDING)
+  collectedAt   DateTime?
+  droppedOffAt  DateTime?
+
+  @@index([vanRunId])
+}
+
+model CareTask {
+  id            String       @id @default(cuid())
+  bookingId     String
+  booking       Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  dogId         String
+  dog           Dog          @relation(fields: [dogId], references: [id])
+  date          DateTime
+  type          CareTaskType
+  description   String
+  completedById String?
+  completedBy   User?        @relation("CareTaskCompletedBy", fields: [completedById], references: [id])
+  completedAt   DateTime?
+  notes         String?
+
+  @@index([bookingId])
+  @@index([date])
+}
+
+model IncidentReport {
+  id           String   @id @default(cuid())
+  bookingId    String
+  booking      Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  dogId        String
+  dog          Dog      @relation(fields: [dogId], references: [id])
+  reportedById String
+  reportedBy   User     @relation("IncidentReportedBy", fields: [reportedById], references: [id])
+  description  String
+  severity     String
+  createdAt    DateTime @default(now())
+
+  @@index([dogId])
+}
+
+model BlockedDate {
+  id           String      @id @default(cuid())
+  date         DateTime
+  kennelUnitId String?
+  kennelUnit   KennelUnit? @relation(fields: [kennelUnitId], references: [id])
+  reason       String?
+
+  @@index([date])
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  message   String
+  handled   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model Setting {
+  key   String @id
+  value String
+}
+
+model MediaItem {
+  id           String     @id @default(cuid())
+  type         MediaType
+  url          String
+  thumbnailUrl String?
+  caption      String?
+  altText      String?
+  category     String?
+  sortOrder    Int        @default(0)
+  usage        MediaUsage
+  createdAt    DateTime   @default(now())
+
+  pupdates Pupdate[]
+}
+
+model Testimonial {
+  id      String  @id @default(cuid())
+  author  String
+  text    String
+  visible Boolean @default(true)
+}
+
+model Faq {
+  id        String @id @default(cuid())
+  question  String
+  answer    String
+  sortOrder Int    @default(0)
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  actor     User     @relation("AuditActor", fields: [actorId], references: [id])
+  action    String
+  entity    String
+  entityId  String
+  meta      String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+}
+
+// ---------------------------------------------------------------------------
+// Extended features (§13.4)
+// ---------------------------------------------------------------------------
+
+model Pupdate {
+  id          String     @id @default(cuid())
+  bookingId   String
+  booking     Booking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  dogId       String
+  dog         Dog        @relation(fields: [dogId], references: [id])
+  staffId     String
+  mediaItemId String?
+  mediaItem   MediaItem? @relation(fields: [mediaItemId], references: [id])
+  note        String?
+  createdAt   DateTime   @default(now())
+}
+
+model Subscription {
+  id                   String    @id @default(cuid())
+  customerId           String
+  customer             User      @relation(fields: [customerId], references: [id])
+  serviceId            String
+  service              Service   @relation(fields: [serviceId], references: [id])
+  dogId                String
+  dog                  Dog       @relation(fields: [dogId], references: [id])
+  weekdays             String
+  slot                 String
+  stripeSubscriptionId String?   @unique
+  status               String
+  pausedUntil          DateTime?
+}
+
+model WaitlistEntry {
+  id             String         @id @default(cuid())
+  customerId     String
+  customer       User           @relation(fields: [customerId], references: [id])
+  serviceId      String
+  service        Service        @relation(fields: [serviceId], references: [id])
+  dogId          String
+  dog            Dog            @relation(fields: [dogId], references: [id])
+  date           DateTime
+  createdAt      DateTime       @default(now())
+  status         WaitlistStatus @default(WAITING)
+  offerExpiresAt DateTime?
+}
+
+model TrialVisit {
+  id          String        @id @default(cuid())
+  dogId       String
+  dog         Dog           @relation(fields: [dogId], references: [id])
+  bookingId   String
+  booking     Booking       @relation(fields: [bookingId], references: [id])
+  outcome     TrialOutcome?
+  notes       String?
+  completedAt DateTime?
+}
+
+model Review {
+  id         String       @id @default(cuid())
+  customerId String
+  customer   User         @relation(fields: [customerId], references: [id])
+  bookingId  String
+  rating     Int
+  text       String?
+  status     ReviewStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+}
+
+model Voucher {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  amountPence    Int
+  remainingPence Int
+  purchaserId    String?
+  purchaser      User?     @relation("VoucherPurchaser", fields: [purchaserId], references: [id])
+  recipientEmail String?
+  expiresAt      DateTime?
+  status         String
+}
+
+model CreditLedger {
+  id          String   @id @default(cuid())
+  customerId  String
+  customer    User     @relation(fields: [customerId], references: [id])
+  amountPence Int
+  reason      String
+  bookingId   String?
+  createdAt   DateTime @default(now())
+}
+
+model PriceRule {
+  id                 String   @id @default(cuid())
+  serviceId          String
+  service            Service  @relation(fields: [serviceId], references: [id])
+  startDate          DateTime
+  endDate            DateTime
+  multiplier         Float?
+  overridePricePence Int?
+  minNights          Int?
+  label              String
+}
+
+model DogFlag {
+  id    String      @id @default(cuid())
+  dogId String
+  dog   Dog         @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  type  DogFlagType
+  notes String?
+}
+
+model Agreement {
+  id          String   @id @default(cuid())
+  version     String
+  text        String
+  publishedAt DateTime @default(now())
+  active      Boolean  @default(true)
+
+  signedAgreements SignedAgreement[]
+}
+
+model SignedAgreement {
+  id          String    @id @default(cuid())
+  agreementId String
+  agreement   Agreement @relation(fields: [agreementId], references: [id])
+  customerId  String
+  customer    User      @relation(fields: [customerId], references: [id])
+  signedName  String
+  signedAt    DateTime  @default(now())
+  ipAddress   String
+  pdfUrl      String?
+}
+
+model NotificationPreference {
+  customerId String              @id
+  customer   User                @relation(fields: [customerId], references: [id])
+  channel    NotificationChannel @default(EMAIL)
+  perType    String?
+}
+
+model MessageLog {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   User     @relation(fields: [customerId], references: [id])
+  channel    String
+  type       String
+  payload    String?
+  sentAt     DateTime @default(now())
+  status     String
+}
