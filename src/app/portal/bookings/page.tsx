@@ -4,10 +4,20 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { formatPence } from "@/lib/format"
+import { CancelBookingButton } from "@/components/portal/cancel-booking-button"
 
 export const metadata: Metadata = {
   title: "Bookings",
 }
+
+const NON_CANCELLABLE_STATUSES = [
+  "CHECKED_IN",
+  "CHECKED_OUT",
+  "COMPLETED",
+  "CANCELLED_BY_CUSTOMER",
+  "CANCELLED_BY_ADMIN",
+  "NO_SHOW",
+]
 
 export default async function PortalBookingsPage() {
   const session = await auth()
@@ -33,23 +43,33 @@ export default async function PortalBookingsPage() {
               <div>
                 <p className="font-medium">{booking.service.name}</p>
                 <p className="text-muted-foreground">
-                  {booking.startDate.toLocaleDateString("en-GB")} –{" "}
-                  {booking.endDate.toLocaleDateString("en-GB")}
+                  {booking.startDate.toLocaleDateString("en-GB")}
+                  {booking.endDate.getTime() !== booking.startDate.getTime()
+                    ? ` – ${booking.endDate.toLocaleDateString("en-GB")}`
+                    : ""}
                 </p>
               </div>
-              <div className="text-right">
-                <p className="font-medium">{formatPence(booking.totalPence)}</p>
-                <p className="text-muted-foreground capitalize">
-                  {booking.status.toLowerCase().replace(/_/g, " ")}
-                </p>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="font-medium">{formatPence(booking.totalPence)}</p>
+                  <p className="text-muted-foreground capitalize">
+                    {booking.status.toLowerCase().replace(/_/g, " ")}
+                  </p>
+                </div>
+                {!NON_CANCELLABLE_STATUSES.includes(booking.status) && (
+                  <CancelBookingButton bookingId={booking.id} />
+                )}
               </div>
             </li>
           ))}
         </ul>
       ) : (
         <p className="text-sm text-muted-foreground">
-          You don&rsquo;t have any bookings yet. Online booking is coming soon — in the
-          meantime, get in touch to arrange a stay.
+          You don&rsquo;t have any bookings yet.{" "}
+          <Link href="/book" className="font-medium text-primary hover:underline">
+            Book a stay
+          </Link>
+          .
         </p>
       )}
     </div>

@@ -269,6 +269,22 @@ model KennelUnit {
 
   bookings     Booking[]
   blockedDates BlockedDate[]
+  occupancies  KennelOccupancy[]
+}
+
+// One row per booked night per kennel unit. The unique constraint is what
+// makes double-booking impossible under concurrent requests (PRD §10) —
+// two transactions racing to book the same unit/night can't both insert.
+model KennelOccupancy {
+  id           String     @id @default(cuid())
+  kennelUnitId String
+  kennelUnit   KennelUnit @relation(fields: [kennelUnitId], references: [id])
+  date         DateTime
+  bookingId    String
+  booking      Booking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@unique([kennelUnitId, date])
+  @@index([bookingId])
 }
 
 model Booking {
@@ -288,15 +304,16 @@ model Booking {
   cancellationReason String?
   createdAt          DateTime      @default(now())
 
-  bookingDogs     BookingDog[]
-  bookingAddons   BookingAddon[]
-  payments        Payment[]
-  walkBookings    WalkBooking[]
-  vanRunStops     VanRunStop[]
-  careTasks       CareTask[]
-  incidentReports IncidentReport[]
-  pupdates        Pupdate[]
-  trialVisits     TrialVisit[]
+  bookingDogs       BookingDog[]
+  bookingAddons     BookingAddon[]
+  payments          Payment[]
+  walkBookings      WalkBooking[]
+  vanRunStops       VanRunStop[]
+  careTasks         CareTask[]
+  incidentReports   IncidentReport[]
+  pupdates          Pupdate[]
+  trialVisits       TrialVisit[]
+  kennelOccupancies KennelOccupancy[]
 
   @@index([customerId])
   @@index([serviceId])
