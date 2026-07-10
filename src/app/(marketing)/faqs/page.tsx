@@ -26,14 +26,17 @@ export default async function FaqsPage() {
       </div>
 
       {faqs.length > 0 ? (
-        <Accordion type="single" collapsible className="w-full">
-          {faqs.map((faq) => (
-            <AccordionItem key={faq.id} value={faq.id}>
-              <AccordionTrigger className="text-left">{faq.question}</AccordionTrigger>
-              <AccordionContent>{faq.answer}</AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+        <>
+          <h2 className="sr-only">Questions</h2>
+          <Accordion type="single" collapsible className="w-full">
+            {faqs.map((faq) => (
+              <AccordionItem key={faq.id} value={faq.id}>
+                <AccordionTrigger className="text-left">{faq.question}</AccordionTrigger>
+                <AccordionContent>{faq.answer}</AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </>
       ) : (
         <p className="text-center text-muted-foreground">No FAQs yet.</p>
       )}

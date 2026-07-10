@@ -3,9 +3,11 @@
 import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { getSetting } from "@/lib/settings"
+import { getSetting, getSettings } from "@/lib/settings"
 import { stripe } from "@/lib/stripe"
 import { formatPence } from "@/lib/format"
+import { sendEmail } from "@/lib/email"
+import { cancellationConfirmationEmail } from "@/lib/email-templates"
 
 export type CancelBookingResult = { status: "success"; message: string } | { status: "error"; message: string }
 
@@ -46,7 +48,7 @@ export async function cancelBooking(bookingId: string): Promise<CancelBookingRes
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { payments: true },
+    include: { payments: true, service: true, customer: true },
   })
   if (!booking || booking.customerId !== session.user.id) {
     return { status: "error", message: "Booking not found." }
@@ -106,6 +108,20 @@ export async function cancelBooking(bookingId: string): Promise<CancelBookingRes
     prisma.walkBooking.deleteMany({ where: { bookingId } }),
     prisma.vanRunStop.deleteMany({ where: { bookingId } }),
   ])
+
+  const settings = await getSettings()
+  const email = cancellationConfirmationEmail(
+    settings,
+    {
+      serviceName: booking.service.name,
+      startDate: booking.startDate,
+      endDate: booking.endDate,
+      totalPence: booking.totalPence,
+      depositPence: booking.depositPence,
+    },
+    policyNote
+  )
+  await sendEmail({ to: booking.customer.email, subject: email.subject, html: email.html })
 
   revalidatePath("/portal/bookings")
   return { status: "success", message: policyNote }

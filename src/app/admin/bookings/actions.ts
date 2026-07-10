@@ -10,7 +10,9 @@ import { stripe } from "@/lib/stripe"
 import { startOfDay, nightsBetween } from "@/lib/dates"
 import { findAvailableKennelUnit, isDaycareAvailable } from "@/lib/availability"
 import { computeBookingPrice } from "@/lib/booking-pricing"
-import { getSetting } from "@/lib/settings"
+import { getSetting, getSettings } from "@/lib/settings"
+import { sendEmail } from "@/lib/email"
+import { cancellationConfirmationEmail } from "@/lib/email-templates"
 import { resolveBookingCreation, type BookingCreationResult } from "@/app/(marketing)/book/actions"
 
 export type AdminActionState = { status: "idle" | "error"; message?: string }
@@ -396,7 +398,7 @@ export async function cancelBookingAdmin(
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { payments: true },
+    include: { payments: true, service: true, customer: true },
   })
   if (!booking) return { status: "error", message: "Booking not found." }
   if (NON_MODIFIABLE_STATUSES.includes(booking.status)) {
@@ -423,6 +425,24 @@ export async function cancelBookingAdmin(
     prisma.walkBooking.deleteMany({ where: { bookingId } }),
     prisma.vanRunStop.deleteMany({ where: { bookingId } }),
   ])
+
+  const settings = await getSettings()
+  const policyNote =
+    refundedPence > 0
+      ? `Cancelled by our team. ${(refundedPence / 100).toLocaleString("en-GB", { style: "currency", currency: "GBP" })} has been refunded.`
+      : "Cancelled by our team."
+  const email = cancellationConfirmationEmail(
+    settings,
+    {
+      serviceName: booking.service.name,
+      startDate: booking.startDate,
+      endDate: booking.endDate,
+      totalPence: booking.totalPence,
+      depositPence: booking.depositPence,
+    },
+    policyNote
+  )
+  await sendEmail({ to: booking.customer.email, subject: email.subject, html: email.html })
 
   revalidatePath(`/admin/bookings/${bookingId}`)
   revalidatePath("/admin/bookings")

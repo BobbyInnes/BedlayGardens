@@ -39,7 +39,7 @@ export async function SiteFooter() {
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold">Explore</h3>
+          <h2 className="text-sm font-semibold">Explore</h2>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {exploreLinks.map((link) => (
               <li key={link.href}>
@@ -52,7 +52,7 @@ export async function SiteFooter() {
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold">Legal</h3>
+          <h2 className="text-sm font-semibold">Legal</h2>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {legalLinks.map((link) => (
               <li key={link.href}>
@@ -65,7 +65,7 @@ export async function SiteFooter() {
         </div>
 
         <div className="space-y-3 text-sm text-muted-foreground">
-          <h3 className="text-sm font-semibold text-foreground">Get in touch</h3>
+          <h2 className="text-sm font-semibold text-foreground">Get in touch</h2>
           {addressLine1 && (
             <div className="flex items-start gap-2">
               <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden="true" />

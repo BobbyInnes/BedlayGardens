@@ -524,6 +524,21 @@ model AuditLog {
   @@index([entity, entityId])
 }
 
+// Tracks which reminder emails have already gone out so daily cron jobs don't
+// resend the same notification (bookingId/vaccinationRecordId + type is the
+// dedupe key — no unique constraint since a booking can receive several
+// distinct reminder types).
+model EmailLog {
+  id                  String   @id @default(cuid())
+  type                String
+  bookingId           String?
+  vaccinationRecordId String?
+  sentAt              DateTime @default(now())
+
+  @@index([type, bookingId])
+  @@index([type, vaccinationRecordId])
+}
+
 // ---------------------------------------------------------------------------
 // Extended features (§13.4)
 // ---------------------------------------------------------------------------

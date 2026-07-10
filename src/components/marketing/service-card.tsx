@@ -40,7 +40,8 @@ export function ServiceCard({
           href={`/services#${slug}`}
           className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
         >
-          Learn more <ArrowRight className="size-4" aria-hidden="true" />
+          Learn more <span className="sr-only">about {name}</span>{" "}
+          <ArrowRight className="size-4" aria-hidden="true" />
         </Link>
       </CardFooter>
     </Card>

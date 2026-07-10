@@ -2,39 +2,58 @@ import { NextResponse } from "next/server"
 import type Stripe from "stripe"
 import { stripe } from "@/lib/stripe"
 import { prisma } from "@/lib/prisma"
+import { sendEmail } from "@/lib/email"
+import { getSettings } from "@/lib/settings"
+import { bookingConfirmationEmail, paymentReceiptEmail } from "@/lib/email-templates"
+
+async function markPaymentSucceededAndNotify(stripePaymentIntentId: string) {
+  const payment = await prisma.payment.findUnique({ where: { stripePaymentIntentId } })
+  if (!payment || payment.status === "SUCCEEDED") return // already processed or unknown
+
+  await prisma.payment.update({ where: { id: payment.id }, data: { status: "SUCCEEDED" } })
+
+  let becameConfirmed = false
+  if (payment.type === "DEPOSIT") {
+    const result = await prisma.booking.updateMany({
+      where: { id: payment.bookingId, status: "PENDING_PAYMENT" },
+      data: { status: "CONFIRMED" },
+    })
+    becameConfirmed = result.count > 0
+  }
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: payment.bookingId },
+    include: { service: true, customer: true },
+  })
+  if (!booking) return
+
+  const settings = await getSettings()
+  const bookingSummary = {
+    serviceName: booking.service.name,
+    startDate: booking.startDate,
+    endDate: booking.endDate,
+    totalPence: booking.totalPence,
+    depositPence: booking.depositPence,
+  }
+
+  const receipt = paymentReceiptEmail(settings, bookingSummary, payment.amountPence, payment.type as "DEPOSIT" | "BALANCE")
+  await sendEmail({ to: booking.customer.email, subject: receipt.subject, html: receipt.html })
+
+  if (becameConfirmed) {
+    const confirmation = bookingConfirmationEmail(settings, bookingSummary)
+    await sendEmail({ to: booking.customer.email, subject: confirmation.subject, html: confirmation.html })
+  }
+}
 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
   const paymentIntentId =
     typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id
   if (!paymentIntentId) return
-
-  const payment = await prisma.payment.findUnique({ where: { stripePaymentIntentId: paymentIntentId } })
-  if (!payment || payment.status === "SUCCEEDED") return // already processed or unknown
-
-  await prisma.payment.update({ where: { id: payment.id }, data: { status: "SUCCEEDED" } })
-
-  if (payment.type === "DEPOSIT") {
-    await prisma.booking.updateMany({
-      where: { id: payment.bookingId, status: "PENDING_PAYMENT" },
-      data: { status: "CONFIRMED" },
-    })
-  }
+  await markPaymentSucceededAndNotify(paymentIntentId)
 }
 
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
-  const payment = await prisma.payment.findUnique({
-    where: { stripePaymentIntentId: paymentIntent.id },
-  })
-  if (!payment || payment.status === "SUCCEEDED") return
-
-  await prisma.payment.update({ where: { id: payment.id }, data: { status: "SUCCEEDED" } })
-
-  if (payment.type === "DEPOSIT") {
-    await prisma.booking.updateMany({
-      where: { id: payment.bookingId, status: "PENDING_PAYMENT" },
-      data: { status: "CONFIRMED" },
-    })
-  }
+  await markPaymentSucceededAndNotify(paymentIntent.id)
 }
 
 async function handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent) {
