@@ -46,3 +46,7 @@ next-env.d.ts
 # database (dev)
 /dev.db
 /dev.db-journal
+
+# private file storage (uploads: vaccination certs, dog photos)
+/storage/uploads/*
+!/storage/uploads/.gitkeep
