@@ -9,15 +9,6 @@ import { LOCAL_AREAS, LOCAL_SEO_SERVICE_SLUGS, findLocalArea } from "@/lib/local
 
 export const revalidate = 3600
 
-export async function generateStaticParams() {
-  const services = await prisma.service.findMany({
-    where: { active: true, slug: { in: LOCAL_SEO_SERVICE_SLUGS } },
-  })
-  return LOCAL_AREAS.flatMap((area) =>
-    services.map((service) => ({ area: area.slug, service: service.slug }))
-  )
-}
-
 async function loadPageData(areaSlug: string, serviceSlug: string) {
   const area = findLocalArea(areaSlug)
   if (!area || !LOCAL_SEO_SERVICE_SLUGS.includes(serviceSlug)) return null
