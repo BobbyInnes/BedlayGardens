@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { formatPence } from "@/lib/format"
 import { createBooking, type BookingActionState } from "@/app/(marketing)/book/actions"
+import { joinWaitlist } from "@/app/portal/waitlist/actions"
 
 type PricingModel = "PER_NIGHT" | "PER_DAY" | "PER_SESSION"
 
@@ -51,8 +52,10 @@ export function BookingWizard({
 }) {
   const isBoarding = service.slug === "overnight-boarding"
   const isDaycare = service.slug === "daycare"
+  const isMeetGreet = service.slug === "meet-greet"
   const isForestWalk = service.slug === "secure-forest-walks"
   const isDogWalking = service.slug === "dog-walking"
+  const isDateBased = isDaycare || isMeetGreet
 
   const steps = isBoarding
     ? (["dates", "dogs", "addons", "review"] as const)
@@ -75,6 +78,9 @@ export function BookingWizard({
   const [availabilityChecked, setAvailabilityChecked] = React.useState(false)
   const [available, setAvailable] = React.useState<boolean | null>(null)
   const [checkingAvailability, setCheckingAvailability] = React.useState(false)
+  const [waitlistDogId, setWaitlistDogId] = React.useState("")
+  const [waitlistMessage, setWaitlistMessage] = React.useState<string | null>(null)
+  const [joiningWaitlist, setJoiningWaitlist] = React.useState(false)
 
   // Dogs
   const [selectedDogIds, setSelectedDogIds] = React.useState<string[]>([])
@@ -88,6 +94,7 @@ export function BookingWizard({
 
   const [submitting, setSubmitting] = React.useState(false)
   const [submitError, setSubmitError] = React.useState<string | null>(null)
+  const [requiresTrialVisit, setRequiresTrialVisit] = React.useState(false)
 
   const dogCount = selectedDogIds.length || 1
 
@@ -119,15 +126,28 @@ export function BookingWizard({
         const res = await fetch(`/api/book/availability?${params}`)
         const data = await res.json()
         setAvailable(!!data.available)
-      } else if (isDaycare) {
+      } else if (isDateBased) {
         const params = new URLSearchParams({ serviceSlug: service.slug, date })
         const res = await fetch(`/api/book/availability?${params}`)
         const data = await res.json()
         setAvailable(!!data.available)
       }
       setAvailabilityChecked(true)
+      setWaitlistMessage(null)
     } finally {
       setCheckingAvailability(false)
+    }
+  }
+
+  async function handleJoinWaitlist() {
+    const dogId = dogs.length === 1 ? dogs[0].id : waitlistDogId
+    if (!dogId) return
+    setJoiningWaitlist(true)
+    try {
+      const result = await joinWaitlist(service.slug, dogId, date)
+      setWaitlistMessage(result.message ?? null)
+    } finally {
+      setJoiningWaitlist(false)
     }
   }
 
@@ -148,9 +168,11 @@ export function BookingWizard({
       ? endDate
       : isDaycare
         ? date
-        : isForestWalk
-          ? walkSlots.find((s) => s.id === selectedSlotId)?.date
-          : vanRuns.find((r) => r.id === selectedRunId)?.date
+        : isMeetGreet
+          ? undefined
+          : isForestWalk
+            ? walkSlots.find((s) => s.id === selectedSlotId)?.date
+            : vanRuns.find((r) => r.id === selectedRunId)?.date
 
     if (!throughDate) {
       setStepIndex((i) => i + 1)
@@ -194,6 +216,7 @@ export function BookingWizard({
   async function handleSubmit() {
     setSubmitting(true)
     setSubmitError(null)
+    setRequiresTrialVisit(false)
     try {
       const result: BookingActionState = await createBooking({
         serviceSlug: service.slug,
@@ -201,7 +224,7 @@ export function BookingWizard({
         addons: selectedAddonIds.map((addonId) => ({ addonId, quantity: 1 })),
         startDate: isBoarding ? startDate : undefined,
         endDate: isBoarding ? endDate : undefined,
-        date: isDaycare ? date : undefined,
+        date: isDateBased ? date : undefined,
         walkSlotId: isForestWalk ? selectedSlotId : undefined,
         vanRunId: isDogWalking ? selectedRunId : undefined,
         pickupAddress: isDogWalking ? pickupAddress : undefined,
@@ -211,6 +234,7 @@ export function BookingWizard({
       if (result?.status === "error") {
         setSubmitError(result.message ?? "Something went wrong.")
         if (result.missingVaccinations) setVaccinationWarning(result.missingVaccinations)
+        if (result.requiresTrialVisit) setRequiresTrialVisit(true)
       }
     } finally {
       setSubmitting(false)
@@ -264,7 +288,7 @@ export function BookingWizard({
             </div>
           )}
 
-          {isDaycare && (
+          {isDateBased && (
             <div className="space-y-2">
               <Label htmlFor="date">Date</Label>
               <Input
@@ -365,7 +389,7 @@ export function BookingWizard({
             </div>
           )}
 
-          {(isBoarding || isDaycare) && (
+          {(isBoarding || isDateBased) && (
             <div className="space-y-2">
               <Button
                 variant="outline"
@@ -379,6 +403,37 @@ export function BookingWizard({
                   {available ? "Available!" : "Sorry, not available for these dates."}
                 </p>
               )}
+              {availabilityChecked && !available && isDateBased && (
+                <div className="space-y-2 rounded-md border border-border p-3">
+                  <p className="text-sm text-muted-foreground">
+                    Join the waitlist and we&rsquo;ll email you the moment a space opens up.
+                  </p>
+                  {dogs.length > 1 && (
+                    <select
+                      value={waitlistDogId}
+                      onChange={(e) => setWaitlistDogId(e.target.value)}
+                      className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                    >
+                      <option value="">Select a dog</option>
+                      {dogs.map((dog) => (
+                        <option key={dog.id} value={dog.id}>
+                          {dog.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={joiningWaitlist || (dogs.length > 1 && !waitlistDogId) || dogs.length === 0}
+                    onClick={handleJoinWaitlist}
+                  >
+                    {joiningWaitlist ? "Joining…" : "Join waitlist"}
+                  </Button>
+                  {waitlistMessage && <p className="text-sm">{waitlistMessage}</p>}
+                </div>
+              )}
             </div>
           )}
 
@@ -386,7 +441,7 @@ export function BookingWizard({
             onClick={() => setStepIndex((i) => i + 1)}
             disabled={
               (isBoarding && !available) ||
-              (isDaycare && !available) ||
+              (isDateBased && !available) ||
               (isForestWalk && !selectedSlotId) ||
               (isDogWalking && (!selectedRunId || !pickupAddress || !postcode))
             }
@@ -537,6 +592,11 @@ export function BookingWizard({
           </div>
 
           <p className="text-xs text-muted-foreground">
+            Prices shown are our standard rates — peak-season pricing, if it applies to these dates,
+            is calculated when you confirm and shown on your booking confirmation.
+          </p>
+
+          <p className="text-xs text-muted-foreground">
             Online payment is coming soon. Confirming now reserves your booking with a
             balance to be arranged directly until Stripe checkout is enabled.
           </p>
@@ -550,6 +610,14 @@ export function BookingWizard({
             </Button>
           </div>
           {submitError && <p className="text-sm text-destructive">{submitError}</p>}
+          {requiresTrialVisit && (
+            <p className="text-sm text-muted-foreground">
+              <Link href="/book/meet-greet" className="font-medium text-primary hover:underline">
+                Book a meet & greet trial visit
+              </Link>{" "}
+              first.
+            </p>
+          )}
         </div>
       )}
     </div>

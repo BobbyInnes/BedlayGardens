@@ -10,11 +10,16 @@ import { getSettings } from "@/lib/settings"
 export const revalidate = 60
 
 export default async function HomePage() {
-  const [settings, services, testimonials, hero] = await Promise.all([
+  const [settings, services, testimonials, hero, approvedReviews] = await Promise.all([
     getSettings(),
     prisma.service.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
     prisma.testimonial.findMany({ where: { visible: true }, take: 6 }),
     prisma.mediaItem.findFirst({ where: { usage: "HERO" } }),
+    prisma.review.findMany({
+      where: { status: "APPROVED" },
+      orderBy: { createdAt: "desc" },
+      include: { customer: true },
+    }),
   ])
 
   const businessName = settings.business_name ?? "Bedlay Gardens Kennels"
@@ -109,6 +114,33 @@ export default async function HomePage() {
                 </figure>
               ))}
             </div>
+          </div>
+        </section>
+      )}
+
+      {approvedReviews.length > 0 && (
+        <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+          <h2 className="mb-10 text-center text-2xl font-semibold tracking-tight sm:text-3xl">
+            Recent reviews
+          </h2>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {approvedReviews.slice(0, 6).map((review) => (
+              <figure
+                key={review.id}
+                className="flex h-full flex-col gap-3 rounded-xl border border-border bg-card p-6"
+              >
+                <span className="text-primary" aria-hidden="true">
+                  {"★".repeat(review.rating)}
+                  {"☆".repeat(5 - review.rating)}
+                </span>
+                {review.text && (
+                  <blockquote className="flex-1 text-sm text-card-foreground">“{review.text}”</blockquote>
+                )}
+                <figcaption className="text-sm font-medium text-muted-foreground">
+                  — {review.customer.name.split(" ")[0]}
+                </figcaption>
+              </figure>
+            ))}
           </div>
         </section>
       )}

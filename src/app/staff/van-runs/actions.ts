@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { sendEmail } from "@/lib/email"
+import { notifyCustomer } from "@/lib/notify"
 
 const STATUS_MESSAGES: Record<string, string> = {
   COLLECTED: "Your dog has been collected for their walk.",
@@ -36,10 +36,10 @@ export async function updateVanRunStopStatus(
   })
 
   if (status === "COLLECTED" || status === "DROPPED_OFF") {
-    await sendEmail({
-      to: stop.booking.customer.email,
+    await notifyCustomer(stop.booking.customerId, "PICKUP_DROPOFF", {
       subject: `${stop.dog.name} — dog walking update`,
       html: `<p>${STATUS_MESSAGES[status]}</p>`,
+      smsBody: `${stop.dog.name}: ${STATUS_MESSAGES[status]}`,
     })
   }
 

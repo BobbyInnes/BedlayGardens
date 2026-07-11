@@ -5,6 +5,16 @@ import { ProfileForm } from "@/components/portal/profile-form"
 import { PasswordForm } from "@/components/portal/password-form"
 import { DeleteAccountDialog } from "@/components/portal/delete-account-dialog"
 import { BillingPortalButton } from "@/components/portal/billing-portal-button"
+import { NotificationPreferenceForm } from "@/components/portal/notification-preference-form"
+import { AbandonedBookingOptOut } from "@/components/portal/abandoned-booking-optout"
+
+function parsePerType(perType: string | null | undefined): Record<string, string> {
+  try {
+    return JSON.parse(perType ?? "{}")
+  } catch {
+    return {}
+  }
+}
 
 export const metadata: Metadata = {
   title: "Account",
@@ -12,7 +22,11 @@ export const metadata: Metadata = {
 
 export default async function AccountPage() {
   const session = await auth()
-  const user = await prisma.user.findUnique({ where: { id: session!.user.id } })
+  const [user, notificationPreference] = await Promise.all([
+    prisma.user.findUnique({ where: { id: session!.user.id } }),
+    prisma.notificationPreference.findUnique({ where: { customerId: session!.user.id } }),
+  ])
+  const abandonedBookingOptedOut = parsePerType(notificationPreference?.perType).ABANDONED_BOOKING_REMINDER === "off"
 
   return (
     <div className="max-w-2xl space-y-10">
@@ -28,6 +42,18 @@ export default async function AccountPage() {
           phone={user?.phone ?? ""}
           address={user?.address ?? ""}
         />
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Notifications</h2>
+          <p className="text-sm text-muted-foreground">
+            How we contact you for pickup/drop-off updates, balance reminders, check-in reminders,
+            and waitlist offers. SMS requires a phone number on file.
+          </p>
+        </div>
+        <NotificationPreferenceForm channel={notificationPreference?.channel ?? "EMAIL"} />
+        <AbandonedBookingOptOut initialOptedOut={abandonedBookingOptedOut} />
       </section>
 
       {user?.passwordHash && (

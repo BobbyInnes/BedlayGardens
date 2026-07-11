@@ -14,6 +14,9 @@ const CONTENT_TYPES: Record<string, string> = {
   ".pdf": "application/pdf",
   ".webp": "image/webp",
   ".gif": "image/gif",
+  ".mp4": "video/mp4",
+  ".mov": "video/quicktime",
+  ".webm": "video/webm",
 }
 
 function assertSafeKey(key: string) {

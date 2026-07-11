@@ -18,6 +18,7 @@ import {
   createQuickCustomer,
   createQuickDog,
   createManualBooking,
+  signAgreementForPhoneCustomer,
 } from "@/app/admin/bookings/actions"
 
 type PricingModel = "PER_NIGHT" | "PER_DAY" | "PER_SESSION"
@@ -65,9 +66,15 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
 
   const [submitting, setSubmitting] = React.useState(false)
   const [submitError, setSubmitError] = React.useState<string | null>(null)
+  const [compatibilityBlocked, setCompatibilityBlocked] = React.useState(false)
+  const [requiresAgreement, setRequiresAgreement] = React.useState(false)
+  const [agreementSignedName, setAgreementSignedName] = React.useState("")
+  const [signingAgreement, setSigningAgreement] = React.useState(false)
 
   const isBoarding = serviceSlug === "overnight-boarding"
   const isDaycare = serviceSlug === "daycare"
+  const isMeetGreet = serviceSlug === "meet-greet"
+  const isDateBased = isDaycare || isMeetGreet
   const isForestWalk = serviceSlug === "secure-forest-walks"
   const isDogWalking = serviceSlug === "dog-walking"
 
@@ -89,6 +96,7 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
   async function selectCustomer(c: Customer) {
     setCustomer(c)
     setResults([])
+    setAgreementSignedName(c.name)
     const customerDogs = await getCustomerDogs(c.id)
     setDogs(customerDogs)
   }
@@ -102,6 +110,7 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
     }
     if (result.customer) {
       setCustomer(result.customer)
+      setAgreementSignedName(result.customer.name)
       setDogs([])
       setShowNewCustomer(false)
     }
@@ -139,7 +148,7 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
     )
   }
 
-  async function handleSubmit() {
+  async function handleSubmit(overrideCompatibilityFlags = false) {
     if (!customer) return
     setSubmitting(true)
     setSubmitError(null)
@@ -150,19 +159,35 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
         dogIds: selectedDogIds,
         startDate: isBoarding ? startDate : undefined,
         endDate: isBoarding ? endDate : undefined,
-        date: isDaycare ? date : undefined,
+        date: isDateBased ? date : undefined,
         walkSlotId: isForestWalk ? selectedSlotId : undefined,
         vanRunId: isDogWalking ? selectedRunId : undefined,
         pickupAddress: isDogWalking ? pickupAddress : undefined,
         accessNotes: isDogWalking ? accessNotes : undefined,
         postcode: isDogWalking ? postcode : undefined,
+        overrideCompatibilityFlags,
       })
       if (result?.status === "error") {
         setSubmitError(result.message ?? "Something went wrong.")
+        setCompatibilityBlocked(!!result.compatibilityBlocked)
+        setRequiresAgreement(!!result.requiresAgreement)
       }
     } finally {
       setSubmitting(false)
     }
+  }
+
+  async function handleSignAgreement() {
+    if (!customer) return
+    setSigningAgreement(true)
+    const result = await signAgreementForPhoneCustomer(customer.id, agreementSignedName)
+    if (result.status === "idle") {
+      setRequiresAgreement(false)
+      setSubmitError(null)
+    } else {
+      setSubmitError(result.message ?? "Could not record the agreement.")
+    }
+    setSigningAgreement(false)
   }
 
   const canSubmit =
@@ -171,7 +196,7 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
     !!serviceSlug &&
     (isBoarding
       ? !!startDate && !!endDate
-      : isDaycare
+      : isDateBased
         ? !!date
         : isForestWalk
           ? !!selectedSlotId
@@ -371,7 +396,7 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
             </div>
           )}
 
-          {isDaycare && (
+          {isDateBased && (
             <div className="space-y-2">
               <Label htmlFor="date">Date</Label>
               <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -465,10 +490,50 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
             Vaccination checks are skipped for phone bookings created here — they&rsquo;ll be verified at
             check-in as normal.
           </p>
-          <Button onClick={handleSubmit} disabled={!canSubmit || submitting}>
+          <Button onClick={() => handleSubmit(false)} disabled={!canSubmit || submitting}>
             {submitting ? "Creating…" : "Create booking"}
           </Button>
           {submitError && <p className="text-sm text-destructive">{submitError}</p>}
+          {compatibilityBlocked && (
+            <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+              <p className="text-xs text-muted-foreground">
+                You can override this and proceed anyway — the override will be logged against the dog.
+              </p>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => handleSubmit(true)}
+                disabled={submitting}
+              >
+                Override and create booking anyway
+              </Button>
+            </div>
+          )}
+          {requiresAgreement && (
+            <div className="space-y-2 rounded-md border border-border bg-muted/50 p-3">
+              <p className="text-xs text-muted-foreground">
+                Read the boarding agreement to the customer, get their verbal consent, then type their
+                name to record it on their behalf.
+              </p>
+              <div className="flex flex-wrap items-end gap-2">
+                <Input
+                  value={agreementSignedName}
+                  onChange={(e) => setAgreementSignedName(e.target.value)}
+                  placeholder="Customer's full name"
+                  className="w-56"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={signingAgreement || !agreementSignedName.trim()}
+                  onClick={handleSignAgreement}
+                >
+                  {signingAgreement ? "Recording…" : "Record verbal agreement"}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

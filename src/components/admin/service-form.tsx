@@ -77,6 +77,18 @@ export function ServiceForm({
         </div>
       </div>
 
+      <label className="flex items-start gap-3 text-sm">
+        <input
+          type="checkbox"
+          name="requiresTrial"
+          defaultChecked={service?.requiresTrial}
+          className="mt-0.5 size-4 rounded border-input"
+        />
+        <span>
+          Requires a passed meet & greet trial visit before a dog&rsquo;s first booking
+        </span>
+      </label>
+
       <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : submitLabel}
       </Button>

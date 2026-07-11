@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { getSettings } from "@/lib/settings"
+import { hasCurrentSignedAgreement } from "@/lib/agreement"
 import { BookingWizard } from "@/components/marketing/booking-wizard"
 
 export async function generateMetadata({
@@ -28,6 +29,10 @@ export default async function BookServicePage({
 
   const service = await prisma.service.findUnique({ where: { slug } })
   if (!service || !service.active) notFound()
+
+  if (!(await hasCurrentSignedAgreement(session.user.id))) {
+    redirect(`/portal/agreement?returnTo=/book/${slug}`)
+  }
 
   const [dogs, addons, settings] = await Promise.all([
     prisma.dog.findMany({ where: { ownerId: session.user.id }, orderBy: { name: "asc" } }),

@@ -162,6 +162,110 @@ export function vaccinationExpiryWarningEmail(
   }
 }
 
+export function pupdateEmail(
+  branding: EmailBranding,
+  dogName: string,
+  note: string | null
+): { subject: string; html: string } {
+  return {
+    subject: `A new pupdate for ${dogName}!`,
+    html: layout(
+      branding,
+      `A new pupdate for ${dogName}`,
+      `
+        <p>Our team just shared a new photo or video from ${dogName}'s stay${note ? `, along with this note:` : "."}</p>
+        ${note ? `<p style="margin: 16px 0; font-style: italic;">&ldquo;${note}&rdquo;</p>` : ""}
+        <p>Log in to your account to view and download it.</p>
+      `
+    ),
+  }
+}
+
+export function waitlistOfferEmail(
+  branding: EmailBranding,
+  serviceName: string,
+  date: Date,
+  hoursWindow: number
+): { subject: string; html: string } {
+  const dateLabel = date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+  return {
+    subject: `A space just opened up — ${serviceName} on ${dateLabel}`,
+    html: layout(
+      branding,
+      "A space is available",
+      `
+        <p>A space has come up for <strong>${serviceName}</strong> on ${dateLabel} — you're first on the waitlist.</p>
+        <p>Log in to your account and claim it within <strong>${hoursWindow} hours</strong>, or it'll be offered to the next person waiting.</p>
+      `
+    ),
+  }
+}
+
+export function reviewRequestEmail(
+  branding: EmailBranding & { google_business_review_url?: string },
+  serviceName: string,
+  dogName: string
+): { subject: string; html: string } {
+  return {
+    subject: `How was ${dogName}'s stay?`,
+    html: layout(
+      branding,
+      "We'd love your feedback",
+      `
+        <p>We hope ${dogName} had a great time with us for their ${serviceName}. Would you mind leaving a quick rating and review?</p>
+        <p>Log in to your account to leave one — it only takes a minute.</p>
+        ${
+          branding.google_business_review_url
+            ? `<p>Prefer Google? <a href="${branding.google_business_review_url}">Leave us a review on Google</a> too — it really helps other dog owners find us.</p>`
+            : ""
+        }
+      `
+    ),
+  }
+}
+
+export function voucherDeliveryEmail(
+  branding: EmailBranding,
+  code: string,
+  amountPence: number,
+  fromName: string
+): { subject: string; html: string } {
+  return {
+    subject: `You've received a ${formatPence(amountPence)} gift voucher!`,
+    html: layout(
+      branding,
+      "You've been sent a gift voucher",
+      `
+        <p>${fromName} has sent you a gift voucher worth <strong>${formatPence(amountPence)}</strong> to use on any of our services.</p>
+        <p style="margin: 16px 0; font-size: 20px; font-weight: bold; letter-spacing: 2px;">${code}</p>
+        <p>Log in or create an account and enter this code at checkout to redeem it.</p>
+      `
+    ),
+  }
+}
+
+export function abandonedBookingReminderEmail(
+  branding: EmailBranding,
+  booking: BookingSummary,
+  resumeUrl: string,
+  isSecondNudge: boolean
+): { subject: string; html: string } {
+  return {
+    subject: isSecondNudge
+      ? `Still want to book? ${booking.serviceName} is waiting for you`
+      : `You're almost done — finish booking ${booking.serviceName}`,
+    html: layout(
+      branding,
+      isSecondNudge ? "Your booking is still waiting" : "Complete your booking",
+      `
+        <p>You started booking <strong>${booking.serviceName}</strong> for ${dateRange(booking.startDate, booking.endDate)} but haven't paid the deposit yet.</p>
+        <p style="margin: 16px 0;"><a href="${resumeUrl}" style="color: #3f5a3a; font-weight: bold;">Finish your booking →</a></p>
+        <p>If you no longer want this booking, you can simply ignore this email — it won't be confirmed until the deposit is paid.</p>
+      `
+    ),
+  }
+}
+
 export function cancellationConfirmationEmail(
   branding: EmailBranding,
   booking: BookingSummary,

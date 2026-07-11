@@ -3,6 +3,7 @@ import { auth } from "@/auth"
 import {
   findAvailableKennelUnit,
   isDaycareAvailable,
+  isMeetGreetAvailable,
   listAvailableVanRuns,
   listAvailableWalkSlots,
 } from "@/lib/availability"
@@ -31,6 +32,13 @@ export async function GET(request: Request) {
     const date = searchParams.get("date")
     if (!date) return NextResponse.json({ error: "Missing date" }, { status: 400 })
     const result = await isDaycareAvailable(new Date(date))
+    return NextResponse.json(result)
+  }
+
+  if (serviceSlug === "meet-greet") {
+    const date = searchParams.get("date")
+    if (!date) return NextResponse.json({ error: "Missing date" }, { status: 400 })
+    const result = await isMeetGreetAvailable(new Date(date))
     return NextResponse.json(result)
   }
 

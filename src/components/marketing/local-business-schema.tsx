@@ -1,7 +1,15 @@
+import { prisma } from "@/lib/prisma"
 import { getSettings } from "@/lib/settings"
 
 export async function LocalBusinessSchema() {
-  const settings = await getSettings()
+  const [settings, approvedReviews] = await Promise.all([
+    getSettings(),
+    prisma.review.findMany({ where: { status: "APPROVED" }, select: { rating: true } }),
+  ])
+
+  const reviewCount = approvedReviews.length
+  const averageRating =
+    reviewCount > 0 ? approvedReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount : null
 
   const schema = {
     "@context": "https://schema.org",
@@ -26,6 +34,14 @@ export async function LocalBusinessSchema() {
           }
         : undefined,
     openingHours: settings.opening_hours,
+    aggregateRating:
+      averageRating != null
+        ? {
+            "@type": "AggregateRating",
+            ratingValue: averageRating.toFixed(1),
+            reviewCount,
+          }
+        : undefined,
   }
 
   return (

@@ -11,7 +11,9 @@ export default async function StaffVanRunsPage() {
   const runs = await prisma.vanRun.findMany({
     where: { date: today() },
     orderBy: { startTime: "asc" },
-    include: { stops: { include: { dog: true }, orderBy: { sortOrder: "asc" } } },
+    include: {
+      stops: { include: { dog: { include: { flags: true } } }, orderBy: { sortOrder: "asc" } },
+    },
   })
 
   return (
@@ -40,6 +42,7 @@ export default async function StaffVanRunsPage() {
                       pickupAddress={stop.pickupAddress}
                       accessNotes={stop.accessNotes}
                       status={stop.status}
+                      flags={stop.dog.flags}
                     />
                   ))}
                 </ul>

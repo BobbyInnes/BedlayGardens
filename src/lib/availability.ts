@@ -38,18 +38,20 @@ export async function findAvailableKennelUnit(
   return null
 }
 
-export async function isDaycareAvailable(
-  date: Date
+async function isSlottedServiceAvailable(
+  date: Date,
+  serviceSlug: string,
+  capacitySettingKey: string
 ): Promise<{ available: boolean; remaining: number }> {
   const day = startOfDay(date)
   const [capacitySetting, blocked, existingDogCount] = await Promise.all([
-    prisma.setting.findUnique({ where: { key: "daycare_max_capacity" } }),
+    prisma.setting.findUnique({ where: { key: capacitySettingKey } }),
     prisma.blockedDate.count({ where: { kennelUnitId: null, date: day } }),
     prisma.bookingDog.count({
       where: {
         booking: {
           startDate: day,
-          service: { slug: "daycare" },
+          service: { slug: serviceSlug },
           status: { notIn: ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] },
         },
       },
@@ -61,6 +63,18 @@ export async function isDaycareAvailable(
   const capacity = Number(capacitySetting?.value ?? 0)
   const remaining = Math.max(0, capacity - existingDogCount)
   return { available: remaining > 0, remaining }
+}
+
+export async function isDaycareAvailable(
+  date: Date
+): Promise<{ available: boolean; remaining: number }> {
+  return isSlottedServiceAvailable(date, "daycare", "daycare_max_capacity")
+}
+
+export async function isMeetGreetAvailable(
+  date: Date
+): Promise<{ available: boolean; remaining: number }> {
+  return isSlottedServiceAvailable(date, "meet-greet", "meet_greet_max_capacity")
 }
 
 export async function listAvailableWalkSlots(fromDate: Date) {

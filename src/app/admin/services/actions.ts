@@ -27,6 +27,7 @@ const serviceSchema = z.object({
   pricingModel: z.enum(["PER_NIGHT", "PER_DAY", "PER_SESSION"]),
   basePricePence: z.coerce.number().int().min(0),
   sortOrder: z.coerce.number().int().default(0),
+  requiresTrial: z.boolean().default(false),
 })
 
 function readServiceFields(formData: FormData) {
@@ -37,6 +38,7 @@ function readServiceFields(formData: FormData) {
     pricingModel: formData.get("pricingModel"),
     basePricePence: formData.get("basePricePence"),
     sortOrder: formData.get("sortOrder") || "0",
+    requiresTrial: formData.get("requiresTrial") === "on",
   })
 }
 
@@ -163,4 +165,67 @@ export async function deleteAddon(addonId: string) {
   }
   if (addon.serviceId) revalidatePath(`/admin/services/${addon.serviceId}`)
   revalidatePath("/services")
+}
+
+const priceRuleSchema = z
+  .object({
+    label: z.string().trim().min(1, "Label is required").max(200),
+    startDate: z.string().min(1, "Start date is required"),
+    endDate: z.string().min(1, "End date is required"),
+    priceType: z.enum(["multiplier", "override"]),
+    multiplier: z.coerce.number().positive().optional(),
+    overridePricePence: z.coerce.number().int().min(0).optional(),
+    minNights: z.coerce.number().int().min(1).optional(),
+  })
+  .refine((data) => new Date(data.endDate) >= new Date(data.startDate), {
+    message: "End date must be on or after the start date",
+    path: ["endDate"],
+  })
+
+export async function createPriceRule(
+  serviceId: string,
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  await requireAdmin()
+  const parsed = priceRuleSchema.safeParse({
+    label: formData.get("label"),
+    startDate: formData.get("startDate"),
+    endDate: formData.get("endDate"),
+    priceType: formData.get("priceType"),
+    multiplier: formData.get("multiplier") || undefined,
+    overridePricePence: formData.get("overridePricePence") || undefined,
+    minNights: formData.get("minNights") || undefined,
+  })
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
+  }
+  if (parsed.data.priceType === "multiplier" && !parsed.data.multiplier) {
+    return { status: "error", message: "Enter a multiplier (e.g. 1.25 for +25%)." }
+  }
+  if (parsed.data.priceType === "override" && parsed.data.overridePricePence == null) {
+    return { status: "error", message: "Enter an override price." }
+  }
+
+  await prisma.priceRule.create({
+    data: {
+      serviceId,
+      label: parsed.data.label,
+      startDate: new Date(parsed.data.startDate),
+      endDate: new Date(parsed.data.endDate),
+      multiplier: parsed.data.priceType === "multiplier" ? parsed.data.multiplier : null,
+      overridePricePence: parsed.data.priceType === "override" ? parsed.data.overridePricePence : null,
+      minNights: parsed.data.minNights ?? null,
+    },
+  })
+  revalidatePath(`/admin/services/${serviceId}`)
+  return { status: "idle" }
+}
+
+export async function deletePriceRule(priceRuleId: string) {
+  await requireAdmin()
+  const rule = await prisma.priceRule.findUnique({ where: { id: priceRuleId } })
+  if (!rule) return
+  await prisma.priceRule.delete({ where: { id: priceRuleId } })
+  revalidatePath(`/admin/services/${rule.serviceId}`)
 }

@@ -5,6 +5,12 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { today, tomorrow } from "@/lib/staff-dates"
+import { DogFlagBadges } from "@/components/staff/dog-flag-badges"
+import type { DogFlagType } from "@/generated/prisma/client"
+
+function allFlags(bookingDogs: { dog: { flags: { type: DogFlagType; notes: string | null }[] } }[]) {
+  return bookingDogs.flatMap((bd) => bd.dog.flags)
+}
 
 export const metadata: Metadata = {
   title: "Today | Staff",
@@ -23,7 +29,11 @@ export default async function StaffTodayPage() {
         status: { in: ["PENDING_PAYMENT", "CONFIRMED"] },
         service: { slug: { in: ON_SITE_SERVICE_SLUGS } },
       },
-      include: { customer: true, service: true, bookingDogs: { include: { dog: true } } },
+      include: {
+        customer: true,
+        service: true,
+        bookingDogs: { include: { dog: { include: { flags: true } } } },
+      },
       orderBy: { createdAt: "asc" },
     }),
     prisma.booking.findMany({
@@ -32,7 +42,11 @@ export default async function StaffTodayPage() {
         status: "CHECKED_IN",
         service: { slug: { in: ON_SITE_SERVICE_SLUGS } },
       },
-      include: { customer: true, service: true, bookingDogs: { include: { dog: true } } },
+      include: {
+        customer: true,
+        service: true,
+        bookingDogs: { include: { dog: { include: { flags: true } } } },
+      },
       orderBy: { createdAt: "asc" },
     }),
     prisma.booking.findMany({
@@ -44,7 +58,7 @@ export default async function StaffTodayPage() {
         customer: true,
         service: true,
         kennelUnit: true,
-        bookingDogs: { include: { dog: true } },
+        bookingDogs: { include: { dog: { include: { flags: true } } } },
       },
       orderBy: { startDate: "asc" },
     }),
@@ -74,6 +88,7 @@ export default async function StaffTodayPage() {
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm text-muted-foreground">
                     <p>{booking.customer.name}</p>
+                    <DogFlagBadges flags={allFlags(booking.bookingDogs)} />
                     <Button size="sm" asChild>
                       <Link href={`/staff/bookings/${booking.id}/check-in`}>Check in</Link>
                     </Button>
@@ -102,6 +117,7 @@ export default async function StaffTodayPage() {
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm text-muted-foreground">
                     <p>{booking.customer.name}</p>
+                    <DogFlagBadges flags={allFlags(booking.bookingDogs)} />
                     <Button size="sm" asChild>
                       <Link href={`/staff/bookings/${booking.id}/check-out`}>Check out</Link>
                     </Button>
@@ -121,13 +137,14 @@ export default async function StaffTodayPage() {
           <ul className="divide-y divide-border rounded-lg border border-border">
             {inHouse.map((booking) => (
               <li key={booking.id} className="flex items-center justify-between gap-4 p-4 text-sm">
-                <div>
+                <div className="space-y-1">
                   <p className="font-medium">
                     {booking.bookingDogs.map((bd) => bd.dog.name).join(", ")}
                   </p>
                   <p className="text-muted-foreground">
                     {booking.customer.name} — {booking.service.name}
                   </p>
+                  <DogFlagBadges flags={allFlags(booking.bookingDogs)} />
                 </div>
                 <div className="text-right text-muted-foreground">
                   {booking.kennelUnit && <p>{booking.kennelUnit.name}</p>}

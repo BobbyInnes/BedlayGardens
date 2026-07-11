@@ -4,7 +4,8 @@ import { stripe } from "@/lib/stripe"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { getSettings } from "@/lib/settings"
-import { bookingConfirmationEmail, paymentReceiptEmail } from "@/lib/email-templates"
+import { bookingConfirmationEmail, paymentReceiptEmail, voucherDeliveryEmail } from "@/lib/email-templates"
+import { notifySubscriptionPaymentFailed } from "@/lib/subscriptions"
 
 async function markPaymentSucceededAndNotify(stripePaymentIntentId: string) {
   const payment = await prisma.payment.findUnique({ where: { stripePaymentIntentId } })
@@ -45,11 +46,53 @@ async function markPaymentSucceededAndNotify(stripePaymentIntentId: string) {
   }
 }
 
+async function handleVoucherCheckoutCompleted(voucherId: string) {
+  const voucher = await prisma.voucher.findUnique({ where: { id: voucherId }, include: { purchaser: true } })
+  if (!voucher || voucher.status !== "PENDING") return
+
+  await prisma.voucher.update({ where: { id: voucherId }, data: { status: "ACTIVE" } })
+
+  const settings = await getSettings()
+  const recipientEmail = voucher.recipientEmail || voucher.purchaser?.email
+  if (!recipientEmail) return
+  const email = voucherDeliveryEmail(settings, voucher.code, voucher.amountPence, voucher.purchaser?.name ?? "A friend")
+  await sendEmail({ to: recipientEmail, subject: email.subject, html: email.html })
+}
+
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+  if (session.metadata?.voucherId) {
+    await handleVoucherCheckoutCompleted(session.metadata.voucherId)
+    return
+  }
+
+  if (session.mode === "subscription") {
+    const subscriptionId = session.metadata?.subscriptionId
+    const stripeSubscriptionId =
+      typeof session.subscription === "string" ? session.subscription : session.subscription?.id
+    if (!subscriptionId || !stripeSubscriptionId) return
+    await prisma.subscription.update({
+      where: { id: subscriptionId },
+      data: { status: "ACTIVE", stripeSubscriptionId },
+    })
+    return
+  }
+
   const paymentIntentId =
     typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id
   if (!paymentIntentId) return
   await markPaymentSucceededAndNotify(paymentIntentId)
+}
+
+async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
+  const subscriptionField = invoice.parent?.subscription_details?.subscription
+  const stripeSubscriptionId =
+    typeof subscriptionField === "string" ? subscriptionField : subscriptionField?.id
+  if (!stripeSubscriptionId) return
+
+  const subscription = await prisma.subscription.findFirst({ where: { stripeSubscriptionId } })
+  if (!subscription || subscription.status !== "ACTIVE") return
+
+  await notifySubscriptionPaymentFailed(subscription.id)
 }
 
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
@@ -107,6 +150,9 @@ export async function POST(request: Request) {
         break
       case "charge.refunded":
         await handleChargeRefunded(event.data.object)
+        break
+      case "invoice.payment_failed":
+        await handleInvoicePaymentFailed(event.data.object)
         break
       default:
         break

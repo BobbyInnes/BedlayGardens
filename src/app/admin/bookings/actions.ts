@@ -14,6 +14,10 @@ import { getSetting, getSettings } from "@/lib/settings"
 import { sendEmail } from "@/lib/email"
 import { cancellationConfirmationEmail } from "@/lib/email-templates"
 import { resolveBookingCreation, type BookingCreationResult } from "@/app/(marketing)/book/actions"
+import { getActiveAgreement } from "@/lib/agreement"
+import { offerNextInLine } from "@/lib/waitlist"
+import { generateAgreementPdf } from "@/lib/agreement-pdf"
+import { saveUpload } from "@/lib/storage"
 
 export type AdminActionState = { status: "idle" | "error"; message?: string }
 
@@ -23,6 +27,54 @@ async function requireAdmin() {
     throw new Error("Unauthorized")
   }
   return session
+}
+
+export type SignAgreementForCustomerResult = { status: "idle" | "error"; message?: string }
+
+/**
+ * For phone customers being booked in manually — staff read the agreement
+ * out loud, get verbal consent, and record it themselves rather than the
+ * customer using the self-service e-sign flow.
+ */
+export async function signAgreementForPhoneCustomer(
+  customerId: string,
+  signedName: string
+): Promise<SignAgreementForCustomerResult> {
+  const session = await requireAdmin()
+  if (!signedName.trim()) {
+    return { status: "error", message: "Enter the customer's full name." }
+  }
+
+  const agreement = await getActiveAgreement()
+  if (!agreement) {
+    return { status: "error", message: "No agreement is currently published." }
+  }
+
+  const signedAt = new Date()
+  const businessName = await getSetting("business_name", "Bedlay Gardens Kennels")
+  const pdfBuffer = await generateAgreementPdf({
+    businessName,
+    version: agreement.version,
+    text: agreement.text,
+    signedName: signedName.trim(),
+    signedAt,
+    ipAddress: `phone booking — witnessed by staff (${session.user.email})`,
+  })
+  const pdfUrl = await saveUpload(`agreements/${customerId}`, "agreement.pdf", pdfBuffer)
+
+  await prisma.signedAgreement.create({
+    data: {
+      agreementId: agreement.id,
+      customerId,
+      signedName: signedName.trim(),
+      signedAt,
+      ipAddress: `phone booking — witnessed by staff (${session.user.email})`,
+      pdfUrl,
+    },
+  })
+
+  revalidatePath("/admin/bookings/new")
+  return { status: "idle", message: "Agreement recorded on the customer's behalf." }
 }
 
 export async function searchCustomers(query: string) {
@@ -136,21 +188,27 @@ const manualBookingSchema = z.object({
   pickupAddress: z.string().optional(),
   accessNotes: z.string().optional(),
   postcode: z.string().optional(),
+  overrideCompatibilityFlags: z.boolean().optional(),
 })
 
 export async function createManualBooking(
   input: z.infer<typeof manualBookingSchema>
 ): Promise<BookingCreationResult> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const parsed = manualBookingSchema.safeParse(input)
   if (!parsed.success) {
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid submission." }
   }
 
+  const { overrideCompatibilityFlags, ...bookingInput } = parsed.data
   const result = await resolveBookingCreation(
     parsed.data.customerId,
-    { ...parsed.data, addons: [] },
-    { skipVaccinationGate: true }
+    { ...bookingInput, addons: [] },
+    {
+      skipVaccinationGate: true,
+      overrideCompatibilityFlags,
+      overriddenByUserId: overrideCompatibilityFlags ? session.user.id : undefined,
+    }
   )
   if (result.status === "error") return result
 
@@ -226,9 +284,10 @@ export async function modifyBookingDates(
       await prisma.bookingAddon.findMany({ where: { bookingId } })
     ).reduce((sum, a) => sum + a.pricePence, 0)
     const pricing = await computeBookingPrice({
+      serviceId: booking.serviceId,
       pricingModel: booking.service.pricingModel,
       basePricePence: booking.service.basePricePence,
-      units: nights.length,
+      dates: nights,
       dogCount,
       addons: [],
     })
@@ -425,6 +484,7 @@ export async function cancelBookingAdmin(
     prisma.walkBooking.deleteMany({ where: { bookingId } }),
     prisma.vanRunStop.deleteMany({ where: { bookingId } }),
   ])
+  await offerNextInLine(booking.serviceId, booking.startDate)
 
   const settings = await getSettings()
   const policyNote =

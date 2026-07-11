@@ -13,21 +13,25 @@ export async function GET(
   }
 
   const { key: keyParts } = await params
-  const [category, dogId] = keyParts
-
-  if ((category !== "dogs" && category !== "vaccinations") || !dogId) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 })
-  }
-
-  const dog = await prisma.dog.findUnique({ where: { id: dogId } })
-  if (!dog) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 })
-  }
-
-  const isOwner = dog.ownerId === session.user.id
+  const [category, secondSegment] = keyParts
   const isStaffOrAdmin = session.user.role === "STAFF" || session.user.role === "ADMIN"
-  if (!isOwner && !isStaffOrAdmin) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
+  if (category === "agreements") {
+    const isOwner = secondSegment === session.user.id
+    if (!isOwner && !isStaffOrAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+  } else if (category === "dogs" || category === "vaccinations" || category === "pupdates") {
+    const dog = await prisma.dog.findUnique({ where: { id: secondSegment } })
+    if (!dog) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 })
+    }
+    const isOwner = dog.ownerId === session.user.id
+    if (!isOwner && !isStaffOrAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+  } else {
+    return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 
   const key = keyParts.join("/")

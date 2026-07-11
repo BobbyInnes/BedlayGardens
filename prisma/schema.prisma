@@ -82,6 +82,7 @@ enum MediaUsage {
   HERO
   SERVICE
   ABOUT
+  PUPDATE
 }
 
 enum TrialOutcome {
@@ -203,6 +204,7 @@ model Service {
   basePricePence Int
   active         Boolean      @default(true)
   sortOrder      Int          @default(0)
+  requiresTrial  Boolean      @default(false)
 
   bookings        Booking[]
   addons          Addon[]
@@ -315,6 +317,7 @@ model Booking {
   pupdates          Pupdate[]
   trialVisits       TrialVisit[]
   kennelOccupancies KennelOccupancy[]
+  review            Review?
 
   @@index([customerId])
   @@index([serviceId])
@@ -600,7 +603,8 @@ model Review {
   id         String       @id @default(cuid())
   customerId String
   customer   User         @relation(fields: [customerId], references: [id])
-  bookingId  String
+  bookingId  String       @unique
+  booking    Booking      @relation(fields: [bookingId], references: [id])
   rating     Int
   text       String?
   status     ReviewStatus @default(PENDING)

@@ -7,6 +7,14 @@
     {
       "path": "/api/cron/send-reminders",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/generate-subscription-bookings",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/abandoned-booking-recovery",
+      "schedule": "0 * * * *"
     }
   ]
 }

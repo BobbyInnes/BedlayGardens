@@ -12,7 +12,10 @@ export const metadata: Metadata = {
 }
 
 export default async function AdminMediaPage() {
-  const items = await prisma.mediaItem.findMany({ orderBy: [{ usage: "asc" }, { sortOrder: "asc" }] })
+  const items = await prisma.mediaItem.findMany({
+    where: { usage: { not: "PUPDATE" } },
+    orderBy: [{ usage: "asc" }, { sortOrder: "asc" }],
+  })
 
   return (
     <div className="space-y-8">

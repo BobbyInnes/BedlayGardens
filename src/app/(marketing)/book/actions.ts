@@ -7,10 +7,15 @@ import { Prisma } from "@/generated/prisma/client"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { nightsBetween, startOfDay } from "@/lib/dates"
-import { findAvailableKennelUnit, isDaycareAvailable } from "@/lib/availability"
+import { findAvailableKennelUnit, isDaycareAvailable, isMeetGreetAvailable } from "@/lib/availability"
 import { checkVaccinationGate } from "@/lib/vaccination-gate"
 import { computeBookingPrice } from "@/lib/booking-pricing"
 import { getSetting } from "@/lib/settings"
+import { logAudit } from "@/lib/audit"
+import { GROUP_BLOCKING_FLAGS, SHARED_KENNEL_BLOCKING_FLAG, DOG_FLAG_LABELS } from "@/lib/dog-flags"
+import { hasCurrentSignedAgreement } from "@/lib/agreement"
+import { checkTrialGate } from "@/lib/trial"
+import { getApplicablePriceRules, minNightsRequired } from "@/lib/price-rules"
 
 const addonInputSchema = z.object({ addonId: z.string(), quantity: z.number().int().min(1).max(20) })
 
@@ -32,6 +37,9 @@ export type BookingActionState = {
   status: "idle" | "error"
   message?: string
   missingVaccinations?: { dogName: string; missingTypes: string[] }[]
+  compatibilityBlocked?: boolean
+  requiresAgreement?: boolean
+  requiresTrialVisit?: boolean
 }
 
 function isUniqueConstraintError(error: unknown): boolean {
@@ -43,9 +51,14 @@ export type BookingCreationResult = BookingActionState & { bookingId?: string }
 export async function resolveBookingCreation(
   customerId: string,
   input: z.infer<typeof baseSchema>,
-  options?: { skipVaccinationGate?: boolean }
+  options?: {
+    skipVaccinationGate?: boolean
+    overrideCompatibilityFlags?: boolean
+    overriddenByUserId?: string
+  }
 ): Promise<BookingCreationResult> {
   const skipVaccinationGate = options?.skipVaccinationGate ?? false
+  const overrideCompatibilityFlags = options?.overrideCompatibilityFlags ?? false
   const parsed = baseSchema.safeParse(input)
   if (!parsed.success) {
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid submission." }
@@ -57,9 +70,70 @@ export async function resolveBookingCreation(
     return { status: "error", message: "Service not found." }
   }
 
-  const dogs = await prisma.dog.findMany({ where: { id: { in: data.dogIds } } })
+  const dogs = await prisma.dog.findMany({
+    where: { id: { in: data.dogIds } },
+    include: { flags: true },
+  })
   if (dogs.length !== data.dogIds.length || dogs.some((dog) => dog.ownerId !== customerId)) {
     return { status: "error", message: "One or more dogs could not be found." }
+  }
+
+  if (!(await hasCurrentSignedAgreement(customerId))) {
+    return {
+      status: "error",
+      message: "Please read and sign our current boarding agreement before booking.",
+      requiresAgreement: true,
+    }
+  }
+
+  if (service.requiresTrial) {
+    const missingTrial = await checkTrialGate(service.id, data.dogIds)
+    if (missingTrial.length > 0) {
+      return {
+        status: "error",
+        requiresTrialVisit: true,
+        message: `${missingTrial.join(", ")} ${missingTrial.length === 1 ? "needs" : "need"} a completed meet & greet trial visit before a first ${service.name.toLowerCase()} booking.`,
+      }
+    }
+  }
+
+  if (!overrideCompatibilityFlags) {
+    if (dogs.length > 1) {
+      const noSharedKennelDog = dogs.find((dog) =>
+        dog.flags.some((f) => f.type === SHARED_KENNEL_BLOCKING_FLAG)
+      )
+      if (noSharedKennelDog) {
+        return {
+          status: "error",
+          compatibilityBlocked: true,
+          message: `${noSharedKennelDog.name} is flagged "${DOG_FLAG_LABELS[SHARED_KENNEL_BLOCKING_FLAG]}" and can't be booked into a kennel with another dog. Book separately.`,
+        }
+      }
+    }
+    if (["secure-forest-walks", "dog-walking"].includes(service.slug)) {
+      const flaggedDog = dogs.find((dog) =>
+        dog.flags.some((f) => GROUP_BLOCKING_FLAGS.includes(f.type))
+      )
+      if (flaggedDog) {
+        const flagType = flaggedDog.flags.find((f) => GROUP_BLOCKING_FLAGS.includes(f.type))!.type
+        return {
+          status: "error",
+          compatibilityBlocked: true,
+          message: `${flaggedDog.name} is flagged "${DOG_FLAG_LABELS[flagType]}" and can't join a group session. Please get in touch to arrange this.`,
+        }
+      }
+    }
+  } else if (options?.overriddenByUserId) {
+    const flaggedDogIds = dogs.filter((d) => d.flags.length > 0).map((d) => d.id)
+    for (const dogId of flaggedDogIds) {
+      await logAudit({
+        actorId: options.overriddenByUserId,
+        action: "OVERRIDE_DOG_COMPATIBILITY_FLAG",
+        entity: "Dog",
+        entityId: dogId,
+        meta: `service=${service.slug}`,
+      })
+    }
   }
 
   const addonRecords =
@@ -97,10 +171,20 @@ export async function resolveBookingCreation(
       }
     }
 
+    const peakRules = await getApplicablePriceRules(service.id, nights)
+    const minStay = minNightsRequired(nights, peakRules)
+    if (minStay && nights.length < minStay.minNights) {
+      return {
+        status: "error",
+        message: `${minStay.label} requires a minimum stay of ${minStay.minNights} nights.`,
+      }
+    }
+
     const pricing = await computeBookingPrice({
+      serviceId: service.id,
       pricingModel: service.pricingModel,
       basePricePence: service.basePricePence,
-      units: nights.length,
+      dates: nights,
       dogCount: dogs.length,
       addons: addonRecords.map((addon) => ({
         pricePence: addon.pricePence,
@@ -187,9 +271,10 @@ export async function resolveBookingCreation(
     }
 
     const pricing = await computeBookingPrice({
+      serviceId: service.id,
       pricingModel: service.pricingModel,
       basePricePence: service.basePricePence,
-      units: 1,
+      dates: [date],
       dogCount: dogs.length,
       addons: [],
     })
@@ -252,9 +337,10 @@ export async function resolveBookingCreation(
     }
 
     const pricing = await computeBookingPrice({
+      serviceId: service.id,
       pricingModel: service.pricingModel,
       basePricePence: service.basePricePence,
-      units: 1,
+      dates: [slot.date],
       dogCount: dogs.length,
       addons: [],
     })
@@ -331,9 +417,10 @@ export async function resolveBookingCreation(
     }
 
     const pricing = await computeBookingPrice({
+      serviceId: service.id,
       pricingModel: service.pricingModel,
       basePricePence: service.basePricePence,
-      units: 1,
+      dates: [run.date],
       dogCount: dogs.length,
       addons: [],
     })
@@ -375,6 +462,65 @@ export async function resolveBookingCreation(
 
     if (!booking) {
       return { status: "error", message: "That run just filled up. Please choose another." }
+    }
+    bookingId = booking.id
+  } else if (service.slug === "meet-greet") {
+    if (!data.date) return { status: "error", message: "Select a date." }
+    const date = startOfDay(new Date(data.date))
+
+    const availability = await isMeetGreetAvailable(date)
+    if (availability.remaining < dogs.length) {
+      return { status: "error", message: "Not enough meet & greet capacity on that date." }
+    }
+
+    const pricing = await computeBookingPrice({
+      serviceId: service.id,
+      pricingModel: service.pricingModel,
+      basePricePence: service.basePricePence,
+      dates: [date],
+      dogCount: dogs.length,
+      addons: [],
+    })
+
+    const booking = await prisma.$transaction(async (tx) => {
+      const recheckCount = await tx.bookingDog.count({
+        where: {
+          booking: {
+            startDate: date,
+            service: { slug: "meet-greet" },
+            status: { notIn: ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] },
+          },
+        },
+      })
+      const capacity = Number(await getSetting("meet_greet_max_capacity", "0"))
+      if (recheckCount + dogs.length > capacity) {
+        throw new Error("MEET_GREET_FULL")
+      }
+      const created = await tx.booking.create({
+        data: {
+          customerId,
+          serviceId: service.id,
+          startDate: date,
+          endDate: date,
+          status: "PENDING_PAYMENT",
+          totalPence: pricing.totalPence,
+          depositPence: pricing.depositPence,
+        },
+      })
+      await tx.bookingDog.createMany({
+        data: data.dogIds.map((dogId) => ({ bookingId: created.id, dogId })),
+      })
+      await tx.trialVisit.createMany({
+        data: data.dogIds.map((dogId) => ({ bookingId: created.id, dogId })),
+      })
+      return created
+    }).catch((error) => {
+      if (error instanceof Error && error.message === "MEET_GREET_FULL") return null
+      throw error
+    })
+
+    if (!booking) {
+      return { status: "error", message: "That date just filled up. Please try another date." }
     }
     bookingId = booking.id
   } else {

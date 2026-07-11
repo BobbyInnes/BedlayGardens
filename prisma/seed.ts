@@ -39,6 +39,7 @@ async function main() {
       pricingModel: "PER_NIGHT" as const,
       basePricePence: 3500,
       sortOrder: 1,
+      requiresTrial: true,
     },
     {
       slug: "daycare",
@@ -67,11 +68,20 @@ async function main() {
       basePricePence: 1500,
       sortOrder: 4,
     },
+    {
+      slug: "meet-greet",
+      name: "Meet & Greet",
+      description:
+        "A short trial visit for first-time boarders — lets us get to know your dog and check they're a good fit for kennel life before an overnight stay.",
+      pricingModel: "PER_SESSION" as const,
+      basePricePence: 0,
+      sortOrder: 5,
+    },
   ]
   for (const service of services) {
     await prisma.service.upsert({
       where: { slug: service.slug },
-      update: {},
+      update: { requiresTrial: service.requiresTrial ?? false },
       create: service,
     })
   }
@@ -82,6 +92,11 @@ async function main() {
     { key: "cancellation_free_days", value: "14" },
     { key: "cancellation_no_refund_hours", value: "48" },
     { key: "vat_enabled", value: "false" },
+    { key: "pupdates_included_free", value: "true" },
+    { key: "waitlist_offer_hours", value: "12" },
+    { key: "subscription_pause_notice_days", value: "3" },
+    { key: "abandoned_booking_reminder_hours", value: "2" },
+    { key: "abandoned_booking_second_nudge_hours", value: "24" },
     { key: "opening_hours", value: "Mon-Sun 8:00am-6:00pm" },
     { key: "business_name", value: "Bedlay Gardens Kennels" },
     { key: "business_tagline", value: "Secure countryside boarding near Glasgow" },
@@ -93,6 +108,7 @@ async function main() {
     { key: "business_lat", value: "55.9106" },
     { key: "business_lng", value: "-4.0800" },
     { key: "daycare_max_capacity", value: "10" },
+    { key: "meet_greet_max_capacity", value: "4" },
     { key: "required_vaccine_types", value: "DHPP,Leptospirosis,Kennel Cough" },
     { key: "dog_walking_service_postcodes", value: "G69,G66,G64,G33,G68,G21" },
     { key: "second_dog_discount_percent", value: "20" },

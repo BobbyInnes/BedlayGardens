@@ -91,6 +91,19 @@ export function SettingsForm({ settings }: { settings: Record<string, string> })
         </Label>
       </div>
 
+      <div className="flex items-center gap-2">
+        <input
+          id="pupdates_included_free"
+          name="pupdates_included_free"
+          type="checkbox"
+          defaultChecked={settings.pupdates_included_free === "true"}
+          className="size-4 rounded border-input"
+        />
+        <Label htmlFor="pupdates_included_free" className="font-normal">
+          Pupdates included free with every stay (unticked = paid add-on)
+        </Label>
+      </div>
+
       <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : "Save settings"}
       </Button>

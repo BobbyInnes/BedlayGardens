@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { prisma } from "@/lib/prisma"
 import { today } from "@/lib/staff-dates"
+import { DogFlagBadges } from "@/components/staff/dog-flag-badges"
 
 export const metadata: Metadata = {
   title: "Walk Roster | Staff",
@@ -11,7 +12,9 @@ export default async function StaffWalkRosterPage() {
     where: { date: today() },
     orderBy: { time: "asc" },
     include: {
-      walkBookings: { include: { dog: true, booking: { include: { customer: true } } } },
+      walkBookings: {
+        include: { dog: { include: { flags: true } }, booking: { include: { customer: true } } },
+      },
     },
   })
 
@@ -35,7 +38,10 @@ export default async function StaffWalkRosterPage() {
                 <ul className="divide-y divide-border rounded-lg border border-border">
                   {slot.walkBookings.map((wb) => (
                     <li key={wb.id} className="flex items-center justify-between gap-4 p-3 text-sm">
-                      <span className="font-medium">{wb.dog.name}</span>
+                      <span className="flex items-center gap-2">
+                        <span className="font-medium">{wb.dog.name}</span>
+                        <DogFlagBadges flags={wb.dog.flags} />
+                      </span>
                       <span className="text-muted-foreground">
                         {wb.booking?.customer.name ?? "—"}
                       </span>

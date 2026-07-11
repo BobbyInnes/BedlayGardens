@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { formatPence } from "@/lib/format"
 import { CancelBookingButton } from "@/components/portal/cancel-booking-button"
 import { PayButton } from "@/components/marketing/pay-button"
+import { RedeemCreditForm } from "@/components/portal/redeem-credit-form"
 
 export const metadata: Metadata = {
   title: "Bookings",
@@ -67,23 +68,33 @@ export default async function PortalBookingsPage() {
                       {booking.status.toLowerCase().replace(/_/g, " ")}
                     </p>
                   </div>
-                  {stripe && booking.status === "PENDING_PAYMENT" && !depositPaid && (
-                    <PayButton
-                      bookingId={booking.id}
-                      type="DEPOSIT"
-                      label="Pay deposit"
-                      size="sm"
-                      fullWidth={false}
-                    />
+                  {booking.status === "PENDING_PAYMENT" && !depositPaid && (
+                    <>
+                      {stripe && (
+                        <PayButton
+                          bookingId={booking.id}
+                          type="DEPOSIT"
+                          label="Pay deposit"
+                          size="sm"
+                          fullWidth={false}
+                        />
+                      )}
+                      <RedeemCreditForm bookingId={booking.id} type="DEPOSIT" />
+                    </>
                   )}
-                  {stripe && booking.status === "CONFIRMED" && !balancePaid && balancePence > 0 && (
-                    <PayButton
-                      bookingId={booking.id}
-                      type="BALANCE"
-                      label="Pay balance"
-                      size="sm"
-                      fullWidth={false}
-                    />
+                  {booking.status === "CONFIRMED" && !balancePaid && balancePence > 0 && (
+                    <>
+                      {stripe && (
+                        <PayButton
+                          bookingId={booking.id}
+                          type="BALANCE"
+                          label="Pay balance"
+                          size="sm"
+                          fullWidth={false}
+                        />
+                      )}
+                      <RedeemCreditForm bookingId={booking.id} type="BALANCE" />
+                    </>
                   )}
                   {!NON_CANCELLABLE_STATUSES.includes(booking.status) && (
                     <CancelBookingButton bookingId={booking.id} />

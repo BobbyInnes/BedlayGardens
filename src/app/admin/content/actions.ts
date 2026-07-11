@@ -149,3 +149,49 @@ export async function updateOpeningHours(
   revalidatePath("/contact")
   return { status: "idle", message: "Opening hours updated." }
 }
+
+export async function updateGoogleReviewUrl(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  await requireAdmin()
+  const url = ((formData.get("google_business_review_url") as string | null) ?? "").trim()
+
+  await prisma.setting.upsert({
+    where: { key: "google_business_review_url" },
+    update: { value: url },
+    create: { key: "google_business_review_url", value: url },
+  })
+
+  revalidatePath("/admin/content")
+  return { status: "idle", message: "Google review link updated." }
+}
+
+const agreementSchema = z.object({
+  version: z.string().trim().min(1, "Version label is required").max(50),
+  text: z.string().trim().min(1, "Agreement text is required").max(20000),
+})
+
+export async function publishAgreement(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  await requireAdmin()
+  const parsed = agreementSchema.safeParse({
+    version: formData.get("version"),
+    text: formData.get("text"),
+  })
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
+  }
+
+  await prisma.$transaction([
+    prisma.agreement.updateMany({ where: { active: true }, data: { active: false } }),
+    prisma.agreement.create({
+      data: { version: parsed.data.version, text: parsed.data.text, active: true },
+    }),
+  ])
+
+  revalidatePath("/admin/content")
+  return { status: "idle", message: "New agreement version published — customers will be asked to re-sign." }
+}

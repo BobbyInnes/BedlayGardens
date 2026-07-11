@@ -15,6 +15,8 @@ import {
   FileText,
   UserCircle,
   BarChart3,
+  ListOrdered,
+  Star,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -22,6 +24,7 @@ const navItems = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/occupancy", label: "Occupancy", icon: CalendarDays },
   { href: "/admin/bookings", label: "Bookings", icon: BookOpen },
+  { href: "/admin/waitlist", label: "Waitlist", icon: ListOrdered },
   { href: "/admin/services", label: "Services", icon: Tag },
   { href: "/admin/pricing", label: "Pricing & Capacity", icon: Settings },
   { href: "/admin/van-runs", label: "Van Runs", icon: Truck },
@@ -30,6 +33,7 @@ const navItems = [
   { href: "/admin/media", label: "Media", icon: ImageIcon },
   { href: "/admin/content", label: "Content", icon: FileText },
   { href: "/admin/customers", label: "Customers", icon: UserCircle },
+  { href: "/admin/reviews", label: "Reviews", icon: Star },
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
 ]
 

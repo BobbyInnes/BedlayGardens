@@ -7,7 +7,9 @@ import { getSetting, getSettings } from "@/lib/settings"
 import { stripe } from "@/lib/stripe"
 import { formatPence } from "@/lib/format"
 import { sendEmail } from "@/lib/email"
-import { cancellationConfirmationEmail } from "@/lib/email-templates"
+import { cancellationConfirmationEmail, bookingConfirmationEmail, paymentReceiptEmail } from "@/lib/email-templates"
+import { offerNextInLine } from "@/lib/waitlist"
+import { redeemForCharge } from "@/lib/vouchers"
 
 export type CancelBookingResult = { status: "success"; message: string } | { status: "error"; message: string }
 
@@ -108,6 +110,7 @@ export async function cancelBooking(bookingId: string): Promise<CancelBookingRes
     prisma.walkBooking.deleteMany({ where: { bookingId } }),
     prisma.vanRunStop.deleteMany({ where: { bookingId } }),
   ])
+  await offerNextInLine(booking.serviceId, booking.startDate)
 
   const settings = await getSettings()
   const email = cancellationConfirmationEmail(
@@ -125,4 +128,61 @@ export async function cancelBooking(bookingId: string): Promise<CancelBookingRes
 
   revalidatePath("/portal/bookings")
   return { status: "success", message: policyNote }
+}
+
+export type RedeemCreditResult = { status: "success"; message: string } | { status: "error"; message: string }
+
+export async function redeemCreditForPayment(
+  bookingId: string,
+  type: "DEPOSIT" | "BALANCE",
+  code: string
+): Promise<RedeemCreditResult> {
+  const session = await auth()
+  if (!session?.user) return { status: "error", message: "Unauthorized" }
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { payments: true, service: true, customer: true },
+  })
+  if (!booking || booking.customerId !== session.user.id) {
+    return { status: "error", message: "Booking not found." }
+  }
+
+  const alreadyPaid = booking.payments.some((p) => p.type === type && p.status === "SUCCEEDED")
+  if (alreadyPaid) return { status: "error", message: "This has already been paid." }
+  if (type === "BALANCE" && booking.status !== "CONFIRMED") {
+    return { status: "error", message: "The deposit must be paid before the balance." }
+  }
+
+  const amountDuePence = type === "DEPOSIT" ? booking.depositPence : booking.totalPence - booking.depositPence
+  if (amountDuePence <= 0) return { status: "error", message: "Nothing due." }
+
+  const result = await redeemForCharge(session.user.id, booking.id, amountDuePence, code.trim() || undefined)
+  if (!result.ok) return { status: "error", message: result.message }
+
+  const becameConfirmed = type === "DEPOSIT" && booking.status === "PENDING_PAYMENT"
+  await prisma.$transaction([
+    prisma.payment.create({
+      data: { bookingId: booking.id, type, amountPence: result.appliedPence, status: "SUCCEEDED" },
+    }),
+    ...(becameConfirmed ? [prisma.booking.update({ where: { id: booking.id }, data: { status: "CONFIRMED" } })] : []),
+  ])
+
+  const settings = await getSettings()
+  const bookingSummary = {
+    serviceName: booking.service.name,
+    startDate: booking.startDate,
+    endDate: booking.endDate,
+    totalPence: booking.totalPence,
+    depositPence: booking.depositPence,
+  }
+  const receipt = paymentReceiptEmail(settings, bookingSummary, result.appliedPence, type)
+  await sendEmail({ to: booking.customer.email, subject: receipt.subject, html: receipt.html })
+  if (becameConfirmed) {
+    const confirmation = bookingConfirmationEmail(settings, bookingSummary)
+    await sendEmail({ to: booking.customer.email, subject: confirmation.subject, html: confirmation.html })
+  }
+
+  revalidatePath("/portal/bookings")
+  return { status: "success", message: "Payment covered by your credit/voucher." }
 }

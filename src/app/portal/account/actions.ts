@@ -8,6 +8,7 @@ import { Prisma } from "@/generated/prisma/client"
 import { auth, signOut } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { stripe, getSiteUrl } from "@/lib/stripe"
+import { setOptOut } from "@/lib/notification-preferences"
 
 export type ActionState = { status: "idle" | "success" | "error"; message?: string }
 
@@ -80,6 +81,46 @@ export async function changePassword(
   await prisma.user.update({ where: { id: user.id }, data: { passwordHash: newHash } })
 
   return { status: "success", message: "Password updated." }
+}
+
+const notificationPreferenceSchema = z.object({
+  channel: z.enum(["EMAIL", "SMS", "BOTH"]),
+})
+
+export async function updateNotificationPreference(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const session = await auth()
+  if (!session?.user) return { status: "error", message: "Unauthorized" }
+
+  const parsed = notificationPreferenceSchema.safeParse({ channel: formData.get("channel") })
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
+  }
+
+  if (parsed.data.channel !== "EMAIL") {
+    const user = await prisma.user.findUnique({ where: { id: session.user.id } })
+    if (!user?.phone) {
+      return { status: "error", message: "Add a phone number above before enabling SMS." }
+    }
+  }
+
+  await prisma.notificationPreference.upsert({
+    where: { customerId: session.user.id },
+    update: { channel: parsed.data.channel },
+    create: { customerId: session.user.id, channel: parsed.data.channel },
+  })
+
+  return { status: "success", message: "Notification preference saved." }
+}
+
+export async function setAbandonedBookingOptOut(optedOut: boolean): Promise<ActionState> {
+  const session = await auth()
+  if (!session?.user) return { status: "error", message: "Unauthorized" }
+
+  await setOptOut(session.user.id, "ABANDONED_BOOKING_REMINDER", optedOut)
+  return { status: "success", message: optedOut ? "You won't receive these reminders." : "Reminders re-enabled." }
 }
 
 export async function openBillingPortal(): Promise<ActionState> {

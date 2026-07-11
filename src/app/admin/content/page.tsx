@@ -6,16 +6,20 @@ import { FaqCreateForm } from "@/components/admin/faq-create-form"
 import { FaqListItem } from "@/components/admin/faq-list-item"
 import { TestimonialCreateForm } from "@/components/admin/testimonial-create-form"
 import { TestimonialListItem } from "@/components/admin/testimonial-list-item"
+import { PublishAgreementForm } from "@/components/admin/publish-agreement-form"
+import { GoogleReviewUrlForm } from "@/components/admin/google-review-url-form"
 
 export const metadata: Metadata = {
   title: "Content | Admin",
 }
 
 export default async function AdminContentPage() {
-  const [openingHours, faqs, testimonials] = await Promise.all([
+  const [openingHours, faqs, testimonials, activeAgreement, googleReviewUrl] = await Promise.all([
     getSetting("opening_hours", ""),
     prisma.faq.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.testimonial.findMany({ orderBy: { id: "asc" } }),
+    prisma.agreement.findFirst({ where: { active: true }, orderBy: { publishedAt: "desc" } }),
+    getSetting("google_business_review_url", ""),
   ])
 
   return (
@@ -55,6 +59,19 @@ export default async function AdminContentPage() {
         ) : (
           <p className="text-sm text-muted-foreground">No testimonials yet.</p>
         )}
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold">Boarding agreement</h2>
+        <PublishAgreementForm currentVersion={activeAgreement?.version} currentText={activeAgreement?.text} />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Google Business</h2>
+        <p className="text-sm text-muted-foreground">
+          Included as a link in post-stay review request emails.
+        </p>
+        <GoogleReviewUrlForm url={googleReviewUrl} />
       </section>
     </div>
   )

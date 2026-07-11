@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, ClipboardList, TreePine, Truck, AlertTriangle } from "lucide-react"
+import { LayoutDashboard, ClipboardList, TreePine, Truck, AlertTriangle, HeartHandshake, Camera } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
@@ -10,6 +10,8 @@ const navItems = [
   { href: "/staff/care-schedule", label: "Care Schedule", icon: ClipboardList },
   { href: "/staff/walk-roster", label: "Walk Roster", icon: TreePine },
   { href: "/staff/van-runs", label: "Van Runs", icon: Truck },
+  { href: "/staff/pupdates", label: "Pupdates", icon: Camera },
+  { href: "/staff/trials", label: "Trials", icon: HeartHandshake },
   { href: "/staff/incidents", label: "Incidents", icon: AlertTriangle },
 ]
 

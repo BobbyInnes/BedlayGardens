@@ -4,6 +4,8 @@ import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { updateVanRunStopStatus } from "@/app/staff/van-runs/actions"
+import { DogFlagBadges } from "@/components/staff/dog-flag-badges"
+import type { DogFlagType } from "@/generated/prisma/client"
 
 type Status = "PENDING" | "COLLECTED" | "WALKED" | "DROPPED_OFF"
 
@@ -27,12 +29,14 @@ export function VanRunStopItem({
   pickupAddress,
   accessNotes,
   status,
+  flags = [],
 }: {
   stopId: string
   dogName: string
   pickupAddress: string
   accessNotes: string | null
   status: Status
+  flags?: { type: DogFlagType; notes: string | null }[]
 }) {
   const [current, setCurrent] = React.useState(status)
   const [pending, setPending] = React.useState(false)
@@ -40,8 +44,11 @@ export function VanRunStopItem({
 
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm">
-      <div>
-        <p className="font-medium">{dogName}</p>
+      <div className="space-y-1">
+        <p className="flex items-center gap-2 font-medium">
+          {dogName}
+          <DogFlagBadges flags={flags} />
+        </p>
         <p className="text-muted-foreground">{pickupAddress}</p>
         {accessNotes && <p className="text-muted-foreground">Access: {accessNotes}</p>}
       </div>

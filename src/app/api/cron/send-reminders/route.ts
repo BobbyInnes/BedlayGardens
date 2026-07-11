@@ -2,12 +2,15 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getSettings } from "@/lib/settings"
 import { sendEmail } from "@/lib/email"
+import { notifyCustomer } from "@/lib/notify"
+import { formatPence } from "@/lib/format"
 import { today, tomorrow } from "@/lib/staff-dates"
 import { addDays } from "@/lib/dates"
 import {
   balanceDueReminderEmail,
   checkinReminderEmail,
   vaccinationExpiryWarningEmail,
+  reviewRequestEmail,
 } from "@/lib/email-templates"
 import type { BookingStatus } from "@/generated/prisma/client"
 
@@ -47,7 +50,11 @@ async function sendBalanceDueReminders(settings: Record<string, string>) {
       },
       balancePence
     )
-    await sendEmail({ to: booking.customer.email, subject: email.subject, html: email.html })
+    await notifyCustomer(booking.customerId, "BALANCE_DUE_REMINDER", {
+      subject: email.subject,
+      html: email.html,
+      smsBody: `Balance of ${formatPence(balancePence)} is due soon for your ${booking.service.name} booking.`,
+    })
     await prisma.emailLog.create({ data: { type: "BALANCE_DUE_REMINDER", bookingId: booking.id } })
     sent++
   }
@@ -78,7 +85,12 @@ async function sendCheckinReminders(settings: Record<string, string>) {
       },
       booking.bookingDogs.map((bd) => bd.dog.name)
     )
-    await sendEmail({ to: booking.customer.email, subject: email.subject, html: email.html })
+    const dogNames = booking.bookingDogs.map((bd) => bd.dog.name).join(", ")
+    await notifyCustomer(booking.customerId, "CHECKIN_REMINDER", {
+      subject: email.subject,
+      html: email.html,
+      smsBody: `Reminder: ${dogNames} checks in tomorrow for ${booking.service.name}.`,
+    })
     await prisma.emailLog.create({ data: { type: "CHECKIN_REMINDER", bookingId: booking.id } })
     sent++
   }
@@ -109,6 +121,30 @@ async function sendVaccinationExpiryWarnings(settings: Record<string, string>) {
   return sent
 }
 
+async function sendReviewRequests(settings: Record<string, string>) {
+  const cutoff = addDays(today(), -1)
+  const bookings = await prisma.booking.findMany({
+    where: {
+      status: "CHECKED_OUT",
+      endDate: { lte: cutoff },
+      review: null,
+    },
+    include: { service: true, customer: true, bookingDogs: { include: { dog: true } } },
+  })
+
+  let sent = 0
+  for (const booking of bookings) {
+    if (await alreadySent("REVIEW_REQUEST", { bookingId: booking.id })) continue
+
+    const dogName = booking.bookingDogs[0]?.dog.name ?? "your dog"
+    const email = reviewRequestEmail(settings, booking.service.name, dogName)
+    await sendEmail({ to: booking.customer.email, subject: email.subject, html: email.html })
+    await prisma.emailLog.create({ data: { type: "REVIEW_REQUEST", bookingId: booking.id } })
+    sent++
+  }
+  return sent
+}
+
 export async function GET(request: Request) {
   if (!process.env.CRON_SECRET) {
     return NextResponse.json({ error: "CRON_SECRET is not configured" }, { status: 400 })
@@ -120,11 +156,12 @@ export async function GET(request: Request) {
 
   const settings = await getSettings()
 
-  const [balanceDueReminders, checkinReminders, vaccinationExpiryWarnings] = await Promise.all([
+  const [balanceDueReminders, checkinReminders, vaccinationExpiryWarnings, reviewRequests] = await Promise.all([
     sendBalanceDueReminders(settings),
     sendCheckinReminders(settings),
     sendVaccinationExpiryWarnings(settings),
+    sendReviewRequests(settings),
   ])
 
-  return NextResponse.json({ balanceDueReminders, checkinReminders, vaccinationExpiryWarnings })
+  return NextResponse.json({ balanceDueReminders, checkinReminders, vaccinationExpiryWarnings, reviewRequests })
 }

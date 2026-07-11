@@ -1,5 +1,6 @@
 import type { PricingModel } from "@/generated/prisma/client"
 import { getSettings } from "@/lib/settings"
+import { getApplicablePriceRules, priceForDate } from "@/lib/price-rules"
 
 export type PricedAddon = { pricePence: number; quantity: number }
 
@@ -17,11 +18,17 @@ export type BookingPriceBreakdown = {
  * second-dog discount. Daycare/forest-walks/dog-walking: base price per dog
  * for the single day/session/run — see PRD §14 open question re: exact
  * boarding sharing discount, currently admin-configurable via Settings.
+ *
+ * `dates` is one entry per night for boarding, or a single-entry array for
+ * every other service — each date's rate is looked up individually against
+ * any admin-defined seasonal `PriceRule` for the service before summing, so
+ * a stay spanning into/out of a peak window is priced night-by-night.
  */
 export async function computeBookingPrice(options: {
+  serviceId: string
   pricingModel: PricingModel
   basePricePence: number
-  units: number // nights for boarding, 1 otherwise
+  dates: Date[]
   dogCount: number
   addons: PricedAddon[]
 }): Promise<BookingPriceBreakdown> {
@@ -29,14 +36,18 @@ export async function computeBookingPrice(options: {
   const depositPercent = Number(settings.deposit_percent ?? "25")
   const secondDogDiscountPercent = Number(settings.second_dog_discount_percent ?? "0")
 
+  const rules = await getApplicablePriceRules(options.serviceId, options.dates)
+  const nightlyRates = options.dates.map((date) => priceForDate(options.basePricePence, date, rules))
+  const firstDogTotal = nightlyRates.reduce((sum, rate) => sum + rate, 0)
+
   let basePricePence: number
   if (options.pricingModel === "PER_NIGHT" && options.dogCount >= 2) {
-    const firstDogTotal = options.basePricePence * options.units
-    const additionalDogRate = options.basePricePence * (1 - secondDogDiscountPercent / 100)
-    const additionalDogsTotal = additionalDogRate * options.units * (options.dogCount - 1)
+    const additionalDogsTotal =
+      nightlyRates.reduce((sum, rate) => sum + rate * (1 - secondDogDiscountPercent / 100), 0) *
+      (options.dogCount - 1)
     basePricePence = Math.round(firstDogTotal + additionalDogsTotal)
   } else {
-    basePricePence = options.basePricePence * options.units * options.dogCount
+    basePricePence = firstDogTotal * options.dogCount
   }
 
   const addonsPricePence = options.addons.reduce(

@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next"
 import { prisma } from "@/lib/prisma"
+import { LOCAL_AREAS, LOCAL_SEO_SERVICE_SLUGS } from "@/lib/local-seo"
 
 export const revalidate = 60
 
@@ -30,5 +31,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     lastModified: new Date(),
   }))
 
-  return [...staticEntries, ...serviceEntries]
+  const localSeoServices = services.filter((s) => LOCAL_SEO_SERVICE_SLUGS.includes(s.slug))
+  const localAreaEntries: MetadataRoute.Sitemap = LOCAL_AREAS.flatMap((area) =>
+    localSeoServices.map((service) => ({
+      url: `${baseUrl}/areas/${area.slug}/${service.slug}`,
+      lastModified: new Date(),
+    }))
+  )
+
+  return [...staticEntries, ...serviceEntries, ...localAreaEntries]
 }
