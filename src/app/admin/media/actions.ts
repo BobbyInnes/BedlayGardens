@@ -47,7 +47,7 @@ export async function createMedia(
     altText: formData.get("altText"),
     category: formData.get("category"),
     sortOrder: formData.get("sortOrder") || "0",
-    embedUrl: formData.get("embedUrl"),
+    embedUrl: formData.get("embedUrl") ?? "",
   })
   if (!parsed.success) {
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
