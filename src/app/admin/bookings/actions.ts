@@ -12,7 +12,8 @@ import { findAvailableKennelUnit, isDaycareAvailable } from "@/lib/availability"
 import { computeBookingPrice } from "@/lib/booking-pricing"
 import { getSetting, getSettings } from "@/lib/settings"
 import { sendEmail } from "@/lib/email"
-import { cancellationConfirmationEmail } from "@/lib/email-templates"
+import { cancellationConfirmationEmail, bookingConfirmationEmail, paymentReceiptEmail } from "@/lib/email-templates"
+import { logAudit } from "@/lib/audit"
 import { resolveBookingCreation, type BookingCreationResult } from "@/app/(marketing)/book/actions"
 import { getActiveAgreement } from "@/lib/agreement"
 import { offerNextInLine } from "@/lib/waitlist"
@@ -514,4 +515,75 @@ export async function cancelBookingAdmin(
         ? `Cancelled — refunded ${(refundedPence / 100).toLocaleString("en-GB", { style: "currency", currency: "GBP" })}.`
         : "Cancelled.",
   }
+}
+
+export type RecordManualPaymentResult = { status: "idle" | "error"; message?: string }
+
+/**
+ * Lets staff record a deposit/balance as paid outside Stripe (phone card
+ * payment, bank transfer, cash) — always for the full amount due for that
+ * type, since the rest of the app treats "paid" as a boolean per type
+ * (`payments.some(type, SUCCEEDED)`), not a running total. Every use is
+ * audit-logged since it's a trust-based, unverified entry.
+ */
+export async function recordManualPayment(
+  bookingId: string,
+  type: "DEPOSIT" | "BALANCE",
+  reason: string
+): Promise<RecordManualPaymentResult> {
+  const session = await requireAdmin()
+
+  if (!reason.trim()) {
+    return { status: "error", message: "Enter a reason (e.g. \"bank transfer received\")." }
+  }
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { payments: true, service: true, customer: true },
+  })
+  if (!booking) return { status: "error", message: "Booking not found." }
+
+  const alreadyPaid = booking.payments.some((p) => p.type === type && p.status === "SUCCEEDED")
+  if (alreadyPaid) return { status: "error", message: "This has already been paid." }
+  if (type === "BALANCE" && booking.status !== "CONFIRMED") {
+    return { status: "error", message: "The deposit must be paid before the balance." }
+  }
+
+  const amountPence = type === "DEPOSIT" ? booking.depositPence : booking.totalPence - booking.depositPence
+  if (amountPence <= 0) return { status: "error", message: "Nothing due." }
+
+  const becameConfirmed = type === "DEPOSIT" && booking.status === "PENDING_PAYMENT"
+  await prisma.$transaction([
+    prisma.payment.create({
+      data: { bookingId: booking.id, type, amountPence, status: "SUCCEEDED" },
+    }),
+    ...(becameConfirmed ? [prisma.booking.update({ where: { id: booking.id }, data: { status: "CONFIRMED" } })] : []),
+  ])
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "RECORD_MANUAL_PAYMENT",
+    entity: "Booking",
+    entityId: booking.id,
+    meta: `${type} ${amountPence}p — ${reason.trim()}`,
+  })
+
+  const settings = await getSettings()
+  const bookingSummary = {
+    serviceName: booking.service.name,
+    startDate: booking.startDate,
+    endDate: booking.endDate,
+    totalPence: booking.totalPence,
+    depositPence: booking.depositPence,
+  }
+  const receipt = paymentReceiptEmail(settings, bookingSummary, amountPence, type)
+  await sendEmail({ to: booking.customer.email, subject: receipt.subject, html: receipt.html })
+  if (becameConfirmed) {
+    const confirmation = bookingConfirmationEmail(settings, bookingSummary)
+    await sendEmail({ to: booking.customer.email, subject: confirmation.subject, html: confirmation.html })
+  }
+
+  revalidatePath(`/admin/bookings/${bookingId}`)
+  revalidatePath("/admin/bookings")
+  return { status: "idle", message: "Payment recorded." }
 }

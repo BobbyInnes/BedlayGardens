@@ -8,6 +8,7 @@ import { toDateInputValue } from "@/lib/dates"
 import { BookingDatesForm } from "@/components/admin/booking-dates-form"
 import { CancelBookingAdminButton } from "@/components/admin/cancel-booking-admin-button"
 import { ReassignKennelForm } from "@/components/admin/reassign-kennel-form"
+import { RecordManualPaymentForm } from "@/components/admin/record-manual-payment-form"
 
 export const metadata: Metadata = {
   title: "Booking | Admin",
@@ -44,6 +45,10 @@ export default async function AdminBookingDetailPage({
   const modifiable = !NON_MODIFIABLE_STATUSES.includes(booking.status)
   const balancePence = booking.totalPence - booking.depositPence
   const isBoarding = booking.service.slug === "overnight-boarding"
+  const depositPaid = booking.payments.some((p) => p.type === "DEPOSIT" && p.status === "SUCCEEDED")
+  const balancePaid = booking.payments.some((p) => p.type === "BALANCE" && p.status === "SUCCEEDED")
+  const CANCELLED_STATUSES = ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"]
+  const canRecordPayment = !CANCELLED_STATUSES.includes(booking.status)
 
   const kennelUnits = isBoarding
     ? await prisma.kennelUnit.findMany({
@@ -141,6 +146,12 @@ export default async function AdminBookingDetailPage({
           </ul>
         ) : (
           <p className="text-sm text-muted-foreground">No payments recorded yet.</p>
+        )}
+        {canRecordPayment && !depositPaid && (
+          <RecordManualPaymentForm bookingId={booking.id} type="DEPOSIT" label="deposit" />
+        )}
+        {canRecordPayment && booking.status === "CONFIRMED" && !balancePaid && balancePence > 0 && (
+          <RecordManualPaymentForm bookingId={booking.id} type="BALANCE" label="balance" />
         )}
       </section>
 
