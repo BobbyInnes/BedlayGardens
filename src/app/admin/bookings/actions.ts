@@ -87,8 +87,8 @@ export async function searchCustomers(query: string) {
     where: {
       role: "CUSTOMER",
       OR: [
-        { email: { contains: trimmed } },
-        { name: { contains: trimmed } },
+        { email: { contains: trimmed, mode: "insensitive" } },
+        { name: { contains: trimmed, mode: "insensitive" } },
       ],
     },
     select: { id: true, name: true, email: true, phone: true },

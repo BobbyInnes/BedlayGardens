@@ -50,7 +50,10 @@ export default async function AdminBookingsPage({
         ...(q.trim()
           ? {
               customer: {
-                OR: [{ name: { contains: q.trim() } }, { email: { contains: q.trim() } }],
+                OR: [
+                  { name: { contains: q.trim(), mode: "insensitive" } },
+                  { email: { contains: q.trim(), mode: "insensitive" } },
+                ],
               },
             }
           : {}),

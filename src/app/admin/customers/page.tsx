@@ -21,7 +21,12 @@ export default async function AdminCustomersPage({
     where: {
       role: "CUSTOMER",
       ...(q.trim()
-        ? { OR: [{ name: { contains: q.trim() } }, { email: { contains: q.trim() } }] }
+        ? {
+            OR: [
+              { name: { contains: q.trim(), mode: "insensitive" } },
+              { email: { contains: q.trim(), mode: "insensitive" } },
+            ],
+          }
         : {}),
     },
     orderBy: { createdAt: "desc" },

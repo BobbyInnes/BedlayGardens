@@ -2,7 +2,10 @@ import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 
 async function main() {
-  const adminPasswordHash = await bcrypt.hash("ChangeMe123!", 10)
+  // Set ADMIN_SEED_PASSWORD in .env before seeding a real/production database —
+  // never commit a real password here. Falls back to a known dev-only default
+  // when unset, for local convenience.
+  const adminPasswordHash = await bcrypt.hash(process.env.ADMIN_SEED_PASSWORD || "ChangeMe123!", 10)
   await prisma.user.upsert({
     where: { email: "admin@bedlaygardens.co.uk" },
     update: {},

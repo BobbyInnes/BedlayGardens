@@ -1,10 +1,10 @@
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3"
+import { PrismaNeon } from "@prisma/adapter-neon"
 import bcrypt from "bcryptjs"
 import { PrismaClient } from "../../src/generated/prisma/client"
 import { E2E_CUSTOMER_EMAIL, E2E_CUSTOMER_PASSWORD, E2E_DOG_NAME } from "./fixtures"
 
 async function seed() {
-  const adapter = new PrismaBetterSqlite3({ url: process.env.DATABASE_URL ?? "file:./dev.db" })
+  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL })
   const prisma = new PrismaClient({ adapter })
 
   const existing = await prisma.user.findUnique({ where: { email: E2E_CUSTOMER_EMAIL } })
