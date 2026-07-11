@@ -1,9 +1,37 @@
 import { randomUUID } from "node:crypto"
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
-import path from "node:path"
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3"
 
-const STORAGE_ROOT = path.join(process.cwd(), "storage", "uploads")
-const PUBLIC_STORAGE_ROOT = path.join(process.cwd(), "public", "uploads")
+// Cloudflare R2 is S3-API-compatible. Two buckets: PRIVATE_BUCKET has no
+// public access at all (vaccination certs, dog photos, agreements, pupdate
+// media — only ever read server-side via the auth-checked /api/files proxy),
+// PUBLIC_BUCKET is exposed at PUBLIC_BASE_URL (gallery/hero media).
+//
+// R2_ACCOUNT_ID is accepted either as the bare account ID or as the full R2
+// endpoint (Cloudflare's dashboard shows the full "S3 API" endpoint, which is
+// easy to paste in whole by mistake), so both forms resolve to the same URL.
+function r2Endpoint(): string {
+  const raw = (process.env.R2_ACCOUNT_ID ?? "").trim()
+  const bareId = raw.replace(/^https?:\/\//, "").replace(/\.r2\.cloudflarestorage\.com\/?$/, "")
+  return `https://${bareId}.r2.cloudflarestorage.com`
+}
+
+const s3 = new S3Client({
+  region: "auto",
+  endpoint: r2Endpoint(),
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID ?? "",
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? "",
+  },
+})
+
+const PRIVATE_BUCKET = process.env.R2_PRIVATE_BUCKET ?? ""
+const PUBLIC_BUCKET = process.env.R2_PUBLIC_BUCKET ?? ""
+const PUBLIC_BASE_URL = (process.env.R2_PUBLIC_BASE_URL ?? "").replace(/\/$/, "")
 
 const CONTENT_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -20,8 +48,7 @@ const CONTENT_TYPES: Record<string, string> = {
 }
 
 function assertSafeKey(key: string) {
-  const resolved = path.resolve(STORAGE_ROOT, key)
-  if (!resolved.startsWith(STORAGE_ROOT)) {
+  if (key.includes("..") || key.startsWith("/")) {
     throw new Error("Invalid storage key")
   }
 }
@@ -30,9 +57,13 @@ function sanitizeFilename(filename: string): string {
   return filename.replace(/[^a-zA-Z0-9.\-_]/g, "_").slice(-100)
 }
 
+function extensionOf(key: string): string {
+  const match = /\.[a-z0-9]+$/i.exec(key)
+  return match ? match[0].toLowerCase() : ""
+}
+
 export function contentTypeForKey(key: string): string {
-  const ext = path.extname(key).toLowerCase()
-  return CONTENT_TYPES[ext] ?? "application/octet-stream"
+  return CONTENT_TYPES[extensionOf(key)] ?? "application/octet-stream"
 }
 
 export async function saveUpload(
@@ -40,22 +71,30 @@ export async function saveUpload(
   filename: string,
   data: Buffer
 ): Promise<string> {
-  const key = path.posix.join(folder, `${randomUUID()}-${sanitizeFilename(filename)}`)
+  const key = `${folder}/${randomUUID()}-${sanitizeFilename(filename)}`
   assertSafeKey(key)
-  const fullPath = path.join(STORAGE_ROOT, key)
-  await mkdir(path.dirname(fullPath), { recursive: true })
-  await writeFile(fullPath, data)
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: PRIVATE_BUCKET,
+      Key: key,
+      Body: data,
+      ContentType: contentTypeForKey(key),
+    })
+  )
   return key
 }
 
 export async function readUpload(key: string): Promise<Buffer> {
   assertSafeKey(key)
-  return readFile(path.join(STORAGE_ROOT, key))
+  const response = await s3.send(new GetObjectCommand({ Bucket: PRIVATE_BUCKET, Key: key }))
+  const bytes = await response.Body?.transformToByteArray()
+  if (!bytes) throw new Error("Empty object body")
+  return Buffer.from(bytes)
 }
 
 export async function deleteUpload(key: string): Promise<void> {
   assertSafeKey(key)
-  await rm(path.join(STORAGE_ROOT, key), { force: true })
+  await s3.send(new DeleteObjectCommand({ Bucket: PRIVATE_BUCKET, Key: key })).catch(() => {})
 }
 
 /** For public-facing assets (gallery/hero media) that don't need auth-gated serving. */
@@ -64,20 +103,21 @@ export async function savePublicUpload(
   filename: string,
   data: Buffer
 ): Promise<string> {
-  const key = path.posix.join(folder, `${randomUUID()}-${sanitizeFilename(filename)}`)
-  const resolved = path.resolve(PUBLIC_STORAGE_ROOT, key)
-  if (!resolved.startsWith(PUBLIC_STORAGE_ROOT)) {
-    throw new Error("Invalid storage key")
-  }
-  await mkdir(path.dirname(resolved), { recursive: true })
-  await writeFile(resolved, data)
-  return `/uploads/${key.replace(/\\/g, "/")}`
+  const key = `${folder}/${randomUUID()}-${sanitizeFilename(filename)}`
+  assertSafeKey(key)
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: PUBLIC_BUCKET,
+      Key: key,
+      Body: data,
+      ContentType: contentTypeForKey(key),
+    })
+  )
+  return `${PUBLIC_BASE_URL}/${key}`
 }
 
 export async function deletePublicUpload(publicUrl: string): Promise<void> {
-  if (!publicUrl.startsWith("/uploads/")) return
-  const relative = publicUrl.replace(/^\/uploads\//, "")
-  const resolved = path.resolve(PUBLIC_STORAGE_ROOT, relative)
-  if (!resolved.startsWith(PUBLIC_STORAGE_ROOT)) return
-  await rm(resolved, { force: true })
+  if (!publicUrl.startsWith(PUBLIC_BASE_URL)) return
+  const key = publicUrl.slice(PUBLIC_BASE_URL.length + 1)
+  await s3.send(new DeleteObjectCommand({ Bucket: PUBLIC_BUCKET, Key: key })).catch(() => {})
 }
