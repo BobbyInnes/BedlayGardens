@@ -33,34 +33,45 @@ async function main() {
     })
   }
 
+  // Launch prices and copy from DESIGN-bedlay-gardens.md §4 — admin-editable
+  // afterwards (seed never overwrites existing rows beyond requiresTrial).
   const services = [
     {
-      slug: "overnight-boarding",
-      name: "Overnight Boarding",
+      slug: "meet-greet",
+      name: "Meet & Greet",
       description:
-        "Multi-night kennel stays in our secure countryside kennels, with a discount for a second dog sharing a kennel.",
-      pricingModel: "PER_NIGHT" as const,
-      basePricePence: 3500,
+        "The first step before booking — a chance for us to meet your dog and make sure the fit is right before their first stay.",
+      pricingModel: "PER_SESSION" as const,
+      basePricePence: 1500,
       sortOrder: 1,
-      requiresTrial: true,
     },
     {
       slug: "daycare",
-      name: "Daycare",
+      name: "Day Care",
       description:
-        "Day visits with morning drop-off and evening pick-up. Half-day rate available.",
+        "Drop off before 9am and collect at 12:30pm (£15 half day) or 5pm (£26 full day) — a full day of care and exercise.",
       pricingModel: "PER_DAY" as const,
-      basePricePence: 2000,
+      basePricePence: 2600,
       sortOrder: 2,
     },
     {
       slug: "secure-forest-walks",
       name: "Secure Forest Walks",
       description:
-        "Escorted walks in enclosed private woodland, bookable as an add-on to a stay or as a standalone session.",
+        "Private-hire securely enclosed woodland for off-lead exercise — 1 hour for £15 or 3 hours for £20.",
       pricingModel: "PER_SESSION" as const,
-      basePricePence: 1000,
+      basePricePence: 1500,
       sortOrder: 3,
+    },
+    {
+      slug: "overnight-boarding",
+      name: "Home Boarding",
+      description:
+        "Safe, comfortable overnight stays in our secure countryside setting, with a discount for a second dog sharing.",
+      pricingModel: "PER_NIGHT" as const,
+      basePricePence: 5000,
+      sortOrder: 4,
+      requiresTrial: true,
     },
     {
       slug: "dog-walking",
@@ -69,15 +80,6 @@ async function main() {
         "Regular dog walking with van collection and drop-off from your home, with a discount for recurring weekly slots.",
       pricingModel: "PER_SESSION" as const,
       basePricePence: 1500,
-      sortOrder: 4,
-    },
-    {
-      slug: "meet-greet",
-      name: "Meet & Greet",
-      description:
-        "A short trial visit for first-time boarders — lets us get to know your dog and check they're a good fit for kennel life before an overnight stay.",
-      pricingModel: "PER_SESSION" as const,
-      basePricePence: 0,
       sortOrder: 5,
     },
   ]
@@ -100,14 +102,18 @@ async function main() {
     { key: "subscription_pause_notice_days", value: "3" },
     { key: "abandoned_booking_reminder_hours", value: "2" },
     { key: "abandoned_booking_second_nudge_hours", value: "24" },
-    { key: "opening_hours", value: "Mon-Sun 8:00am-6:00pm" },
+    {
+      key: "opening_hours",
+      value:
+        "Mon–Fri 8am–6pm · Saturday 9am–5pm · Sunday 10am–4pm · Drop-offs and collections by appointment",
+    },
     { key: "business_name", value: "Bedlay Gardens Kennels" },
-    { key: "business_tagline", value: "Secure countryside boarding near Glasgow" },
-    { key: "business_phone", value: "01236 000000" },
-    { key: "business_email", value: "hello@bedlaygardens.co.uk" },
+    { key: "business_tagline", value: "Professional dog boarding you can trust" },
+    { key: "business_phone", value: "07956 301170" },
+    { key: "business_email", value: "bedlaygardensdogforest@gmail.com" },
     { key: "business_address_line1", value: "Bedlay Gardens" },
-    { key: "business_address_line2", value: "Chryston, Glasgow" },
-    { key: "business_postcode", value: "G69 0AA" },
+    { key: "business_address_line2", value: "Cumbernauld Road, Chryston, Glasgow" },
+    { key: "business_postcode", value: "G69 9HP" },
     { key: "business_lat", value: "55.9106" },
     { key: "business_lng", value: "-4.0800" },
     { key: "daycare_max_capacity", value: "10" },

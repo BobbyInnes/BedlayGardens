@@ -1,14 +1,13 @@
 import Link from "next/link"
-import { ArrowRight } from "lucide-react"
+import { Clock } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card"
-import { formatPriceWithSuffix } from "@/lib/format"
+  formatPenceCompact,
+  pricingSuffixLabel,
+  serviceDuration,
+} from "@/lib/service-display"
 import type { PricingModel } from "@/generated/prisma/client"
 
 export function ServiceCard({
@@ -24,26 +23,35 @@ export function ServiceCard({
   basePricePence: number
   pricingModel: PricingModel
 }) {
+  const duration = serviceDuration(slug)
+
   return (
-    <Card className="flex h-full flex-col">
+    <Card className="h-full transition-shadow hover:shadow-lg hover:shadow-primary/5 [--card-spacing:--spacing(6)]">
       <CardHeader>
-        <CardTitle className="text-lg">{name}</CardTitle>
-        <CardDescription className="line-clamp-3">{description}</CardDescription>
-      </CardHeader>
-      <CardContent className="mt-auto">
-        <p className="text-2xl font-semibold text-primary">
-          {formatPriceWithSuffix(basePricePence, pricingModel)}
+        <p className="flex items-baseline gap-1.5">
+          <span className="font-heading text-3xl font-bold tracking-tight text-primary">
+            {formatPenceCompact(basePricePence)}
+          </span>
+          <span className="text-sm text-muted-foreground">
+            {pricingSuffixLabel(pricingModel)}
+          </span>
         </p>
+        <CardTitle className="text-lg font-semibold">{name}</CardTitle>
+        {duration && (
+          <p className="flex items-center gap-1.5 text-sm font-medium text-primary">
+            <Clock className="size-3.5" aria-hidden="true" />
+            {duration}
+          </p>
+        )}
+      </CardHeader>
+      <CardContent className="flex flex-1 flex-col gap-6">
+        <p className="line-clamp-4 flex-1 text-sm text-muted-foreground">{description}</p>
+        <Button asChild className="w-full">
+          <Link href={`/book/${slug}`}>
+            Book Now <span className="sr-only">— {name}</span>
+          </Link>
+        </Button>
       </CardContent>
-      <CardFooter>
-        <Link
-          href={`/services#${slug}`}
-          className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-        >
-          Learn more <span className="sr-only">about {name}</span>{" "}
-          <ArrowRight className="size-4" aria-hidden="true" />
-        </Link>
-      </CardFooter>
     </Card>
   )
 }

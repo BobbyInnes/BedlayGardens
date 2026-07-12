@@ -1,18 +1,16 @@
 import Link from "next/link"
-import { PawPrint, Mail, Phone, MapPin } from "lucide-react"
+import { Clock, Mail, MapPin, Phone } from "lucide-react"
+
+import { Logo } from "@/components/marketing/logo"
 import { getSettings } from "@/lib/settings"
 
-const legalLinks = [
-  { href: "/legal/privacy", label: "Privacy Policy" },
-  { href: "/legal/terms", label: "Terms & Conditions" },
-  { href: "/legal/cookies", label: "Cookie Notice" },
-]
-
-const exploreLinks = [
+const quickLinks = [
   { href: "/services", label: "Services" },
+  { href: "/#how-it-works", label: "How It Works" },
   { href: "/gallery", label: "Gallery" },
   { href: "/about", label: "About Us" },
   { href: "/faqs", label: "FAQs" },
+  { href: "/book", label: "Book Now" },
 ]
 
 export async function SiteFooter() {
@@ -26,24 +24,25 @@ export async function SiteFooter() {
   const openingHours = settings.opening_hours ?? ""
 
   return (
-    <footer className="mt-16 border-t border-border bg-secondary/40 pb-24 md:pb-0">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 sm:grid-cols-2 md:grid-cols-4">
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 font-semibold">
-            <PawPrint className="size-5 text-primary" aria-hidden="true" />
-            {businessName}
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {settings.business_tagline}
+    <footer className="bg-navy pb-24 text-navy-foreground md:pb-0">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-4">
+          <Logo businessName={businessName} className="text-white" />
+          <p className="text-sm leading-relaxed text-white/70">
+            Safe, caring, and fully managed stays for your dog — licensed,
+            council approved, and trusted by owners across Glasgow for over a
+            decade.
           </p>
         </div>
 
         <div className="space-y-3">
-          <h2 className="text-sm font-semibold">Explore</h2>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            {exploreLinks.map((link) => (
+          <h2 className="font-heading text-sm font-semibold uppercase tracking-wider text-white/90">
+            Quick links
+          </h2>
+          <ul className="space-y-2 text-sm text-white/70">
+            {quickLinks.map((link) => (
               <li key={link.href}>
-                <Link href={link.href} className="hover:text-foreground">
+                <Link href={link.href} className="transition-colors hover:text-white">
                   {link.label}
                 </Link>
               </li>
@@ -51,21 +50,10 @@ export async function SiteFooter() {
           </ul>
         </div>
 
-        <div className="space-y-3">
-          <h2 className="text-sm font-semibold">Legal</h2>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            {legalLinks.map((link) => (
-              <li key={link.href}>
-                <Link href={link.href} className="hover:text-foreground">
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="space-y-3 text-sm text-muted-foreground">
-          <h2 className="text-sm font-semibold text-foreground">Get in touch</h2>
+        <div className="space-y-3 text-sm text-white/70">
+          <h2 className="font-heading text-sm font-semibold uppercase tracking-wider text-white/90">
+            Contact
+          </h2>
           {addressLine1 && (
             <div className="flex items-start gap-2">
               <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
@@ -79,7 +67,10 @@ export async function SiteFooter() {
           {phone && (
             <div className="flex items-center gap-2">
               <Phone className="size-4 shrink-0" aria-hidden="true" />
-              <a href={`tel:${phone.replace(/\s+/g, "")}`} className="hover:text-foreground">
+              <a
+                href={`tel:${phone.replace(/\s+/g, "")}`}
+                className="transition-colors hover:text-white"
+              >
                 {phone}
               </a>
             </div>
@@ -87,17 +78,45 @@ export async function SiteFooter() {
           {email && (
             <div className="flex items-center gap-2">
               <Mail className="size-4 shrink-0" aria-hidden="true" />
-              <a href={`mailto:${email}`} className="hover:text-foreground">
+              <a href={`mailto:${email}`} className="break-all transition-colors hover:text-white">
                 {email}
               </a>
             </div>
           )}
-          {openingHours && <p>{openingHours}</p>}
+        </div>
+
+        <div className="space-y-3 text-sm text-white/70">
+          <h2 className="font-heading text-sm font-semibold uppercase tracking-wider text-white/90">
+            Opening hours
+          </h2>
+          {openingHours && (
+            <ul className="space-y-2">
+              {openingHours.split("·").map((line) => (
+                <li key={line.trim()} className="flex items-start gap-2">
+                  <Clock className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                  <span>{line.trim()}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
 
-      <div className="border-t border-border px-4 py-4 text-center text-xs text-muted-foreground sm:px-6">
-        © {new Date().getFullYear()} {businessName}. All rights reserved.
+      <div className="border-t border-white/10 px-4 py-5 sm:px-6">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 text-xs text-white/60 sm:flex-row">
+          <p>© {new Date().getFullYear()} Mr. Robert A Innes. All rights reserved.</p>
+          <div className="flex gap-4">
+            <Link href="/legal/privacy" className="transition-colors hover:text-white">
+              Privacy Policy
+            </Link>
+            <Link href="/legal/terms" className="transition-colors hover:text-white">
+              Terms & Conditions
+            </Link>
+            <Link href="/legal/cookies" className="transition-colors hover:text-white">
+              Cookie Notice
+            </Link>
+          </div>
+        </div>
       </div>
     </footer>
   )
