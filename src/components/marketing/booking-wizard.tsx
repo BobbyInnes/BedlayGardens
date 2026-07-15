@@ -88,6 +88,8 @@ export function BookingWizard({
     { dogName: string; missingTypes: string[] }[] | null
   >(null)
   const [checkingVaccinations, setCheckingVaccinations] = React.useState(false)
+  const [trialWarning, setTrialWarning] = React.useState<string[] | null>(null)
+  const [checkingTrial, setCheckingTrial] = React.useState(false)
 
   // Addons
   const [selectedAddonIds, setSelectedAddonIds] = React.useState<string[]>([])
@@ -164,6 +166,21 @@ export function BookingWizard({
   }
 
   async function goToReviewFromDogs() {
+    setTrialWarning(null)
+    setCheckingTrial(true)
+    try {
+      const trialParams = new URLSearchParams({ serviceSlug: service.slug })
+      for (const dogId of selectedDogIds) trialParams.append("dogId", dogId)
+      const trialRes = await fetch(`/api/book/trial-check?${trialParams}`)
+      const trialData = await trialRes.json()
+      if ((trialData.missing ?? []).length > 0) {
+        setTrialWarning(trialData.missing)
+        return
+      }
+    } finally {
+      setCheckingTrial(false)
+    }
+
     const throughDate = isBoarding
       ? endDate
       : isDaycare
@@ -480,6 +497,21 @@ export function BookingWizard({
             </ul>
           )}
 
+          {trialWarning && trialWarning.length > 0 && (
+            <div className="flex items-start gap-3 rounded-lg border border-destructive bg-destructive/10 p-4 text-destructive">
+              <AlertTriangle className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+              <p className="text-sm font-bold">
+                {trialWarning.join(", ")}{" "}
+                {trialWarning.length === 1 ? "requires" : "require"} a mandatory Meet &amp; Greet
+                evaluation before {trialWarning.length === 1 ? "it" : "they"} can book any service.{" "}
+                <Link href="/book/meet-greet" className="font-medium underline">
+                  Book a Meet &amp; Greet
+                </Link>
+                .
+              </p>
+            </div>
+          )}
+
           {vaccinationWarning && vaccinationWarning.length > 0 && (
             <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm">
               <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden="true" />
@@ -505,9 +537,9 @@ export function BookingWizard({
             </Button>
             <Button
               onClick={goToReviewFromDogs}
-              disabled={selectedDogIds.length === 0 || checkingVaccinations}
+              disabled={selectedDogIds.length === 0 || checkingVaccinations || checkingTrial}
             >
-              {checkingVaccinations ? (
+              {checkingVaccinations || checkingTrial ? (
                 <>
                   <Loader2 className="size-4 animate-spin" /> Checking…
                 </>
@@ -609,14 +641,19 @@ export function BookingWizard({
               {submitting ? "Confirming…" : "Confirm booking"}
             </Button>
           </div>
-          {submitError && <p className="text-sm text-destructive">{submitError}</p>}
-          {requiresTrialVisit && (
-            <p className="text-sm text-muted-foreground">
-              <Link href="/book/meet-greet" className="font-medium text-primary hover:underline">
-                Book a meet & greet trial visit
-              </Link>{" "}
-              first.
-            </p>
+          {submitError && requiresTrialVisit ? (
+            <div className="flex items-start gap-3 rounded-lg border border-destructive bg-destructive/10 p-4 text-destructive">
+              <AlertTriangle className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+              <p className="text-sm font-bold">
+                {submitError}{" "}
+                <Link href="/book/meet-greet" className="font-medium underline">
+                  Book a Meet & Greet
+                </Link>
+                .
+              </p>
+            </div>
+          ) : (
+            submitError && <p className="text-sm text-destructive">{submitError}</p>
           )}
         </div>
       )}

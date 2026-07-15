@@ -8,6 +8,7 @@ import {
   pricingSuffixLabel,
   serviceDuration,
 } from "@/lib/service-display"
+import { sanitizeRichText } from "@/lib/sanitize-html"
 import type { PricingModel } from "@/generated/prisma/client"
 
 export function ServiceCard({
@@ -45,7 +46,10 @@ export function ServiceCard({
         )}
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-6">
-        <p className="line-clamp-4 flex-1 text-sm text-muted-foreground">{description}</p>
+        <div
+          className="line-clamp-4 flex-1 text-sm text-muted-foreground"
+          dangerouslySetInnerHTML={{ __html: sanitizeRichText(description) }}
+        />
         <Button asChild className="w-full">
           <Link href={`/book/${slug}`}>
             Book Now <span className="sr-only">— {name}</span>

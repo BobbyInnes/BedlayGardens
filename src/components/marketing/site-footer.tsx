@@ -3,6 +3,7 @@ import { Clock, Mail, MapPin, Phone } from "lucide-react"
 
 import { Logo } from "@/components/marketing/logo"
 import { getSettings } from "@/lib/settings"
+import { APP_VERSION } from "@/lib/version"
 
 const quickLinks = [
   { href: "/services", label: "Services" },
@@ -27,7 +28,11 @@ export async function SiteFooter() {
     <footer className="bg-navy pb-24 text-navy-foreground md:pb-0">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-4">
-          <Logo businessName={businessName} className="text-white" />
+          {/* Logo artwork has a solid white background baked in — pad it in
+              a rounded white card so it reads cleanly on the dark footer. */}
+          <div className="inline-block rounded-lg bg-white px-3 py-2">
+            <Logo businessName={businessName} />
+          </div>
           <p className="text-sm leading-relaxed text-white/70">
             Safe, caring, and fully managed stays for your dog — licensed,
             council approved, and trusted by owners across Glasgow for over a
@@ -104,8 +109,11 @@ export async function SiteFooter() {
 
       <div className="border-t border-white/10 px-4 py-5 sm:px-6">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 text-xs text-white/60 sm:flex-row">
-          <p>© {new Date().getFullYear()} Mr. Robert A Innes. All rights reserved.</p>
-          <div className="flex gap-4">
+          <p>
+            © {new Date().getFullYear()} Mr. Robert A Innes. All rights reserved.{" "}
+            <span className="font-semibold text-white">(Site version {APP_VERSION})</span>
+          </p>
+          <div className="flex items-center gap-4">
             <Link href="/legal/privacy" className="transition-colors hover:text-white">
               Privacy Policy
             </Link>
