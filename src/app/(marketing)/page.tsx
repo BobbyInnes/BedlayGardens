@@ -90,7 +90,10 @@ export default async function HomePage() {
     getSettings(),
     prisma.service.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
     prisma.testimonial.findMany({ where: { visible: true }, take: 6 }),
-    prisma.mediaItem.findFirst({ where: { usage: "HERO" }, orderBy: { sortOrder: "asc" } }),
+    prisma.mediaItem.findFirst({
+      where: { usage: "HERO" },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+    }),
     prisma.review.findMany({
       where: { status: "APPROVED" },
       orderBy: { createdAt: "desc" },
@@ -111,21 +114,28 @@ export default async function HomePage() {
               alt={hero.altText ?? businessName}
               fill
               priority
-              className="object-cover"
+              // object-contain (not cover) so the whole photo stays visible
+              // instead of being cropped to fill the banner shape; scaled up
+              // 30% to close most of the letterboxed gap on the sides — the
+              // section has overflow-hidden, so any excess top/bottom is
+              // trimmed cleanly rather than distorting the image.
+              className="object-contain scale-[1.3]"
             />
           )}
-          <div className="absolute inset-0 bg-gradient-to-r from-navy/90 via-navy/70 to-navy/40" />
+          {/* Faint scrim, just enough for the text below to stay readable —
+              the photo itself should read as bright, not tinted dark. */}
+          <div className="absolute inset-0 bg-gradient-to-r from-navy/35 via-navy/10 to-transparent" />
         </div>
 
         <div className="relative mx-auto flex max-w-6xl flex-col items-start gap-6 px-4 py-24 sm:px-6 sm:py-32">
-          <p className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-1.5 text-sm font-medium text-white ring-1 ring-white/25">
+          <p className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-1.5 text-sm font-medium text-white ring-1 ring-white/25 [text-shadow:0_1px_4px_rgb(0_0_0_/_45%)]">
             <BadgeCheck className="size-4" aria-hidden="true" />
             Licensed &amp; Council Approved
           </p>
-          <h1 className="max-w-2xl font-heading text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl">
+          <h1 className="max-w-2xl font-heading text-4xl font-extrabold tracking-tight text-white [text-shadow:0_2px_10px_rgb(0_0_0_/_55%)] sm:text-5xl lg:text-6xl">
             Professional Dog Boarding You Can Trust
           </h1>
-          <p className="max-w-xl text-lg text-white/80">
+          <p className="max-w-xl text-lg text-white/90 [text-shadow:0_1px_6px_rgb(0_0_0_/_50%)]">
             Safe, caring, and fully managed stays for your dog — with online
             booking, vaccination tracking, and real-time updates.
           </p>
