@@ -1,11 +1,12 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { Clock } from "lucide-react"
+import { Clock, AlertTriangle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { prisma } from "@/lib/prisma"
 import { formatPence } from "@/lib/format"
+import { sanitizeRichText } from "@/lib/sanitize-html"
 import {
   formatPenceCompact,
   pricingSuffixLabel,
@@ -29,6 +30,14 @@ export default async function ServicesPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+      <div className="mb-10 flex items-start gap-3 rounded-xl border border-destructive bg-destructive/10 p-4 text-destructive sm:items-center">
+        <AlertTriangle className="mt-0.5 size-5 shrink-0 sm:mt-0" aria-hidden="true" />
+        <p className="text-sm font-bold sm:text-base">
+          For all new dogs, a mandatory Meet &amp; Greet evaluation is required before booking
+          any service.
+        </p>
+      </div>
+
       <div className="mb-12 text-center">
         <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl">
           Services & Pricing
@@ -69,7 +78,10 @@ export default async function ServicesPage() {
               </CardHeader>
               <CardContent className="flex flex-1 flex-col gap-6">
                 <div className="flex-1 space-y-4">
-                  <p className="text-sm text-muted-foreground">{service.description}</p>
+                  <div
+                    className="text-sm text-muted-foreground"
+                    dangerouslySetInnerHTML={{ __html: sanitizeRichText(service.description) }}
+                  />
 
                   {service.addons.length > 0 && (
                     <div>
