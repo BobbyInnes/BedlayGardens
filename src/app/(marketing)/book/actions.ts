@@ -92,7 +92,7 @@ export async function resolveBookingCreation(
       return {
         status: "error",
         requiresTrialVisit: true,
-        message: `${missingTrial.join(", ")} ${missingTrial.length === 1 ? "needs" : "need"} a completed meet & greet trial visit before a first ${service.name.toLowerCase()} booking.`,
+        message: `${missingTrial.join(", ")} ${missingTrial.length === 1 ? "requires" : "require"} a mandatory Meet & Greet evaluation before ${missingTrial.length === 1 ? "it" : "they"} can book any service.`,
       }
     }
   }

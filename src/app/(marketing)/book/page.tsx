@@ -1,8 +1,9 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, AlertTriangle } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 import { formatPriceWithSuffix } from "@/lib/format"
+import { sanitizeRichText } from "@/lib/sanitize-html"
 
 export const metadata: Metadata = {
   title: "Book a Stay",
@@ -26,6 +27,14 @@ export default async function BookPage() {
         </p>
       </div>
 
+      <div className="mb-8 flex items-start gap-3 rounded-xl border border-destructive bg-destructive/10 p-4 text-destructive sm:items-center">
+        <AlertTriangle className="mt-0.5 size-5 shrink-0 sm:mt-0" aria-hidden="true" />
+        <p className="text-sm font-bold sm:text-base">
+          For all new dogs, a mandatory Meet &amp; Greet evaluation is required before booking
+          any service.
+        </p>
+      </div>
+
       <div className="space-y-4">
         {services.map((service) => (
           <Link
@@ -35,7 +44,10 @@ export default async function BookPage() {
           >
             <div>
               <p className="font-semibold">{service.name}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{service.description}</p>
+              <div
+                className="mt-1 text-sm text-muted-foreground"
+                dangerouslySetInnerHTML={{ __html: sanitizeRichText(service.description) }}
+              />
               <p className="mt-2 text-sm font-medium text-primary">
                 {formatPriceWithSuffix(service.basePricePence, service.pricingModel)}
               </p>
