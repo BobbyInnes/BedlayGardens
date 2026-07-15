@@ -74,7 +74,7 @@ export default async function AdminOccupancyPage({
             <thead>
               <tr>
                 <th className="sticky left-0 z-10 border-b border-r border-border bg-background p-2 text-left font-medium">
-                  Kennel
+                  Crate
                 </th>
                 {days.map((day) => (
                   <th
