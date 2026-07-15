@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Badge } from "@/components/ui/badge"
 import { formatPence } from "@/lib/format"
@@ -8,8 +9,10 @@ import { ToggleActiveButton } from "@/components/admin/toggle-active-button"
 import { CustomerNotesForm } from "@/components/admin/customer-notes-form"
 import { DogFlagsManager } from "@/components/admin/dog-flags-manager"
 import { GoodwillCreditForm } from "@/components/admin/goodwill-credit-form"
+import { PromoteCustomerForm } from "@/components/admin/promote-customer-form"
 import { toggleCustomerActive } from "@/app/admin/customers/actions"
 import { getAvailableCreditPence } from "@/lib/vouchers"
+import { canManageAdmins } from "@/lib/admin-permissions"
 
 export const metadata: Metadata = {
   title: "Customer | Admin",
@@ -21,19 +24,23 @@ export default async function AdminCustomerDetailPage({
   params: Promise<{ customerId: string }>
 }) {
   const { customerId } = await params
-  const customer = await prisma.user.findFirst({
-    where: { id: customerId, role: "CUSTOMER" },
-    include: {
-      dogs: { orderBy: { name: "asc" }, include: { flags: true } },
-      bookings: {
-        orderBy: { startDate: "desc" },
-        include: { service: true },
-        take: 50,
+  const [session, customer] = await Promise.all([
+    auth(),
+    prisma.user.findFirst({
+      where: { id: customerId, role: "CUSTOMER" },
+      include: {
+        dogs: { orderBy: { name: "asc" }, include: { flags: true } },
+        bookings: {
+          orderBy: { startDate: "desc" },
+          include: { service: true },
+          take: 50,
+        },
       },
-    },
-  })
+    }),
+  ])
   if (!customer) notFound()
   const creditBalancePence = await getAvailableCreditPence(customer.id)
+  const viewerCanManageAdmins = session ? await canManageAdmins(session) : false
 
   return (
     <div className="max-w-3xl space-y-8">
@@ -59,6 +66,16 @@ export default async function AdminCustomerDetailPage({
       <section className="space-y-3 rounded-lg border border-border p-4">
         <h2 className="text-sm font-semibold">Admin notes</h2>
         <CustomerNotesForm customerId={customer.id} notes={customer.adminNotes ?? ""} />
+      </section>
+
+      <section className="space-y-3 rounded-lg border border-border p-4">
+        <h2 className="text-sm font-semibold">Promote to staff</h2>
+        <p className="text-sm text-muted-foreground">
+          Converts this customer account into a staff or admin login, keeping their existing
+          password. You&rsquo;ll be taken to the staff edit page afterwards to add a job title,
+          photo, and bio.
+        </p>
+        <PromoteCustomerForm customerId={customer.id} viewerCanManageAdmins={viewerCanManageAdmins} />
       </section>
 
       <section className="space-y-3 rounded-lg border border-border p-4">
