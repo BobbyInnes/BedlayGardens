@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { prisma } from "@/lib/prisma"
 import { formatPriceWithSuffix } from "@/lib/format"
 import { getSettings } from "@/lib/settings"
+import { sanitizeRichText } from "@/lib/sanitize-html"
 import { LOCAL_AREAS, LOCAL_SEO_SERVICE_SLUGS, findLocalArea } from "@/lib/local-seo"
 
 export const revalidate = 3600
@@ -71,7 +72,10 @@ export default async function LocalAreaServicePage({
             {formatPriceWithSuffix(service.basePricePence, service.pricingModel)}
           </p>
         </div>
-        <p className="mt-3 text-muted-foreground">{service.description}</p>
+        <div
+          className="mt-3 text-muted-foreground"
+          dangerouslySetInnerHTML={{ __html: sanitizeRichText(service.description) }}
+        />
         <Button className="mt-6" asChild>
           <Link href={`/book/${service.slug}`}>Book {service.name}</Link>
         </Button>
