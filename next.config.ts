@@ -10,6 +10,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  experimental: {
+    serverActions: {
+      // Default is 1mb, which silently rejects most phone photos and any
+      // hero video clip uploaded via the admin Media form (createMedia /
+      // updateMedia server actions in src/app/admin/media/actions.ts).
+      bodySizeLimit: "25mb",
+    },
+  },
 };
 
 export default nextConfig;
