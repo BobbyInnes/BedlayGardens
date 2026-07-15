@@ -104,8 +104,7 @@ async function main() {
     { key: "abandoned_booking_second_nudge_hours", value: "24" },
     {
       key: "opening_hours",
-      value:
-        "Mon–Fri 8am–6pm · Saturday 9am–5pm · Sunday 10am–4pm · Drop-offs and collections by appointment",
+      value: "Mon–Fri 8am–6pm · Closed Saturday & Sunday · Drop-offs and collections by appointment",
     },
     { key: "business_name", value: "Bedlay Gardens Kennels" },
     { key: "business_tagline", value: "Professional dog boarding you can trust" },

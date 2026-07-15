@@ -131,8 +131,11 @@ model User {
   phone            String?
   address          String?
   role             Role      @default(CUSTOMER)
+  isSuperAdmin     Boolean   @default(false)
   active           Boolean   @default(true)
   photoUrl         String?
+  jobTitle         String?
+  bio              String?
   stripeCustomerId String?
   adminNotes       String?
   createdAt        DateTime  @default(now())
