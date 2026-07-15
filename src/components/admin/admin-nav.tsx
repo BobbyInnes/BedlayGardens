@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
   CalendarDays,
+  CalendarRange,
   BookOpen,
   Tag,
   Settings,
@@ -17,11 +18,13 @@ import {
   BarChart3,
   ListOrdered,
   Star,
+  ArrowLeftRight,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/calendar", label: "Calendar", icon: CalendarRange },
   { href: "/admin/occupancy", label: "Occupancy", icon: CalendarDays },
   { href: "/admin/bookings", label: "Bookings", icon: BookOpen },
   { href: "/admin/waitlist", label: "Waitlist", icon: ListOrdered },
@@ -60,6 +63,19 @@ export function AdminNav() {
           </Link>
         )
       })}
+
+      <div className="my-2 border-t border-border md:mx-3" />
+
+      <Link
+        href="/staff"
+        className={cn(
+          "flex shrink-0 items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium whitespace-nowrap text-muted-foreground hover:bg-muted hover:text-foreground",
+          pathname.startsWith("/staff") && "bg-muted text-foreground"
+        )}
+      >
+        <ArrowLeftRight className="size-4" aria-hidden="true" />
+        Staff Portal
+      </Link>
     </nav>
   )
 }

@@ -4,7 +4,7 @@ import { useActionState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { RichTextEditor } from "@/components/admin/rich-text-editor"
 import {
   Select,
   SelectContent,
@@ -43,7 +43,15 @@ export function ServiceForm({
 
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
-        <Textarea id="description" name="description" defaultValue={service?.description} rows={3} required />
+        <RichTextEditor
+          name="description"
+          defaultValue={service?.description}
+          placeholder="Describe this service for visitors…"
+        />
+        <p className="text-xs text-muted-foreground">
+          Use the toolbar to bold, underline, or colour parts of the text. Press Enter for a
+          new paragraph.
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
