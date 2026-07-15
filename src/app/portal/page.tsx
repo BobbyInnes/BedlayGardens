@@ -60,6 +60,19 @@ export default async function PortalDashboardPage() {
         </p>
       </div>
 
+      {dogs.length === 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-destructive bg-destructive/10 p-4 text-sm text-destructive">
+          <AlertTriangle className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+          <p>
+            <strong>You haven&rsquo;t added a dog yet.</strong> You&rsquo;ll need a dog profile
+            before you can book any service.{" "}
+            <Link href="/portal/dogs/new" className="font-medium underline">
+              Add a dog
+            </Link>
+          </p>
+        </div>
+      )}
+
       {(vaccinationAlerts.length > 0 || balanceDueBookings.length > 0) && (
         <div className="space-y-3">
           {vaccinationAlerts.map((alert, index) => (
@@ -99,33 +112,6 @@ export default async function PortalDashboardPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Upcoming bookings</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {bookings.length > 0 ? (
-              <ul className="space-y-3">
-                {bookings.map((booking) => (
-                  <li key={booking.id} className="flex items-center justify-between text-sm">
-                    <span>{booking.service.name}</span>
-                    <span className="text-muted-foreground">
-                      {booking.startDate.toLocaleDateString("en-GB")}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">No upcoming bookings yet.</p>
-                <Button size="sm" asChild>
-                  <Link href="/book">Book a stay</Link>
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
             <CardTitle className="text-base">My dogs</CardTitle>
           </CardHeader>
           <CardContent>
@@ -145,6 +131,33 @@ export default async function PortalDashboardPage() {
                 </p>
                 <Button size="sm" asChild>
                   <Link href="/portal/dogs/new">Add a dog</Link>
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Upcoming bookings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {bookings.length > 0 ? (
+              <ul className="space-y-3">
+                {bookings.map((booking) => (
+                  <li key={booking.id} className="flex items-center justify-between text-sm">
+                    <span>{booking.service.name}</span>
+                    <span className="text-muted-foreground">
+                      {booking.startDate.toLocaleDateString("en-GB")}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">No upcoming bookings yet.</p>
+                <Button size="sm" asChild>
+                  <Link href="/book">Book a stay</Link>
                 </Button>
               </div>
             )}
