@@ -40,22 +40,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const commitSha = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "dev";
-
   return (
     <html
       lang="en"
       className={`${inter.variable} ${poppins.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        {children}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none fixed bottom-1 right-1 z-50 select-none rounded bg-black/70 px-1.5 py-0.5 font-mono text-[10px] text-white/70"
-        >
-          v{commitSha}
-        </div>
-      </body>
+      <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
 }

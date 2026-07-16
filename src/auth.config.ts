@@ -36,6 +36,7 @@ export const authConfig = {
       if (user) {
         token.role = user.role
         token.id = user.id
+        token.isSuperAdmin = user.isSuperAdmin ?? false
       }
       return token
     },
@@ -43,6 +44,7 @@ export const authConfig = {
       if (session.user) {
         session.user.role = token.role as Role
         session.user.id = token.id as string
+        session.user.isSuperAdmin = (token.isSuperAdmin as boolean) ?? false
       }
       return session
     },

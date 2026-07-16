@@ -2,6 +2,8 @@ import type { Metadata } from "next"
 import Image from "next/image"
 import { prisma } from "@/lib/prisma"
 import { getSettings } from "@/lib/settings"
+import { sanitizeRichText } from "@/lib/sanitize-html"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export const metadata: Metadata = {
   title: "About Us",
@@ -12,9 +14,13 @@ export const metadata: Metadata = {
 export const revalidate = 60
 
 export default async function AboutPage() {
-  const [settings, aboutMedia] = await Promise.all([
+  const [settings, aboutMedia, team] = await Promise.all([
     getSettings(),
     prisma.mediaItem.findMany({ where: { usage: "ABOUT" }, orderBy: { sortOrder: "asc" } }),
+    prisma.user.findMany({
+      where: { role: { in: ["STAFF", "ADMIN"] }, active: true },
+      orderBy: { name: "asc" },
+    }),
   ])
 
   const teamImage = aboutMedia.find((item) => item.caption?.toLowerCase().includes("team"))
@@ -86,14 +92,43 @@ export default async function AboutPage() {
         </div>
       </section>
 
-      <section className="mt-16 space-y-4 text-center">
-        <h2 className="text-xl font-semibold">Our team</h2>
-        <p className="mx-auto max-w-2xl text-muted-foreground">
-          Every member of staff is trained in canine first aid and handling, and gets
-          to know each guest&rsquo;s routine, medication, and quirks before their first
-          stay. It&rsquo;s a small team by design — so your dog is always looked after by
-          someone who knows them.
-        </p>
+      <section className="mt-16 space-y-8 text-center">
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Our team</h2>
+          <p className="mx-auto max-w-2xl text-muted-foreground">
+            Every member of staff is trained in canine first aid and handling, and gets
+            to know each guest&rsquo;s routine, medication, and quirks before their first
+            stay. It&rsquo;s a small team by design — so your dog is always looked after by
+            someone who knows them.
+          </p>
+        </div>
+
+        {team.length > 0 && (
+          <div className="mx-auto grid max-w-3xl grid-cols-2 gap-8 sm:grid-cols-3">
+            {team.map((member) => (
+              <div key={member.id} className="flex flex-col items-center gap-3">
+                <Avatar className="size-24">
+                  <AvatarImage src={member.photoUrl ?? undefined} alt={member.name} />
+                  <AvatarFallback className="text-2xl">
+                    {member.name.slice(0, 1).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium">{member.name}</p>
+                  {member.jobTitle && (
+                    <p className="text-sm text-muted-foreground">{member.jobTitle}</p>
+                  )}
+                  {member.bio && (
+                    <div
+                      className="mt-1 text-sm text-muted-foreground"
+                      dangerouslySetInnerHTML={{ __html: sanitizeRichText(member.bio) }}
+                    />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   )

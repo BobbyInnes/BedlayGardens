@@ -1,12 +1,14 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { logAudit } from "@/lib/audit"
 import { sendEmail } from "@/lib/email"
 import { getSettings } from "@/lib/settings"
 import { formatPence } from "@/lib/format"
+import { canManageAdmins } from "@/lib/admin-permissions"
 import type { DogFlagType } from "@/generated/prisma/client"
 
 export type AdminActionState = { status: "idle" | "error"; message?: string }
@@ -41,6 +43,37 @@ export async function toggleCustomerActive(customerId: string, active: boolean) 
   await prisma.user.update({ where: { id: customerId }, data: { active } })
   revalidatePath("/admin/customers")
   revalidatePath(`/admin/customers/${customerId}`)
+}
+
+/**
+ * Converts an existing customer account into a Staff/Admin account, rather
+ * than requiring a brand new user (email must be unique across every role,
+ * so someone who's already booked as a customer can't otherwise be added as
+ * staff under the same address). Keeps their existing password — an admin
+ * can reset it afterwards from the staff edit page if needed.
+ */
+export async function promoteCustomerToStaff(customerId: string, role: "STAFF" | "ADMIN") {
+  const session = await requireAdmin()
+  const customer = await prisma.user.findFirst({ where: { id: customerId, role: "CUSTOMER" } })
+  if (!customer) {
+    throw new Error("Customer not found.")
+  }
+  if (role === "ADMIN" && !(await canManageAdmins(session))) {
+    throw new Error("Only a super admin can promote someone to admin.")
+  }
+
+  await prisma.user.update({ where: { id: customerId }, data: { role } })
+  await logAudit({
+    actorId: session.user.id,
+    action: "PROMOTE_CUSTOMER_TO_STAFF",
+    entity: "User",
+    entityId: customerId,
+    meta: role,
+  })
+
+  revalidatePath("/admin/customers")
+  revalidatePath("/admin/staff")
+  redirect(`/admin/staff/${customerId}`)
 }
 
 export async function addDogFlag(
