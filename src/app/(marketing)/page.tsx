@@ -108,19 +108,35 @@ export default async function HomePage() {
       {/* 1. Hero */}
       <section className="relative overflow-hidden bg-navy">
         <div className="absolute inset-0">
-          {hero && (
-            <Image
+          {hero && hero.type === "VIDEO" ? (
+            <video
               src={hero.url}
-              alt={hero.altText ?? businessName}
-              fill
-              priority
-              // object-contain (not cover) so the whole photo stays visible
-              // instead of being cropped to fill the banner shape; scaled up
-              // 30% to close most of the letterboxed gap on the sides — the
-              // section has overflow-hidden, so any excess top/bottom is
-              // trimmed cleanly rather than distorting the image.
-              className="object-contain scale-[1.3]"
+              poster={hero.thumbnailUrl ?? undefined}
+              autoPlay
+              muted
+              loop
+              playsInline
+              // object-cover so the video fills the banner edge-to-edge —
+              // unlike the photo fallback below, a looping clip doesn't need
+              // the whole frame visible at all times, and cover reads better
+              // for motion footage.
+              className="h-full w-full object-cover"
             />
+          ) : (
+            hero && (
+              <Image
+                src={hero.url}
+                alt={hero.altText ?? businessName}
+                fill
+                priority
+                // object-contain (not cover) so the whole photo stays visible
+                // instead of being cropped to fill the banner shape; scaled up
+                // 30% to close most of the letterboxed gap on the sides — the
+                // section has overflow-hidden, so any excess top/bottom is
+                // trimmed cleanly rather than distorting the image.
+                className="object-contain scale-[1.3]"
+              />
+            )
           )}
           {/* Faint scrim, just enough for the text below to stay readable —
               the photo itself should read as bright, not tinted dark. */}
