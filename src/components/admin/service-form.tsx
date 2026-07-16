@@ -4,7 +4,7 @@ import { useActionState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { RichTextEditor } from "@/components/admin/rich-text-editor"
 import {
   Select,
   SelectContent,
@@ -43,7 +43,15 @@ export function ServiceForm({
 
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
-        <Textarea id="description" name="description" defaultValue={service?.description} rows={3} required />
+        <RichTextEditor
+          name="description"
+          defaultValue={service?.description}
+          placeholder="Describe this service for visitors…"
+        />
+        <p className="text-xs text-muted-foreground">
+          Use the toolbar to bold, underline, or colour parts of the text. Press Enter for a
+          new paragraph.
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -75,6 +83,24 @@ export function ServiceForm({
           <Label htmlFor="sortOrder">Sort order</Label>
           <Input id="sortOrder" name="sortOrder" type="number" defaultValue={service?.sortOrder ?? 0} />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="paymentTiming">Payment timing</Label>
+        <Select name="paymentTiming" defaultValue={service?.paymentTiming ?? "DEPOSIT_THEN_BALANCE"}>
+          <SelectTrigger id="paymentTiming" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="FULL_UPFRONT">Pay in full when booking</SelectItem>
+            <SelectItem value="DEPOSIT_THEN_BALANCE">Deposit now, balance before check-in</SelectItem>
+            <SelectItem value="INVOICE_AFTER">Invoice after the service</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          &ldquo;Invoice after&rdquo; confirms bookings without payment and emails a Stripe
+          invoice once the service is done.
+        </p>
       </div>
 
       <label className="flex items-start gap-3 text-sm">

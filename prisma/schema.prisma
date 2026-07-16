@@ -26,6 +26,13 @@ enum PricingModel {
   PER_SESSION
 }
 
+// When the customer pays for a service, configured per-service by admins.
+enum PaymentTiming {
+  FULL_UPFRONT         // 100% at booking time
+  DEPOSIT_THEN_BALANCE // deposit at booking, balance before check-in
+  INVOICE_AFTER        // confirmed without payment; invoiced at check-out
+}
+
 enum VaccinationStatus {
   UNVERIFIED
   VERIFIED
@@ -47,6 +54,7 @@ enum BookingStatus {
 enum PaymentType {
   DEPOSIT
   BALANCE
+  INVOICE
   REFUND
 }
 
@@ -131,8 +139,11 @@ model User {
   phone            String?
   address          String?
   role             Role      @default(CUSTOMER)
+  isSuperAdmin     Boolean   @default(false)
   active           Boolean   @default(true)
   photoUrl         String?
+  jobTitle         String?
+  bio              String?
   stripeCustomerId String?
   adminNotes       String?
   createdAt        DateTime  @default(now())
@@ -202,6 +213,7 @@ model Service {
   description    String
   pricingModel   PricingModel
   basePricePence Int
+  paymentTiming  PaymentTiming @default(DEPOSIT_THEN_BALANCE)
   active         Boolean      @default(true)
   sortOrder      Int          @default(0)
   requiresTrial  Boolean      @default(false)
@@ -363,6 +375,8 @@ model Payment {
   bookingId             String
   booking               Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   stripePaymentIntentId String?       @unique
+  stripeInvoiceId       String?       @unique
+  hostedInvoiceUrl      String?
   type                  PaymentType
   amountPence           Int
   status                PaymentStatus @default(PENDING)

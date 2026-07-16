@@ -9,6 +9,7 @@ import { BookingDatesForm } from "@/components/admin/booking-dates-form"
 import { CancelBookingAdminButton } from "@/components/admin/cancel-booking-admin-button"
 import { ReassignKennelForm } from "@/components/admin/reassign-kennel-form"
 import { RecordManualPaymentForm } from "@/components/admin/record-manual-payment-form"
+import { SendInvoiceButton } from "@/components/admin/send-invoice-button"
 
 export const metadata: Metadata = {
   title: "Booking | Admin",
@@ -49,6 +50,13 @@ export default async function AdminBookingDetailPage({
   const balancePaid = booking.payments.some((p) => p.type === "BALANCE" && p.status === "SUCCEEDED")
   const CANCELLED_STATUSES = ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"]
   const canRecordPayment = !CANCELLED_STATUSES.includes(booking.status)
+  const isInvoiceAfter = booking.service.paymentTiming === "INVOICE_AFTER"
+  const pendingInvoice = booking.payments.find(
+    (p) => p.type === "INVOICE" && p.status === "PENDING"
+  )
+  const invoiceSettled = booking.payments.some(
+    (p) => p.type === "INVOICE" && p.status === "SUCCEEDED"
+  )
 
   const kennelUnits = isBoarding
     ? await prisma.kennelUnit.findMany({
@@ -147,12 +155,44 @@ export default async function AdminBookingDetailPage({
         ) : (
           <p className="text-sm text-muted-foreground">No payments recorded yet.</p>
         )}
-        {canRecordPayment && !depositPaid && (
+        {canRecordPayment && !isInvoiceAfter && !depositPaid && (
           <RecordManualPaymentForm bookingId={booking.id} type="DEPOSIT" label="deposit" />
         )}
-        {canRecordPayment && booking.status === "CONFIRMED" && !balancePaid && balancePence > 0 && (
-          <RecordManualPaymentForm bookingId={booking.id} type="BALANCE" label="balance" />
-        )}
+        {canRecordPayment &&
+          !isInvoiceAfter &&
+          booking.status === "CONFIRMED" &&
+          !balancePaid &&
+          balancePence > 0 && (
+            <RecordManualPaymentForm bookingId={booking.id} type="BALANCE" label="balance" />
+          )}
+        {isInvoiceAfter &&
+          ["CHECKED_OUT", "COMPLETED"].includes(booking.status) &&
+          !invoiceSettled && (
+            <div className="space-y-2">
+              {pendingInvoice?.hostedInvoiceUrl && (
+                <p className="text-xs text-muted-foreground">
+                  Invoice outstanding —{" "}
+                  <a
+                    href={pendingInvoice.hostedInvoiceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    view hosted invoice
+                  </a>
+                </p>
+              )}
+              <div className="flex flex-wrap items-start gap-2">
+                <SendInvoiceButton
+                  bookingId={booking.id}
+                  label={pendingInvoice ? "Resend invoice email" : "Send invoice"}
+                />
+                {pendingInvoice && (
+                  <RecordManualPaymentForm bookingId={booking.id} type="INVOICE" label="invoice" />
+                )}
+              </div>
+            </div>
+          )}
       </section>
 
       {modifiable && (

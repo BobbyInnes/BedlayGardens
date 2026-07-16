@@ -12,6 +12,7 @@ import {
   vaccinationExpiryWarningEmail,
   reviewRequestEmail,
 } from "@/lib/email-templates"
+import { createBookingInvoice } from "@/lib/invoicing"
 import type { BookingStatus } from "@/generated/prisma/client"
 
 const ACTIVE_BOOKING_STATUSES: BookingStatus[] = ["PENDING_PAYMENT", "CONFIRMED"]
@@ -145,6 +146,35 @@ async function sendReviewRequests(settings: Record<string, string>) {
   return sent
 }
 
+// Invoice-after bookings for off-site services (e.g. dog walking) never pass
+// through the staff check-in/check-out flow, so once the service date has
+// passed, close them out and raise the invoice here. This also feeds them
+// into the review-request flow above (which keys on CHECKED_OUT).
+async function invoicePastServiceBookings() {
+  const bookings = await prisma.booking.findMany({
+    where: {
+      status: "CONFIRMED",
+      endDate: { lt: today() },
+      service: { paymentTiming: "INVOICE_AFTER" },
+    },
+    select: { id: true },
+  })
+
+  let invoiced = 0
+  for (const booking of bookings) {
+    await prisma.booking.update({ where: { id: booking.id }, data: { status: "CHECKED_OUT" } })
+    try {
+      await createBookingInvoice(booking.id)
+      invoiced++
+    } catch (error) {
+      // Booking is already CHECKED_OUT — admins can re-issue from the booking
+      // page (Send invoice), so log rather than retry forever here.
+      console.error(`[cron] failed to invoice booking ${booking.id}`, error)
+    }
+  }
+  return invoiced
+}
+
 export async function GET(request: Request) {
   if (!process.env.CRON_SECRET) {
     return NextResponse.json({ error: "CRON_SECRET is not configured" }, { status: 400 })
@@ -156,6 +186,10 @@ export async function GET(request: Request) {
 
   const settings = await getSettings()
 
+  // Close out finished invoice-after bookings before review requests run so
+  // a booking invoiced today can also get its review request in the same run.
+  const invoicedBookings = await invoicePastServiceBookings()
+
   const [balanceDueReminders, checkinReminders, vaccinationExpiryWarnings, reviewRequests] = await Promise.all([
     sendBalanceDueReminders(settings),
     sendCheckinReminders(settings),
@@ -163,5 +197,11 @@ export async function GET(request: Request) {
     sendReviewRequests(settings),
   ])
 
-  return NextResponse.json({ balanceDueReminders, checkinReminders, vaccinationExpiryWarnings, reviewRequests })
+  return NextResponse.json({
+    balanceDueReminders,
+    checkinReminders,
+    vaccinationExpiryWarnings,
+    reviewRequests,
+    invoicedBookings,
+  })
 }

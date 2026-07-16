@@ -4,21 +4,9 @@ import { redirect } from "next/navigation"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { stripe, getSiteUrl } from "@/lib/stripe"
+import { ensureStripeCustomer } from "@/lib/stripe-customer"
 
 export type CheckoutState = { status: "error"; message: string }
-
-async function ensureStripeCustomer(userId: string): Promise<string> {
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } })
-  if (user.stripeCustomerId) return user.stripeCustomerId
-
-  const customer = await stripe!.customers.create({
-    email: user.email,
-    name: user.name,
-    metadata: { userId: user.id },
-  })
-  await prisma.user.update({ where: { id: userId }, data: { stripeCustomerId: customer.id } })
-  return customer.id
-}
 
 export async function createCheckoutSession(
   bookingId: string,
@@ -42,6 +30,13 @@ export async function createCheckoutSession(
     return { status: "error", message: "Booking not found." }
   }
 
+  if (booking.service.paymentTiming === "INVOICE_AFTER") {
+    return {
+      status: "error",
+      message: "This service is invoiced after your visit — there's nothing to pay now.",
+    }
+  }
+
   const alreadyPaid = booking.payments.some((p) => p.type === type && p.status === "SUCCEEDED")
   if (alreadyPaid) {
     return { status: "error", message: "This has already been paid." }
@@ -56,44 +51,71 @@ export async function createCheckoutSession(
     return { status: "error", message: "Nothing due." }
   }
 
-  const customerId = await ensureStripeCustomer(session.user.id)
+  let customerId: string
+  try {
+    customerId = await ensureStripeCustomer(session.user.id)
+  } catch (error) {
+    console.error("[stripe checkout] ensureStripeCustomer failed", error)
+    const detail = error instanceof Error ? error.message : String(error)
+    return { status: "error", message: `Could not start checkout: ${detail}` }
+  }
   const baseUrl = getSiteUrl()
 
-  const checkoutSession = await stripe.checkout.sessions.create({
-    mode: "payment",
-    customer: customerId,
-    payment_intent_data: {
-      setup_future_usage: "off_session",
-      metadata: { bookingId: booking.id, type },
-    },
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: "gbp",
-          unit_amount: amountPence,
-          product_data: {
-            name: `${type === "DEPOSIT" ? "Deposit" : "Balance"} — ${booking.service.name}`,
+  let checkoutSession
+  try {
+    checkoutSession = await stripe.checkout.sessions.create({
+      mode: "payment",
+      customer: customerId,
+      payment_intent_data: {
+        setup_future_usage: "off_session",
+        metadata: { bookingId: booking.id, type },
+      },
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: "gbp",
+            unit_amount: amountPence,
+            product_data: {
+              name: `${
+                type === "DEPOSIT"
+                  ? booking.service.paymentTiming === "FULL_UPFRONT"
+                    ? "Payment"
+                    : "Deposit"
+                  : "Balance"
+              } — ${booking.service.name}`,
+            },
           },
         },
-      },
-    ],
-    metadata: { bookingId: booking.id, type },
-    success_url: `${baseUrl}/book/confirmation/${booking.id}?payment=success`,
-    cancel_url: `${baseUrl}/book/confirmation/${booking.id}?payment=cancelled`,
-  })
+      ],
+      metadata: { bookingId: booking.id, type },
+      success_url: `${baseUrl}/book/confirmation/${booking.id}?payment=success`,
+      cancel_url: `${baseUrl}/book/confirmation/${booking.id}?payment=cancelled`,
+    })
+  } catch (error) {
+    console.error("[stripe checkout] checkout.sessions.create failed", error)
+    const detail = error instanceof Error ? error.message : String(error)
+    return { status: "error", message: `Could not start checkout: ${detail}` }
+  }
 
-  if (!checkoutSession.url || !checkoutSession.payment_intent) {
+  if (!checkoutSession.url) {
+    console.error("[stripe checkout] session missing url", checkoutSession)
     return { status: "error", message: "Could not start checkout. Please try again." }
   }
+
+  // Stripe doesn't always populate payment_intent at session-creation time for
+  // hosted Checkout — it may only appear once the customer completes payment.
+  // Store the Checkout Session id as a placeholder key; the webhook reconciles
+  // it with the real PaymentIntent id once checkout.session.completed fires.
+  const paymentIntentId =
+    typeof checkoutSession.payment_intent === "string"
+      ? checkoutSession.payment_intent
+      : checkoutSession.payment_intent?.id
 
   await prisma.payment.create({
     data: {
       bookingId: booking.id,
-      stripePaymentIntentId:
-        typeof checkoutSession.payment_intent === "string"
-          ? checkoutSession.payment_intent
-          : checkoutSession.payment_intent.id,
+      stripePaymentIntentId: paymentIntentId ?? checkoutSession.id,
       type,
       amountPence,
       status: "PENDING",

@@ -80,9 +80,10 @@ export function paymentReceiptEmail(
   branding: EmailBranding,
   booking: BookingSummary,
   amountPence: number,
-  paymentType: "DEPOSIT" | "BALANCE"
+  paymentType: "DEPOSIT" | "BALANCE" | "INVOICE"
 ): { subject: string; html: string } {
-  const label = paymentType === "DEPOSIT" ? "deposit" : "balance"
+  const label =
+    paymentType === "DEPOSIT" ? "deposit" : paymentType === "BALANCE" ? "balance" : "invoice"
   return {
     subject: `Payment received — ${booking.serviceName}`,
     html: layout(
@@ -91,9 +92,11 @@ export function paymentReceiptEmail(
       `
         <p>We've received your ${label} payment of <strong>${formatPence(amountPence)}</strong> for your ${booking.serviceName} booking (${dateRange(booking.startDate, booking.endDate)}).</p>
         ${
-          paymentType === "DEPOSIT"
+          paymentType === "DEPOSIT" && booking.totalPence - booking.depositPence > 0
             ? `<p>Balance of ${formatPence(booking.totalPence - booking.depositPence)} is due before your stay.</p>`
-            : `<p>Your booking is fully paid — nothing more to do before your stay.</p>`
+            : paymentType === "INVOICE"
+              ? `<p>That settles your booking in full — thank you!</p>`
+              : `<p>Your booking is fully paid — nothing more to do before your stay.</p>`
         }
       `
     ),

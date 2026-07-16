@@ -11,7 +11,7 @@ export function RecordManualPaymentForm({
   label,
 }: {
   bookingId: string
-  type: "DEPOSIT" | "BALANCE"
+  type: "DEPOSIT" | "BALANCE" | "INVOICE"
   label: string
 }) {
   const [open, setOpen] = React.useState(false)

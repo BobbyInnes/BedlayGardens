@@ -34,7 +34,8 @@ async function main() {
   }
 
   // Launch prices and copy from DESIGN-bedlay-gardens.md §4 — admin-editable
-  // afterwards (seed never overwrites existing rows beyond requiresTrial).
+  // afterwards (seed never overwrites existing rows beyond requiresTrial and
+  // paymentTiming).
   const services = [
     {
       slug: "meet-greet",
@@ -43,6 +44,7 @@ async function main() {
         "The first step before booking — a chance for us to meet your dog and make sure the fit is right before their first stay.",
       pricingModel: "PER_SESSION" as const,
       basePricePence: 1500,
+      paymentTiming: "FULL_UPFRONT" as const,
       sortOrder: 1,
     },
     {
@@ -52,6 +54,7 @@ async function main() {
         "Drop off before 9am and collect at 12:30pm (£15 half day) or 5pm (£26 full day) — a full day of care and exercise.",
       pricingModel: "PER_DAY" as const,
       basePricePence: 2600,
+      paymentTiming: "FULL_UPFRONT" as const,
       sortOrder: 2,
     },
     {
@@ -61,6 +64,7 @@ async function main() {
         "Private-hire securely enclosed woodland for off-lead exercise — 1 hour for £15 or 3 hours for £20.",
       pricingModel: "PER_SESSION" as const,
       basePricePence: 1500,
+      paymentTiming: "FULL_UPFRONT" as const,
       sortOrder: 3,
     },
     {
@@ -70,6 +74,7 @@ async function main() {
         "Safe, comfortable overnight stays in our secure countryside setting, with a discount for a second dog sharing.",
       pricingModel: "PER_NIGHT" as const,
       basePricePence: 5000,
+      paymentTiming: "DEPOSIT_THEN_BALANCE" as const,
       sortOrder: 4,
       requiresTrial: true,
     },
@@ -80,13 +85,14 @@ async function main() {
         "Regular dog walking with van collection and drop-off from your home, with a discount for recurring weekly slots.",
       pricingModel: "PER_SESSION" as const,
       basePricePence: 1500,
+      paymentTiming: "INVOICE_AFTER" as const,
       sortOrder: 5,
     },
   ]
   for (const service of services) {
     await prisma.service.upsert({
       where: { slug: service.slug },
-      update: { requiresTrial: service.requiresTrial ?? false },
+      update: { requiresTrial: service.requiresTrial ?? false, paymentTiming: service.paymentTiming },
       create: service,
     })
   }
@@ -94,6 +100,7 @@ async function main() {
   const settings = [
     { key: "deposit_percent", value: "25" },
     { key: "balance_due_days_before_checkin", value: "7" },
+    { key: "invoice_due_days", value: "7" },
     { key: "cancellation_free_days", value: "14" },
     { key: "cancellation_no_refund_hours", value: "48" },
     { key: "vat_enabled", value: "false" },
@@ -104,8 +111,7 @@ async function main() {
     { key: "abandoned_booking_second_nudge_hours", value: "24" },
     {
       key: "opening_hours",
-      value:
-        "Mon–Fri 8am–6pm · Saturday 9am–5pm · Sunday 10am–4pm · Drop-offs and collections by appointment",
+      value: "Mon–Fri 8am–6pm · Closed Saturday & Sunday · Drop-offs and collections by appointment",
     },
     { key: "business_name", value: "Bedlay Gardens Kennels" },
     { key: "business_tagline", value: "Professional dog boarding you can trust" },

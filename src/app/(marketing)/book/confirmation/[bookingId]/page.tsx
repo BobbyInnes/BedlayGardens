@@ -85,10 +85,12 @@ export default async function BookingConfirmationPage({
           <span>Total</span>
           <span>{formatPence(booking.totalPence)}</span>
         </div>
-        <div className="flex justify-between text-muted-foreground">
-          <span>Deposit</span>
-          <span>{formatPence(booking.depositPence)}</span>
-        </div>
+        {booking.service.paymentTiming === "DEPOSIT_THEN_BALANCE" && (
+          <div className="flex justify-between text-muted-foreground">
+            <span>Deposit</span>
+            <span>{formatPence(booking.depositPence)}</span>
+          </div>
+        )}
         <div className="flex justify-between text-muted-foreground">
           <span>Status</span>
           <span className="capitalize">{booking.status.toLowerCase().replace(/_/g, " ")}</span>
@@ -98,15 +100,28 @@ export default async function BookingConfirmationPage({
       {booking.status === "PENDING_PAYMENT" && stripe ? (
         <div className="mt-6 space-y-3">
           <p className="text-sm text-muted-foreground">
-            Pay your deposit now to confirm this booking. Your card is saved securely
-            with Stripe so we can collect the balance automatically before check-in.
+            {booking.service.paymentTiming === "FULL_UPFRONT"
+              ? "Pay now to confirm this booking."
+              : "Pay your deposit now to confirm this booking. Your card is saved securely with Stripe so we can collect the balance automatically before check-in."}
           </p>
-          <PayButton bookingId={booking.id} type="DEPOSIT" label={`Pay deposit — ${formatPence(booking.depositPence)}`} />
+          <PayButton
+            bookingId={booking.id}
+            type="DEPOSIT"
+            label={
+              booking.service.paymentTiming === "FULL_UPFRONT"
+                ? `Pay now — ${formatPence(booking.depositPence)}`
+                : `Pay deposit — ${formatPence(booking.depositPence)}`
+            }
+          />
         </div>
       ) : booking.status === "PENDING_PAYMENT" ? (
         <p className="mt-6 text-sm text-muted-foreground">
-          Online payment isn&rsquo;t enabled yet — we&rsquo;ll be in touch to arrange your
-          deposit.
+          Online payment isn&rsquo;t enabled yet — we&rsquo;ll be in touch to arrange payment.
+        </p>
+      ) : booking.service.paymentTiming === "INVOICE_AFTER" && booking.status === "CONFIRMED" ? (
+        <p className="mt-6 text-sm text-muted-foreground">
+          Your booking is confirmed — nothing to pay now. We&rsquo;ll email you an invoice
+          after the service.
         </p>
       ) : (
         <p className="mt-6 text-sm text-muted-foreground">

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { z } from "zod"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { sanitizeRichText } from "@/lib/sanitize-html"
 
 export type AdminActionState = { status: "idle" | "error"; message?: string }
 
@@ -23,9 +24,10 @@ const serviceSchema = z.object({
     .trim()
     .min(1, "Slug is required")
     .regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers, and hyphens only"),
-  description: z.string().trim().min(1, "Description is required").max(2000),
+  description: z.string().trim().min(1, "Description is required").max(4000),
   pricingModel: z.enum(["PER_NIGHT", "PER_DAY", "PER_SESSION"]),
   basePricePence: z.coerce.number().int().min(0),
+  paymentTiming: z.enum(["FULL_UPFRONT", "DEPOSIT_THEN_BALANCE", "INVOICE_AFTER"]),
   sortOrder: z.coerce.number().int().default(0),
   requiresTrial: z.boolean().default(false),
 })
@@ -37,6 +39,7 @@ function readServiceFields(formData: FormData) {
     description: formData.get("description"),
     pricingModel: formData.get("pricingModel"),
     basePricePence: formData.get("basePricePence"),
+    paymentTiming: formData.get("paymentTiming"),
     sortOrder: formData.get("sortOrder") || "0",
     requiresTrial: formData.get("requiresTrial") === "on",
   })
@@ -57,7 +60,9 @@ export async function createService(
     return { status: "error", message: "A service with that slug already exists." }
   }
 
-  await prisma.service.create({ data: parsed.data })
+  await prisma.service.create({
+    data: { ...parsed.data, description: sanitizeRichText(parsed.data.description) },
+  })
   revalidatePath("/admin/services")
   revalidatePath("/services")
   revalidatePath("/book")
@@ -82,7 +87,10 @@ export async function updateService(
     return { status: "error", message: "A service with that slug already exists." }
   }
 
-  await prisma.service.update({ where: { id: serviceId }, data: parsed.data })
+  await prisma.service.update({
+    where: { id: serviceId },
+    data: { ...parsed.data, description: sanitizeRichText(parsed.data.description) },
+  })
   revalidatePath("/admin/services")
   revalidatePath("/services")
   revalidatePath("/book")

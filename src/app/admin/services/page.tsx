@@ -12,6 +12,12 @@ export const metadata: Metadata = {
   title: "Services | Admin",
 }
 
+const PAYMENT_TIMING_LABELS = {
+  FULL_UPFRONT: "Paid upfront",
+  DEPOSIT_THEN_BALANCE: "Deposit + balance",
+  INVOICE_AFTER: "Invoiced after",
+} as const
+
 export default async function AdminServicesPage() {
   const services = await prisma.service.findMany({ orderBy: { sortOrder: "asc" } })
 
@@ -33,6 +39,7 @@ export default async function AdminServicesPage() {
                 <Badge variant={service.active ? "default" : "secondary"}>
                   {service.active ? "Active" : "Inactive"}
                 </Badge>
+                <Badge variant="outline">{PAYMENT_TIMING_LABELS[service.paymentTiming]}</Badge>
               </div>
               <p className="text-muted-foreground">
                 {formatPriceWithSuffix(service.basePricePence, service.pricingModel)} — /{service.slug}

@@ -6,6 +6,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { nightsBetween } from "@/lib/dates"
 import { checkVaccinationGate } from "@/lib/vaccination-gate"
+import { createBookingInvoice } from "@/lib/invoicing"
 import { logAudit } from "@/lib/audit"
 
 export type StaffActionState = { status: "idle" | "error"; message?: string }
@@ -89,7 +90,7 @@ export async function checkOutBooking(
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { payments: true },
+    include: { payments: true, service: true },
   })
   if (!booking) return { status: "error", message: "Booking not found." }
 
@@ -98,7 +99,10 @@ export async function checkOutBooking(
     .reduce((sum, p) => sum + p.amountPence, 0)
   const outstandingPence = booking.totalPence - paidPence
 
-  if (outstandingPence > 0) {
+  // Invoice-after services are expected to have an outstanding balance at
+  // check-out — that's when the invoice is raised. Everything else must be
+  // settled before the dog leaves.
+  if (outstandingPence > 0 && booking.service.paymentTiming !== "INVOICE_AFTER") {
     return {
       status: "error",
       message: `Balance outstanding: £${(outstandingPence / 100).toFixed(2)} — cannot check out until paid.`,
@@ -106,6 +110,16 @@ export async function checkOutBooking(
   }
 
   await prisma.booking.update({ where: { id: bookingId }, data: { status: "CHECKED_OUT" } })
+
+  if (booking.service.paymentTiming === "INVOICE_AFTER") {
+    // Invoice failure must not block the check-out itself — admins can
+    // re-issue from the booking page (createBookingInvoice is idempotent).
+    try {
+      await createBookingInvoice(bookingId)
+    } catch (error) {
+      console.error(`[checkOut] failed to create invoice for booking ${bookingId}`, error)
+    }
+  }
 
   revalidatePath("/staff")
   redirect("/staff")

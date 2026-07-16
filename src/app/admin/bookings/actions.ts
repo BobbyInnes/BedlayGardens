@@ -10,11 +10,13 @@ import { stripe } from "@/lib/stripe"
 import { startOfDay, nightsBetween } from "@/lib/dates"
 import { findAvailableKennelUnit, isDaycareAvailable } from "@/lib/availability"
 import { computeBookingPrice } from "@/lib/booking-pricing"
+import { paymentFieldsFor } from "@/lib/payment-timing"
 import { getSetting, getSettings } from "@/lib/settings"
 import { sendEmail } from "@/lib/email"
 import { cancellationConfirmationEmail, bookingConfirmationEmail, paymentReceiptEmail } from "@/lib/email-templates"
 import { logAudit } from "@/lib/audit"
 import { resolveBookingCreation, type BookingCreationResult } from "@/app/(marketing)/book/actions"
+import { createBookingInvoice } from "@/lib/invoicing"
 import { getActiveAgreement } from "@/lib/agreement"
 import { offerNextInLine } from "@/lib/waitlist"
 import { generateAgreementPdf } from "@/lib/agreement-pdf"
@@ -295,6 +297,12 @@ export async function modifyBookingDates(
     const balanceDueDays = Number(await getSetting("balance_due_days_before_checkin", "7"))
     const balanceDueDate = new Date(startDate)
     balanceDueDate.setDate(balanceDueDate.getDate() - balanceDueDays)
+    // Recompute the deposit under the service's payment timing — the booking's
+    // total here includes add-ons, so FULL_UPFRONT deposits must as well.
+    const paymentFields = paymentFieldsFor(booking.service.paymentTiming, {
+      totalPence: pricing.totalPence + addonsPricePence,
+      depositPence: pricing.depositPence,
+    })
 
     // findAvailableKennelUnit must run outside any $transaction — it uses the
     // shared prisma client, and calling it from inside a tx callback deadlocks
@@ -318,8 +326,9 @@ export async function modifyBookingDates(
                 endDate,
                 kennelUnitId: candidate.id,
                 totalPence: pricing.totalPence + addonsPricePence,
-                depositPence: pricing.depositPence,
-                balanceDueDate,
+                depositPence: paymentFields.depositPence,
+                balanceDueDate:
+                  booking.service.paymentTiming === "DEPOSIT_THEN_BALANCE" ? balanceDueDate : null,
               },
             })
             await tx.kennelOccupancy.createMany({
@@ -517,6 +526,64 @@ export async function cancelBookingAdmin(
   }
 }
 
+export type SendInvoiceResult = { status: "idle" | "error"; message?: string }
+
+/**
+ * Issues (or re-sends) the Stripe invoice for a checked-out invoice-after
+ * booking — the safety net for when invoice creation failed at check-out.
+ */
+export async function sendBookingInvoice(bookingId: string): Promise<SendInvoiceResult> {
+  await requireAdmin()
+  if (!stripe) return { status: "error", message: "Stripe is not configured." }
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { payments: true },
+  })
+  if (!booking) return { status: "error", message: "Booking not found." }
+
+  const pendingInvoice = booking.payments.find(
+    (p) => p.type === "INVOICE" && p.status === "PENDING" && p.stripeInvoiceId
+  )
+  if (pendingInvoice) {
+    try {
+      const stripeInvoice = await stripe.invoices.retrieve(pendingInvoice.stripeInvoiceId!)
+      if (stripeInvoice.collection_method !== "send_invoice") {
+        return {
+          status: "error",
+          message:
+            "This invoice charges the customer's saved card automatically — there's no email to resend. They can also pay at the hosted invoice link.",
+        }
+      }
+      await stripe.invoices.sendInvoice(pendingInvoice.stripeInvoiceId!)
+    } catch (error) {
+      console.error(`[sendBookingInvoice] resend failed for booking ${bookingId}`, error)
+      return { status: "error", message: "Could not resend the invoice. Please try again." }
+    }
+    revalidatePath(`/admin/bookings/${bookingId}`)
+    return { status: "idle", message: "Invoice email resent." }
+  }
+
+  try {
+    const result = await createBookingInvoice(bookingId)
+    if (result.status === "skipped") {
+      const message = {
+        "already-invoiced": "An invoice already exists for this booking.",
+        "nothing-due": "Nothing is due on this booking.",
+        "stripe-not-configured": "Stripe is not configured.",
+      }[result.reason]
+      return { status: "error", message }
+    }
+  } catch (error) {
+    console.error(`[sendBookingInvoice] create failed for booking ${bookingId}`, error)
+    return { status: "error", message: "Could not create the invoice. Please try again." }
+  }
+
+  revalidatePath(`/admin/bookings/${bookingId}`)
+  revalidatePath("/admin/bookings")
+  return { status: "idle", message: "Invoice sent." }
+}
+
 export type RecordManualPaymentResult = { status: "idle" | "error"; message?: string }
 
 /**
@@ -528,7 +595,7 @@ export type RecordManualPaymentResult = { status: "idle" | "error"; message?: st
  */
 export async function recordManualPayment(
   bookingId: string,
-  type: "DEPOSIT" | "BALANCE",
+  type: "DEPOSIT" | "BALANCE" | "INVOICE",
   reason: string
 ): Promise<RecordManualPaymentResult> {
   const session = await requireAdmin()
@@ -545,6 +612,69 @@ export async function recordManualPayment(
 
   const alreadyPaid = booking.payments.some((p) => p.type === type && p.status === "SUCCEEDED")
   if (alreadyPaid) return { status: "error", message: "This has already been paid." }
+
+  // Settling an issued invoice outside Stripe: void the Stripe invoice FIRST
+  // so the customer can't also pay online (double-payment guard), then mark
+  // the existing Payment row settled. The invoice.voided webhook marking the
+  // row FAILED in between is fine — the update below targets it by id.
+  if (type === "INVOICE") {
+    const invoicePayment = booking.payments.find(
+      (p) => p.type === "INVOICE" && p.status !== "SUCCEEDED"
+    )
+    if (!invoicePayment) {
+      return { status: "error", message: "No outstanding invoice on this booking." }
+    }
+
+    if (stripe && invoicePayment.stripeInvoiceId) {
+      try {
+        const stripeInvoice = await stripe.invoices.retrieve(invoicePayment.stripeInvoiceId)
+        if (stripeInvoice.status === "open") {
+          await stripe.invoices.voidInvoice(invoicePayment.stripeInvoiceId)
+        }
+      } catch (error) {
+        console.error(`[recordManualPayment] failed to void invoice for booking ${bookingId}`, error)
+        return {
+          status: "error",
+          message: "Could not void the Stripe invoice — payment not recorded. Please try again.",
+        }
+      }
+    }
+
+    await prisma.$transaction([
+      prisma.payment.update({ where: { id: invoicePayment.id }, data: { status: "SUCCEEDED" } }),
+      prisma.booking.updateMany({
+        where: { id: booking.id, status: "CHECKED_OUT" },
+        data: { status: "COMPLETED" },
+      }),
+    ])
+
+    await logAudit({
+      actorId: session.user.id,
+      action: "RECORD_MANUAL_PAYMENT",
+      entity: "Booking",
+      entityId: booking.id,
+      meta: `INVOICE ${invoicePayment.amountPence}p — ${reason.trim()}`,
+    })
+
+    const settings = await getSettings()
+    const receipt = paymentReceiptEmail(
+      settings,
+      {
+        serviceName: booking.service.name,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        totalPence: booking.totalPence,
+        depositPence: booking.depositPence,
+      },
+      invoicePayment.amountPence,
+      "INVOICE"
+    )
+    await sendEmail({ to: booking.customer.email, subject: receipt.subject, html: receipt.html })
+
+    revalidatePath(`/admin/bookings/${bookingId}`)
+    revalidatePath("/admin/bookings")
+    return { status: "idle", message: "Invoice payment recorded." }
+  }
   if (type === "BALANCE" && booking.status !== "CONFIRMED") {
     return { status: "error", message: "The deposit must be paid before the balance." }
   }

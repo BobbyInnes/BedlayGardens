@@ -10,7 +10,10 @@ import { nightsBetween, startOfDay } from "@/lib/dates"
 import { findAvailableKennelUnit, isDaycareAvailable, isMeetGreetAvailable } from "@/lib/availability"
 import { checkVaccinationGate } from "@/lib/vaccination-gate"
 import { computeBookingPrice } from "@/lib/booking-pricing"
-import { getSetting } from "@/lib/settings"
+import { paymentFieldsFor } from "@/lib/payment-timing"
+import { getSetting, getSettings } from "@/lib/settings"
+import { sendEmail } from "@/lib/email"
+import { bookingConfirmationEmail } from "@/lib/email-templates"
 import { logAudit } from "@/lib/audit"
 import { GROUP_BLOCKING_FLAGS, SHARED_KENNEL_BLOCKING_FLAG, DOG_FLAG_LABELS } from "@/lib/dog-flags"
 import { hasCurrentSignedAgreement } from "@/lib/agreement"
@@ -92,7 +95,7 @@ export async function resolveBookingCreation(
       return {
         status: "error",
         requiresTrialVisit: true,
-        message: `${missingTrial.join(", ")} ${missingTrial.length === 1 ? "needs" : "need"} a completed meet & greet trial visit before a first ${service.name.toLowerCase()} booking.`,
+        message: `${missingTrial.join(", ")} ${missingTrial.length === 1 ? "requires" : "require"} a mandatory Meet & Greet evaluation before ${missingTrial.length === 1 ? "it" : "they"} can book any service.`,
       }
     }
   }
@@ -195,6 +198,7 @@ export async function resolveBookingCreation(
     const balanceDueDays = Number(await getSetting("balance_due_days_before_checkin", "7"))
     const balanceDueDate = new Date(startDate)
     balanceDueDate.setDate(balanceDueDate.getDate() - balanceDueDays)
+    const paymentFields = paymentFieldsFor(service.paymentTiming, pricing)
 
     const MAX_ATTEMPTS = 5
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
@@ -211,11 +215,11 @@ export async function resolveBookingCreation(
               serviceId: service.id,
               startDate,
               endDate,
-              status: "PENDING_PAYMENT",
+              status: paymentFields.status,
               kennelUnitId: candidate.id,
               totalPence: pricing.totalPence,
-              depositPence: pricing.depositPence,
-              balanceDueDate,
+              depositPence: paymentFields.depositPence,
+              balanceDueDate: service.paymentTiming === "DEPOSIT_THEN_BALANCE" ? balanceDueDate : null,
             },
           })
           await tx.kennelOccupancy.createMany({
@@ -299,9 +303,8 @@ export async function resolveBookingCreation(
           serviceId: service.id,
           startDate: date,
           endDate: date,
-          status: "PENDING_PAYMENT",
+          ...paymentFieldsFor(service.paymentTiming, pricing),
           totalPence: pricing.totalPence,
-          depositPence: pricing.depositPence,
         },
       })
       await tx.bookingDog.createMany({
@@ -359,9 +362,8 @@ export async function resolveBookingCreation(
           serviceId: service.id,
           startDate: current.date,
           endDate: current.date,
-          status: "PENDING_PAYMENT",
+          ...paymentFieldsFor(service.paymentTiming, pricing),
           totalPence: pricing.totalPence,
-          depositPence: pricing.depositPence,
         },
       })
       await tx.bookingDog.createMany({
@@ -436,9 +438,8 @@ export async function resolveBookingCreation(
           serviceId: service.id,
           startDate: current.date,
           endDate: current.date,
-          status: "PENDING_PAYMENT",
+          ...paymentFieldsFor(service.paymentTiming, pricing),
           totalPence: pricing.totalPence,
-          depositPence: pricing.depositPence,
         },
       })
       await tx.bookingDog.createMany({
@@ -502,9 +503,8 @@ export async function resolveBookingCreation(
           serviceId: service.id,
           startDate: date,
           endDate: date,
-          status: "PENDING_PAYMENT",
+          ...paymentFieldsFor(service.paymentTiming, pricing),
           totalPence: pricing.totalPence,
-          depositPence: pricing.depositPence,
         },
       })
       await tx.bookingDog.createMany({
@@ -525,6 +525,29 @@ export async function resolveBookingCreation(
     bookingId = booking.id
   } else {
     return { status: "error", message: "Booking isn't available for this service yet." }
+  }
+
+  // INVOICE_AFTER bookings are confirmed immediately and never reach the
+  // payment webhook that sends the confirmation email for paid bookings, so
+  // send it at creation. A failed email must not fail the booking itself.
+  if (service.paymentTiming === "INVOICE_AFTER") {
+    try {
+      const [settings, customer, booking] = await Promise.all([
+        getSettings(),
+        prisma.user.findUniqueOrThrow({ where: { id: customerId } }),
+        prisma.booking.findUniqueOrThrow({ where: { id: bookingId! } }),
+      ])
+      const confirmation = bookingConfirmationEmail(settings, {
+        serviceName: service.name,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        totalPence: booking.totalPence,
+        depositPence: booking.depositPence,
+      })
+      await sendEmail({ to: customer.email, subject: confirmation.subject, html: confirmation.html })
+    } catch (error) {
+      console.error("[booking] failed to send invoice-after confirmation email", error)
+    }
   }
 
   return { status: "idle", bookingId: bookingId! }

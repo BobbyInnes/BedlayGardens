@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { formatPence } from "@/lib/format"
+import { buildServiceColorMap } from "@/lib/service-colors"
 import type { BookingStatus } from "@/generated/prisma/client"
 
 export const metadata: Metadata = {
@@ -60,12 +61,14 @@ export default async function AdminBookingsPage({
         ...(service ? { service: { slug: service } } : {}),
         ...(status ? { status: status as BookingStatus } : {}),
       },
-      include: { customer: true, service: true },
+      include: { customer: true, service: true, payments: true },
       orderBy: { startDate: "desc" },
       take: 100,
     }),
-    prisma.service.findMany({ orderBy: { sortOrder: "asc" } }),
+    prisma.service.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
   ])
+  // Same ordering + palette as the Calendar page, so a service's colour matches everywhere.
+  const colorByServiceId = buildServiceColorMap(services)
 
   return (
     <div className="space-y-6">
@@ -131,7 +134,13 @@ export default async function AdminBookingsPage({
                   <p className="text-muted-foreground">{booking.customer.email}</p>
                 </div>
                 <div>
-                  <p>{booking.service.name}</p>
+                  <p className="flex items-center gap-1.5">
+                    <span
+                      className={`inline-block size-2.5 shrink-0 rounded-full ${colorByServiceId.get(booking.serviceId) ?? "bg-gray-400"}`}
+                      aria-hidden="true"
+                    />
+                    {booking.service.name}
+                  </p>
                   <p className="text-muted-foreground">
                     {booking.startDate.toLocaleDateString("en-GB")}
                     {booking.endDate.getTime() !== booking.startDate.getTime()
@@ -141,7 +150,12 @@ export default async function AdminBookingsPage({
                 </div>
                 <div className="text-right">
                   <p className="font-medium">{formatPence(booking.totalPence)}</p>
-                  <Badge variant="secondary">{booking.status.replace(/_/g, " ")}</Badge>
+                  <div className="flex items-center justify-end gap-1">
+                    {booking.payments.some(
+                      (p) => p.type === "INVOICE" && p.status === "PENDING"
+                    ) && <Badge variant="destructive">Invoice outstanding</Badge>}
+                    <Badge variant="secondary">{booking.status.replace(/_/g, " ")}</Badge>
+                  </div>
                 </div>
               </Link>
             </li>

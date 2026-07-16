@@ -49,6 +49,9 @@ export default async function PortalBookingsPage() {
               (p) => p.type === "BALANCE" && p.status === "SUCCEEDED"
             )
             const balancePence = booking.totalPence - booking.depositPence
+            const pendingInvoice = booking.payments.find(
+              (p) => p.type === "INVOICE" && p.status === "PENDING"
+            )
 
             return (
               <li key={booking.id} className="flex flex-wrap items-center justify-between gap-4 p-4 text-sm">
@@ -74,7 +77,11 @@ export default async function PortalBookingsPage() {
                         <PayButton
                           bookingId={booking.id}
                           type="DEPOSIT"
-                          label="Pay deposit"
+                          label={
+                            booking.service.paymentTiming === "FULL_UPFRONT"
+                              ? "Pay now"
+                              : "Pay deposit"
+                          }
                           size="sm"
                           fullWidth={false}
                         />
@@ -82,7 +89,10 @@ export default async function PortalBookingsPage() {
                       <RedeemCreditForm bookingId={booking.id} type="DEPOSIT" />
                     </>
                   )}
-                  {booking.status === "CONFIRMED" && !balancePaid && balancePence > 0 && (
+                  {booking.status === "CONFIRMED" &&
+                    booking.service.paymentTiming !== "INVOICE_AFTER" &&
+                    !balancePaid &&
+                    balancePence > 0 && (
                     <>
                       {stripe && (
                         <PayButton
@@ -95,6 +105,13 @@ export default async function PortalBookingsPage() {
                       )}
                       <RedeemCreditForm bookingId={booking.id} type="BALANCE" />
                     </>
+                  )}
+                  {pendingInvoice?.hostedInvoiceUrl && (
+                    <Button size="sm" asChild>
+                      <a href={pendingInvoice.hostedInvoiceUrl} target="_blank" rel="noopener noreferrer">
+                        Pay invoice — {formatPence(pendingInvoice.amountPence)}
+                      </a>
+                    </Button>
                   )}
                   {!NON_CANCELLABLE_STATUSES.includes(booking.status) && (
                     <CancelBookingButton bookingId={booking.id} />
