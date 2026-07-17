@@ -121,9 +121,12 @@ export default async function AboutPage() {
           </div>
 
           {team.length > 0 && (
-            <div className="mx-auto grid max-w-3xl grid-cols-2 gap-8 sm:grid-cols-3">
+            <div className="mx-auto grid max-w-6xl grid-cols-2 gap-8 sm:grid-cols-3">
               {team.map((member) => (
-                <div key={member.id} className="flex flex-col items-center gap-3">
+                <div
+                  key={member.id}
+                  className="flex flex-col items-center gap-3 rounded-xl border-2 border-blue-500 p-6"
+                >
                   <Avatar className="size-24">
                     <AvatarImage src={member.photoUrl ?? undefined} alt={member.name} />
                     <AvatarFallback className="text-2xl">
