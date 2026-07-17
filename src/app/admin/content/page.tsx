@@ -1,6 +1,8 @@
 import type { Metadata } from "next"
+import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { getSetting } from "@/lib/settings"
+import { BusinessEmailForm } from "@/components/admin/business-email-form"
 import { OpeningHoursForm } from "@/components/admin/opening-hours-form"
 import { FaqCreateForm } from "@/components/admin/faq-create-form"
 import { FaqListItem } from "@/components/admin/faq-list-item"
@@ -14,19 +16,39 @@ export const metadata: Metadata = {
 }
 
 export default async function AdminContentPage() {
-  const [openingHours, faqs, testimonials, activeAgreement, googleReviewUrl] = await Promise.all([
-    getSetting("opening_hours", ""),
-    prisma.faq.findMany({ orderBy: { sortOrder: "asc" } }),
-    prisma.testimonial.findMany({ orderBy: { id: "asc" } }),
-    prisma.agreement.findFirst({ where: { active: true }, orderBy: { publishedAt: "desc" } }),
-    getSetting("google_business_review_url", ""),
-  ])
+  const [session, openingHours, faqs, testimonials, activeAgreement, googleReviewUrl, businessEmail] =
+    await Promise.all([
+      auth(),
+      getSetting("opening_hours", ""),
+      prisma.faq.findMany({ orderBy: { sortOrder: "asc" } }),
+      prisma.testimonial.findMany({ orderBy: { id: "asc" } }),
+      prisma.agreement.findFirst({ where: { active: true }, orderBy: { publishedAt: "desc" } }),
+      getSetting("google_business_review_url", ""),
+      getSetting("business_email", ""),
+    ])
+  const isSuperAdmin = session?.user.isSuperAdmin ?? false
 
   return (
     <div className="space-y-10">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Content</h1>
       </div>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Business email</h2>
+        <p className="text-sm text-muted-foreground">
+          Shown on the contact page and site footer, and used as the recipient for contact-form
+          messages and admin notifications.
+        </p>
+        {isSuperAdmin ? (
+          <BusinessEmailForm email={businessEmail} />
+        ) : (
+          <p className="text-sm">
+            <span className="font-medium">{businessEmail || "Not set"}</span>
+            <span className="text-muted-foreground"> — only a super admin can change this.</span>
+          </p>
+        )}
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Opening hours</h2>

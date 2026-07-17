@@ -150,6 +150,41 @@ export async function updateOpeningHours(
   return { status: "idle", message: "Opening hours updated." }
 }
 
+// The business email is the address shown on the contact page and footer,
+// the recipient for contact-form and admin notification emails, and the
+// address in outgoing email footers. Only super admins may change it.
+export async function updateBusinessEmail(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  const session = await requireAdmin()
+  if (!session.user.isSuperAdmin) {
+    return { status: "error", message: "Only a super admin can change the business email." }
+  }
+
+  const parsed = z
+    .string()
+    .trim()
+    .email("Enter a valid email address")
+    .max(200)
+    .safeParse(formData.get("business_email"))
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid email" }
+  }
+
+  await prisma.setting.upsert({
+    where: { key: "business_email" },
+    update: { value: parsed.data },
+    create: { key: "business_email", value: parsed.data },
+  })
+
+  revalidatePath("/admin/content")
+  revalidatePath("/")
+  revalidatePath("/contact")
+  revalidatePath("/about")
+  return { status: "idle", message: "Business email updated across the site." }
+}
+
 export async function updateGoogleReviewUrl(
   _prevState: AdminActionState,
   formData: FormData
