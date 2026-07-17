@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { HeroVideo } from "@/components/marketing/hero-video"
 import { ServiceCard } from "@/components/marketing/service-card"
 import { prisma } from "@/lib/prisma"
 import { getSettings } from "@/lib/settings"
@@ -124,19 +125,7 @@ export default async function HomePage() {
       <section className="relative overflow-hidden bg-navy">
         <div className="absolute inset-0">
           {hero && hero.type === "VIDEO" ? (
-            <video
-              src={hero.url}
-              poster={hero.thumbnailUrl ?? undefined}
-              autoPlay
-              muted
-              loop
-              playsInline
-              // object-cover so the video fills the banner edge-to-edge —
-              // unlike the photo fallback below, a looping clip doesn't need
-              // the whole frame visible at all times, and cover reads better
-              // for motion footage.
-              className="h-full w-full object-cover"
-            />
+            <HeroVideo src={hero.url} poster={hero.thumbnailUrl} />
           ) : (
             hero && (
               <Image
