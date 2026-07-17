@@ -155,6 +155,29 @@ export async function updateAnnouncementBanner(
   }
 }
 
+// About page banner (shown at the top of the About Us page). Empty value = hidden.
+export async function updateAboutBanner(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  await requireAdmin()
+  const raw = ((formData.get("about_banner") as string | null) ?? "").trim()
+  const value = raw ? sanitizeRichText(raw) : ""
+
+  await prisma.setting.upsert({
+    where: { key: "about_banner" },
+    update: { value },
+    create: { key: "about_banner", value },
+  })
+
+  revalidatePath("/admin/content")
+  revalidatePath("/about")
+  return {
+    status: "idle",
+    message: value ? "About page banner updated." : "About page banner hidden.",
+  }
+}
+
 export async function updateOpeningHours(
   _prevState: AdminActionState,
   formData: FormData

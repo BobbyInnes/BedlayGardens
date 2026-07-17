@@ -184,10 +184,15 @@ export default async function HomePage() {
             <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
               <Megaphone className="size-5" aria-hidden="true" />
             </span>
-            <div
-              className="space-y-2 text-sm leading-relaxed text-foreground [&>p:first-child]:text-base [&>p:first-child]:font-semibold"
-              dangerouslySetInnerHTML={{ __html: sanitizeRichText(settings.announcement_banner) }}
-            />
+            <div className="space-y-2">
+              <h2 className="text-base font-bold text-red-600 underline">
+                Announcement
+              </h2>
+              <div
+                className="space-y-2 text-sm leading-relaxed text-foreground [&>p:first-child]:text-base [&>p:first-child]:font-semibold"
+                dangerouslySetInnerHTML={{ __html: sanitizeRichText(settings.announcement_banner) }}
+              />
+            </div>
           </div>
         </section>
       )}

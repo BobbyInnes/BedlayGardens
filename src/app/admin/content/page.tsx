@@ -3,6 +3,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { getSetting } from "@/lib/settings"
 import { AnnouncementBannerForm } from "@/components/admin/announcement-banner-form"
+import { AboutBannerForm } from "@/components/admin/about-banner-form"
 import { BusinessEmailForm } from "@/components/admin/business-email-form"
 import { OpeningHoursForm } from "@/components/admin/opening-hours-form"
 import { FaqCreateForm } from "@/components/admin/faq-create-form"
@@ -26,6 +27,7 @@ export default async function AdminContentPage() {
     googleReviewUrl,
     businessEmail,
     announcementBanner,
+    aboutBanner,
   ] = await Promise.all([
       auth(),
       getSetting("opening_hours", ""),
@@ -35,6 +37,7 @@ export default async function AdminContentPage() {
       getSetting("google_business_review_url", ""),
       getSetting("business_email", ""),
       getSetting("announcement_banner", ""),
+      getSetting("about_banner", ""),
     ])
   const isSuperAdmin = session?.user.isSuperAdmin ?? false
 
@@ -63,6 +66,11 @@ export default async function AdminContentPage() {
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Announcement banner</h2>
         <AnnouncementBannerForm banner={announcementBanner} />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">About page banner</h2>
+        <AboutBannerForm banner={aboutBanner} />
       </section>
 
       <section className="space-y-3">

@@ -97,8 +97,23 @@ async function main() {
     })
   }
 
+  // Default About Us page banner — a friendly "fun facts" intro shown in a
+  // highlighted band at the top of /about. Admin-editable (and hideable) via
+  // Admin → Content afterwards; empty value hides the banner.
+  const aboutBannerHtml = [
+    "<p>If you aren't sure if we'd be right for your dog, here's some more fun facts about Bedlay Gardens!</p>",
+    "<p><strong>ALL BREEDS WELCOME:</strong><br>All breeds are welcome... including extra large/giant breeds and XL bullies/Banned Breeds. 🙏</p>",
+    "<p><strong>NEUTERING/SPAY POLICY:</strong><br>Dogs do NOT need to be neutured or spayed to join our services.🚫<br>Every new dog is assessed on a case by case basis, they must instead pass a behavioural evaluation. Call if you're curious about this 📲 😎</p>",
+    "<p><strong>LICENSED & INSURED:</strong><br>We are licensed by NLC for Home Boarding, Dog Daycare and as an Animal Welfare Establishment. ✅️ We are covered by one of the best insurance providers. Our exclusively Dog Transport van is fully insured with business use insurance and transporting animals (in professionally made, built-in travel crates and a well ventilated van, providing safe, secure and comfortable travels)</p>",
+    "<p><strong>LOCATION:</strong><br>All of our services (including dog walks) are provided at our farmstead home surrounded by 4 acres of beautiful, secure gardens- just off the duel carriageway between Chryston & Moodiesburn (along from the RaceTrack Petrol station or Moodiesburn traffic lights).</p>",
+    "<p><strong>HISTORY:</strong><br>Our services come with a little piece of history, our 500 year old home was actually the stables of Bedlay Castle... and our breathtaking gardens, well those were that of the 16th century Bedlay Castle (now our next door neighbour)... built in the 1500's!! Our driveway and path to the dog forest... that was the original Cumbernauld road! 🏰🌲🐾</p>",
+    "<p><strong>CONTACTING US:</strong><br>Please contact us with any enquiries via Facebook Messenger, Instagram or WhatsApp on 07958 670328 📲<br><em>*We do not monitor email, text or voicemail</em></p>",
+    "<p>We do not discriminate on size or breed. In fact, we have one of most sizes, from the tiniest terriers to giant Great Danes... and everything in between of course! Honourable mention to the bedlay K9 team which consists of many greyhounds, a belgian malinois, XL bully, Pharaoh Hound, American Bulldog, Border Collie & Parson Terrier)</p>",
+  ].join("")
+
   const settings = [
     { key: "deposit_percent", value: "25" },
+    { key: "about_banner", value: aboutBannerHtml },
     { key: "balance_due_days_before_checkin", value: "7" },
     { key: "invoice_due_days", value: "7" },
     { key: "cancellation_free_days", value: "14" },
