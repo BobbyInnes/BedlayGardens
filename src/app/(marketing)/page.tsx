@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Lock,
   MailCheck,
+  Megaphone,
   Quote,
   ShieldCheck,
   UsersRound,
@@ -17,6 +18,7 @@ import { Button } from "@/components/ui/button"
 import { HeroVideo } from "@/components/marketing/hero-video"
 import { ServiceCard } from "@/components/marketing/service-card"
 import { prisma } from "@/lib/prisma"
+import { sanitizeRichText } from "@/lib/sanitize-html"
 import { getSettings } from "@/lib/settings"
 
 export const revalidate = 60
@@ -174,6 +176,21 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Announcement banner — editable in Admin → Content, hidden when empty */}
+      {settings.announcement_banner?.trim() && (
+        <section className="border-b border-amber-200/70 bg-amber-50">
+          <div className="mx-auto flex max-w-6xl items-start gap-4 px-4 py-6 sm:px-6">
+            <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+              <Megaphone className="size-5" aria-hidden="true" />
+            </span>
+            <div
+              className="space-y-2 text-sm leading-relaxed text-foreground [&>p:first-child]:text-base [&>p:first-child]:font-semibold"
+              dangerouslySetInnerHTML={{ __html: sanitizeRichText(settings.announcement_banner) }}
+            />
+          </div>
+        </section>
+      )}
 
       {/* 2. Stats band */}
       <section className="bg-navy text-navy-foreground">

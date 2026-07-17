@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { getSetting } from "@/lib/settings"
+import { AnnouncementBannerForm } from "@/components/admin/announcement-banner-form"
 import { BusinessEmailForm } from "@/components/admin/business-email-form"
 import { OpeningHoursForm } from "@/components/admin/opening-hours-form"
 import { FaqCreateForm } from "@/components/admin/faq-create-form"
@@ -16,8 +17,16 @@ export const metadata: Metadata = {
 }
 
 export default async function AdminContentPage() {
-  const [session, openingHours, faqs, testimonials, activeAgreement, googleReviewUrl, businessEmail] =
-    await Promise.all([
+  const [
+    session,
+    openingHours,
+    faqs,
+    testimonials,
+    activeAgreement,
+    googleReviewUrl,
+    businessEmail,
+    announcementBanner,
+  ] = await Promise.all([
       auth(),
       getSetting("opening_hours", ""),
       prisma.faq.findMany({ orderBy: { sortOrder: "asc" } }),
@@ -25,6 +34,7 @@ export default async function AdminContentPage() {
       prisma.agreement.findFirst({ where: { active: true }, orderBy: { publishedAt: "desc" } }),
       getSetting("google_business_review_url", ""),
       getSetting("business_email", ""),
+      getSetting("announcement_banner", ""),
     ])
   const isSuperAdmin = session?.user.isSuperAdmin ?? false
 
@@ -48,6 +58,11 @@ export default async function AdminContentPage() {
             <span className="text-muted-foreground"> — only a super admin can change this.</span>
           </p>
         )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Announcement banner</h2>
+        <AnnouncementBannerForm banner={announcementBanner} />
       </section>
 
       <section className="space-y-3">

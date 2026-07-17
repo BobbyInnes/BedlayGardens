@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { sanitizeRichText } from "@/lib/sanitize-html"
 
 export type AdminActionState = { status: "idle" | "error"; message?: string }
 
@@ -129,6 +130,29 @@ export async function deleteTestimonial(testimonialId: string) {
   await prisma.testimonial.delete({ where: { id: testimonialId } })
   revalidatePath("/admin/content")
   revalidatePath("/")
+}
+
+// Homepage announcement banner (shown under the hero). Empty value = hidden.
+export async function updateAnnouncementBanner(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  await requireAdmin()
+  const raw = ((formData.get("announcement_banner") as string | null) ?? "").trim()
+  const value = raw ? sanitizeRichText(raw) : ""
+
+  await prisma.setting.upsert({
+    where: { key: "announcement_banner" },
+    update: { value },
+    create: { key: "announcement_banner", value },
+  })
+
+  revalidatePath("/admin/content")
+  revalidatePath("/")
+  return {
+    status: "idle",
+    message: value ? "Announcement banner updated." : "Announcement banner hidden.",
+  }
 }
 
 export async function updateOpeningHours(
