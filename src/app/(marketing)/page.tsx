@@ -86,7 +86,7 @@ const mockArrivals = [
 ]
 
 export default async function HomePage() {
-  const [settings, services, testimonials, hero, approvedReviews] = await Promise.all([
+  const [settings, services, testimonials, hero, approvedReviews, serviceMedia] = await Promise.all([
     getSettings(),
     prisma.service.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
     prisma.testimonial.findMany({ where: { visible: true }, take: 6 }),
@@ -99,7 +99,22 @@ export default async function HomePage() {
       orderBy: { createdAt: "desc" },
       include: { customer: true },
     }),
+    prisma.mediaItem.findMany({
+      where: { usage: "SERVICE", type: "IMAGE" },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+    }),
   ])
+
+  // Service-card photos are matched by the media item's category — admins set
+  // it to the service slug (preferred) or the service name. First item per
+  // category wins (they're sorted by sortOrder above).
+  const serviceImageByKey = new Map<string, { url: string; altText: string | null }>()
+  for (const item of serviceMedia) {
+    const key = item.category?.trim().toLowerCase()
+    if (key && !serviceImageByKey.has(key)) {
+      serviceImageByKey.set(key, { url: item.url, altText: item.altText })
+    }
+  }
 
   const businessName = settings.business_name ?? "Bedlay Gardens Kennels"
 
@@ -196,16 +211,23 @@ export default async function HomePage() {
           </p>
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {services.map((service) => (
-            <ServiceCard
-              key={service.id}
-              name={service.name}
-              slug={service.slug}
-              description={service.description}
-              basePricePence={service.basePricePence}
-              pricingModel={service.pricingModel}
-            />
-          ))}
+          {services.map((service) => {
+            const image =
+              serviceImageByKey.get(service.slug) ??
+              serviceImageByKey.get(service.name.toLowerCase())
+            return (
+              <ServiceCard
+                key={service.id}
+                name={service.name}
+                slug={service.slug}
+                description={service.description}
+                basePricePence={service.basePricePence}
+                pricingModel={service.pricingModel}
+                imageUrl={image?.url}
+                imageAlt={image?.altText}
+              />
+            )
+          })}
         </div>
       </section>
 

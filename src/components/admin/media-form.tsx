@@ -75,6 +75,10 @@ export function MediaForm() {
         <div className="space-y-2">
           <Label htmlFor="category">Category</Label>
           <Input id="category" name="category" placeholder="kennels, forest walks…" />
+          <p className="text-xs text-muted-foreground">
+            For &ldquo;Service page&rdquo; photos, set this to the service&rsquo;s slug (e.g.
+            daycare, overnight-boarding) so it appears on that service&rsquo;s card.
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="altText">Alt text</Label>
