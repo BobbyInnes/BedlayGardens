@@ -32,7 +32,7 @@ export default async function AboutPage() {
       {/* About page banner — editable in Admin → Content, hidden when empty */}
       {settings.about_banner?.trim() && (
         <section className="border-b border-amber-200/70 bg-amber-50">
-          <div className="mx-auto flex max-w-4xl items-start gap-4 px-4 py-6 sm:px-6">
+          <div className="mx-auto flex max-w-6xl items-start gap-4 px-4 py-6 sm:px-6">
             <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
               <Megaphone className="size-5" aria-hidden="true" />
             </span>
