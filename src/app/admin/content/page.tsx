@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma"
 import { getSetting } from "@/lib/settings"
 import { AnnouncementBannerForm } from "@/components/admin/announcement-banner-form"
 import { AboutBannerForm } from "@/components/admin/about-banner-form"
+import { AboutTextForm } from "@/components/admin/about-text-form"
+import { updateAboutStory, updateAboutFacility } from "@/app/admin/content/actions"
 import { BusinessEmailForm } from "@/components/admin/business-email-form"
 import { OpeningHoursForm } from "@/components/admin/opening-hours-form"
 import { FaqCreateForm } from "@/components/admin/faq-create-form"
@@ -28,6 +30,8 @@ export default async function AdminContentPage() {
     businessEmail,
     announcementBanner,
     aboutBanner,
+    aboutStory,
+    aboutFacility,
   ] = await Promise.all([
       auth(),
       getSetting("opening_hours", ""),
@@ -38,6 +42,8 @@ export default async function AdminContentPage() {
       getSetting("business_email", ""),
       getSetting("announcement_banner", ""),
       getSetting("about_banner", ""),
+      getSetting("about_story", ""),
+      getSetting("about_facility", ""),
     ])
   const isSuperAdmin = session?.user.isSuperAdmin ?? false
 
@@ -71,6 +77,28 @@ export default async function AdminContentPage() {
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">About page banner</h2>
         <AboutBannerForm banner={aboutBanner} />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">About page — Our story</h2>
+        <AboutTextForm
+          action={updateAboutStory}
+          name="about_story"
+          value={aboutStory}
+          placeholder="The 'Our story' text shown on the About Us page…"
+          helpText="Shown in the 'Our story' section of the About Us page. Leave blank to use the default text."
+        />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">About page — Our facility</h2>
+        <AboutTextForm
+          action={updateAboutFacility}
+          name="about_facility"
+          value={aboutFacility}
+          placeholder="The 'Our facility' text shown on the About Us page…"
+          helpText="Shown in the 'Our facility' section of the About Us page. Leave blank to use the default text."
+        />
       </section>
 
       <section className="space-y-3">

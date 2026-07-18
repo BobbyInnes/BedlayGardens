@@ -4,6 +4,7 @@ import { Megaphone } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 import { getSettings } from "@/lib/settings"
 import { sanitizeRichText } from "@/lib/sanitize-html"
+import { DEFAULT_ABOUT_STORY, DEFAULT_ABOUT_FACILITY } from "@/lib/about-defaults"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export const metadata: Metadata = {
@@ -26,6 +27,14 @@ export default async function AboutPage() {
 
   const teamImage = aboutMedia.find((item) => item.caption?.toLowerCase().includes("team"))
   const facilityImage = aboutMedia.find((item) => item.caption?.toLowerCase().includes("facility"))
+
+  // Admin-editable via Admin → Content; fall back to the default copy when unset.
+  const storyHtml = sanitizeRichText(
+    settings.about_story?.trim() ? settings.about_story : DEFAULT_ABOUT_STORY
+  )
+  const facilityHtml = sanitizeRichText(
+    settings.about_facility?.trim() ? settings.about_facility : DEFAULT_ABOUT_FACILITY
+  )
 
   return (
     <>
@@ -55,20 +64,10 @@ export default async function AboutPage() {
         <section className="grid items-center gap-8 sm:grid-cols-2">
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Our story</h2>
-            <p className="text-muted-foreground">
-              {settings.business_name ?? "Bedlay Gardens Kennels"} started as a small,
-              family-run kennels set in the countryside near Glasgow, built on the belief
-              that every dog deserves space to roam, a real walk every day, and staff who
-              know them by name. What began with a handful of kennels has grown into a
-              full boarding, daycare, and dog walking service — without losing the
-              personal touch our regulars have come to rely on.
-            </p>
-            <p className="text-muted-foreground">
-              We&rsquo;re proud that most of our bookings come from returning guests and
-              word of mouth. Every dog that stays with us gets an individual care plan
-              covering feeding, medication, and behaviour, followed closely by our
-              team from check-in to check-out.
-            </p>
+            <div
+              className="space-y-4 text-muted-foreground"
+              dangerouslySetInnerHTML={{ __html: storyHtml }}
+            />
           </div>
           {teamImage && (
             <div className="relative aspect-4/3 overflow-hidden rounded-xl border border-border">
@@ -95,17 +94,10 @@ export default async function AboutPage() {
           )}
           <div className="order-1 space-y-4 sm:order-2">
             <h2 className="text-xl font-semibold">Our facility</h2>
-            <p className="text-muted-foreground">
-              Our site sits within enclosed private woodland, giving us the space for
-              secure, escorted forest walks away from roads and livestock. Kennels are
-              sized small, medium, and large, with sharing available for dogs from the
-              same household, heated in winter and well-ventilated in summer.
-            </p>
-            <p className="text-muted-foreground">
-              A dedicated van and driver handle our dog walking collection and
-              drop-off service, and our daycare area gives day visitors room to play
-              and rest between activities.
-            </p>
+            <div
+              className="space-y-4 text-muted-foreground"
+              dangerouslySetInnerHTML={{ __html: facilityHtml }}
+            />
           </div>
         </section>
 

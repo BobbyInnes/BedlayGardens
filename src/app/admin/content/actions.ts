@@ -178,6 +178,46 @@ export async function updateAboutBanner(
   }
 }
 
+// About Us "Our story" section copy. Empty value falls back to the default.
+export async function updateAboutStory(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  await requireAdmin()
+  const raw = ((formData.get("about_story") as string | null) ?? "").trim()
+  const value = raw ? sanitizeRichText(raw) : ""
+
+  await prisma.setting.upsert({
+    where: { key: "about_story" },
+    update: { value },
+    create: { key: "about_story", value },
+  })
+
+  revalidatePath("/admin/content")
+  revalidatePath("/about")
+  return { status: "idle", message: "Our story updated." }
+}
+
+// About Us "Our facility" section copy. Empty value falls back to the default.
+export async function updateAboutFacility(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  await requireAdmin()
+  const raw = ((formData.get("about_facility") as string | null) ?? "").trim()
+  const value = raw ? sanitizeRichText(raw) : ""
+
+  await prisma.setting.upsert({
+    where: { key: "about_facility" },
+    update: { value },
+    create: { key: "about_facility", value },
+  })
+
+  revalidatePath("/admin/content")
+  revalidatePath("/about")
+  return { status: "idle", message: "Our facility updated." }
+}
+
 export async function updateOpeningHours(
   _prevState: AdminActionState,
   formData: FormData

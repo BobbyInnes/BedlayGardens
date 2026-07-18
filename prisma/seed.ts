@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
+import { DEFAULT_ABOUT_STORY, DEFAULT_ABOUT_FACILITY } from "@/lib/about-defaults"
 
 async function main() {
   // Set ADMIN_SEED_PASSWORD in .env before seeding a real/production database —
@@ -114,6 +115,8 @@ async function main() {
   const settings = [
     { key: "deposit_percent", value: "25" },
     { key: "about_banner", value: aboutBannerHtml },
+    { key: "about_story", value: DEFAULT_ABOUT_STORY },
+    { key: "about_facility", value: DEFAULT_ABOUT_FACILITY },
     { key: "balance_due_days_before_checkin", value: "7" },
     { key: "invoice_due_days", value: "7" },
     { key: "cancellation_free_days", value: "14" },
