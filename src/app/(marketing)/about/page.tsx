@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { getSettings } from "@/lib/settings"
 import { sanitizeRichText } from "@/lib/sanitize-html"
 import { DEFAULT_ABOUT_STORY, DEFAULT_ABOUT_FACILITY } from "@/lib/about-defaults"
+import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 export const metadata: Metadata = {
@@ -26,7 +27,11 @@ export default async function AboutPage() {
   ])
 
   const teamImage = aboutMedia.find((item) => item.caption?.toLowerCase().includes("team"))
-  const facilityImage = aboutMedia.find((item) => item.caption?.toLowerCase().includes("facility"))
+  // All ABOUT media whose caption mentions "facility", shown as a grid (already
+  // ordered by sortOrder). Tag more images this way to add them to the grid.
+  const facilityImages = aboutMedia.filter((item) =>
+    item.caption?.toLowerCase().includes("facility")
+  )
 
   // Admin-editable via Admin → Content; fall back to the default copy when unset.
   const storyHtml = sanitizeRichText(
@@ -82,14 +87,26 @@ export default async function AboutPage() {
         </section>
 
         <section className="mt-16 grid items-center gap-8 sm:grid-cols-2">
-          {facilityImage && (
-            <div className="relative order-2 aspect-4/3 overflow-hidden rounded-xl border border-border sm:order-1">
-              <Image
-                src={facilityImage.url}
-                alt={facilityImage.altText ?? "Our facility"}
-                fill
-                className="object-cover"
-              />
+          {facilityImages.length > 0 && (
+            <div
+              className={cn(
+                "order-2 grid gap-3 sm:order-1",
+                facilityImages.length > 1 ? "grid-cols-2" : "grid-cols-1"
+              )}
+            >
+              {facilityImages.map((image) => (
+                <div
+                  key={image.id}
+                  className="relative aspect-4/3 overflow-hidden rounded-xl border border-border"
+                >
+                  <Image
+                    src={image.url}
+                    alt={image.altText ?? "Our facility"}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              ))}
             </div>
           )}
           <div className="order-1 space-y-4 sm:order-2">
