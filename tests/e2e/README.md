@@ -40,6 +40,29 @@ bookings, then runs Playwright. The seed writes the ids it created to
 `tests/e2e/seed-ids.json` (git-ignored), which the smoke suite reads to reach
 dynamic `/…/[id]` routes.
 
+## Viewing results
+
+Every run writes a visual HTML report to `playwright-report/` (git-ignored). Open it with:
+
+```bash
+npx playwright show-report
+```
+
+Click a test to see each step; click the trace icon to scrub a timeline of
+screenshots + DOM snapshots. For a fully visual report on a passing run, add
+`--trace on` (captures a screenshot/DOM snapshot at every step):
+
+```bash
+npx playwright test --trace on   # then: npx playwright show-report
+```
+
+Other ways to watch:
+
+```bash
+npx playwright test --headed   # watch a real browser drive the pages
+npx playwright test --ui       # interactive UI: run/re-run, live preview, timeline
+```
+
 ## What's covered
 
 - **`smoke.spec.ts`** — loads every page (public, customer portal, admin,
