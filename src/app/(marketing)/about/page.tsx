@@ -21,7 +21,8 @@ export default async function AboutPage() {
     getSettings(),
     prisma.mediaItem.findMany({ where: { usage: "ABOUT" }, orderBy: { sortOrder: "asc" } }),
     prisma.user.findMany({
-      where: { role: { in: ["STAFF", "ADMIN"] }, active: true },
+      // Super admins (owners/operators) are excluded from the public team grid.
+      where: { role: { in: ["STAFF", "ADMIN"] }, active: true, isSuperAdmin: false },
       orderBy: { name: "asc" },
     }),
   ])
