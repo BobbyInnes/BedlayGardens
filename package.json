@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
-    "test:e2e": "tsx tests/e2e/seed.ts && playwright test"
+    "test:e2e:basedata": "tsx --env-file=.env.test prisma/seed.ts",
+    "test:e2e:seed": "tsx --env-file=.env.test tests/e2e/seed.ts",
+    "test:e2e": "npm run test:e2e:seed && playwright test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",

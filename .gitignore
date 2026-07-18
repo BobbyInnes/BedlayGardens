@@ -39,6 +39,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# e2e test artifacts (ids written by the seed for the smoke suite)
+tests/e2e/seed-ids.json
+test-results
+playwright-report
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

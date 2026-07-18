@@ -30,5 +30,6 @@ test("customer can book daycare end to end", async ({ page }) => {
 
   await page.waitForURL("**/book/confirmation/**", { timeout: 10_000 })
   await expect(page.getByRole("heading", { name: "Booking reserved" })).toBeVisible()
-  await expect(page.getByText("Daycare", { exact: true })).toBeVisible()
+  // Match the daycare service however it's named/renamed (e.g. "Day Care : (Half Day)").
+  await expect(page.getByText(/day\s*care/i).first()).toBeVisible()
 })
