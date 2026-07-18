@@ -80,6 +80,7 @@ export default async function AboutPage() {
                 src={teamImage.url}
                 alt={teamImage.altText ?? "Our team"}
                 fill
+                sizes="(min-width: 640px) 50vw, 100vw"
                 className="object-cover"
               />
             </div>
@@ -103,6 +104,7 @@ export default async function AboutPage() {
                     src={image.url}
                     alt={image.altText ?? "Our facility"}
                     fill
+                    sizes="(min-width: 640px) 25vw, 50vw"
                     className="object-cover"
                   />
                 </div>
