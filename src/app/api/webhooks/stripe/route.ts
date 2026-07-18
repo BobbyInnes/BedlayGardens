@@ -4,47 +4,9 @@ import { stripe } from "@/lib/stripe"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { getSettings } from "@/lib/settings"
-import { bookingConfirmationEmail, paymentReceiptEmail, voucherDeliveryEmail } from "@/lib/email-templates"
+import { paymentReceiptEmail, voucherDeliveryEmail } from "@/lib/email-templates"
 import { notifySubscriptionPaymentFailed } from "@/lib/subscriptions"
-
-async function markPaymentSucceededAndNotify(stripePaymentIntentId: string) {
-  const payment = await prisma.payment.findUnique({ where: { stripePaymentIntentId } })
-  if (!payment || payment.status === "SUCCEEDED") return // already processed or unknown
-
-  await prisma.payment.update({ where: { id: payment.id }, data: { status: "SUCCEEDED" } })
-
-  let becameConfirmed = false
-  if (payment.type === "DEPOSIT") {
-    const result = await prisma.booking.updateMany({
-      where: { id: payment.bookingId, status: "PENDING_PAYMENT" },
-      data: { status: "CONFIRMED" },
-    })
-    becameConfirmed = result.count > 0
-  }
-
-  const booking = await prisma.booking.findUnique({
-    where: { id: payment.bookingId },
-    include: { service: true, customer: true },
-  })
-  if (!booking) return
-
-  const settings = await getSettings()
-  const bookingSummary = {
-    serviceName: booking.service.name,
-    startDate: booking.startDate,
-    endDate: booking.endDate,
-    totalPence: booking.totalPence,
-    depositPence: booking.depositPence,
-  }
-
-  const receipt = paymentReceiptEmail(settings, bookingSummary, payment.amountPence, payment.type as "DEPOSIT" | "BALANCE")
-  await sendEmail({ to: booking.customer.email, subject: receipt.subject, html: receipt.html })
-
-  if (becameConfirmed) {
-    const confirmation = bookingConfirmationEmail(settings, bookingSummary)
-    await sendEmail({ to: booking.customer.email, subject: confirmation.subject, html: confirmation.html })
-  }
-}
+import { markPaymentSucceededAndNotify } from "@/lib/payments"
 
 async function handleVoucherCheckoutCompleted(voucherId: string) {
   const voucher = await prisma.voucher.findUnique({ where: { id: voucherId }, include: { purchaser: true } })

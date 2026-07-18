@@ -5,6 +5,7 @@ import { CheckCircle2 } from "lucide-react"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { stripe } from "@/lib/stripe"
+import { reconcilePendingBookingPayments } from "@/lib/payments"
 import { Button } from "@/components/ui/button"
 import { formatPence } from "@/lib/format"
 import { PayButton } from "@/components/marketing/pay-button"
@@ -21,7 +22,7 @@ export default async function BookingConfirmationPage({
   const { bookingId } = await params
   const session = await auth()
 
-  const booking = await prisma.booking.findUnique({
+  const bookingQuery = {
     where: { id: bookingId },
     include: {
       service: true,
@@ -29,10 +30,20 @@ export default async function BookingConfirmationPage({
       bookingDogs: { include: { dog: true } },
       bookingAddons: { include: { addon: true } },
     },
-  })
+  }
+
+  let booking = await prisma.booking.findUnique(bookingQuery)
 
   if (!booking || booking.customerId !== session?.user.id) {
     notFound()
+  }
+
+  // Fallback if the Stripe webhook hasn't updated the booking yet (e.g. the
+  // customer just returned from Checkout): ask Stripe directly and reconcile,
+  // then re-read so the page shows the up-to-date status.
+  if (booking.status === "PENDING_PAYMENT") {
+    await reconcilePendingBookingPayments(bookingId)
+    booking = (await prisma.booking.findUnique(bookingQuery)) ?? booking
   }
 
   return (
