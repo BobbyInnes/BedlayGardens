@@ -38,6 +38,19 @@ export function RichTextEditor({
     sync()
   }
 
+  // Colour needs styleWithCSS enabled so the browser emits
+  // <span style="color:…"> (allowed by the sanitizer) instead of a <font>
+  // tag (stripped on save). Toggle it off again afterwards so bold/underline
+  // keep producing <b>/<u> rather than font-weight spans, which the sanitizer
+  // would also strip.
+  function applyColor(value: string) {
+    editorRef.current?.focus()
+    document.execCommand("styleWithCSS", false, "true")
+    document.execCommand("foreColor", false, value)
+    document.execCommand("styleWithCSS", false, "false")
+    sync()
+  }
+
   return (
     <div
       className={cn(
@@ -70,7 +83,7 @@ export function RichTextEditor({
             key={color.value}
             type="button"
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => exec("foreColor", color.value)}
+            onClick={() => applyColor(color.value)}
             className="size-5 rounded-full border border-border"
             style={{ backgroundColor: color.value }}
             aria-label={`Text colour: ${color.label}`}
