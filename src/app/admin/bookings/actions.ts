@@ -361,7 +361,7 @@ export async function modifyBookingDates(
 
     const availability = await isDaycareAvailable(date)
     if (availability.remaining < dogCount) {
-      return { status: "error", message: "Not enough daycare capacity on that date." }
+      return { status: "error", message: availability.reason ?? "Not enough daycare capacity on that date." }
     }
 
     await prisma.booking.update({

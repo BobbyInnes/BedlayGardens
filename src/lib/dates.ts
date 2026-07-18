@@ -4,6 +4,13 @@ export function startOfDay(date: Date): Date {
   return result
 }
 
+/** Saturday or Sunday. Uses the date's local day-of-week (server runs in UTC,
+ * and booking dates are UTC-midnight, so this is the calendar day's weekday). */
+export function isWeekend(date: Date): boolean {
+  const day = date.getDay()
+  return day === 0 || day === 6
+}
+
 export function addDays(date: Date, days: number): Date {
   const result = new Date(date)
   result.setDate(result.getDate() + days)

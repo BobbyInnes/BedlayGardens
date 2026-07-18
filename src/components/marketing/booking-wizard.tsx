@@ -79,6 +79,7 @@ export function BookingWizard({
 
   const [availabilityChecked, setAvailabilityChecked] = React.useState(false)
   const [available, setAvailable] = React.useState<boolean | null>(null)
+  const [availabilityReason, setAvailabilityReason] = React.useState<string | null>(null)
   const [checkingAvailability, setCheckingAvailability] = React.useState(false)
   const [waitlistDogId, setWaitlistDogId] = React.useState("")
   const [waitlistMessage, setWaitlistMessage] = React.useState<string | null>(null)
@@ -130,11 +131,13 @@ export function BookingWizard({
         const res = await fetch(`/api/book/availability?${params}`)
         const data = await res.json()
         setAvailable(!!data.available)
+        setAvailabilityReason(null)
       } else if (isDateBased) {
         const params = new URLSearchParams({ serviceSlug: service.slug, date })
         const res = await fetch(`/api/book/availability?${params}`)
         const data = await res.json()
         setAvailable(!!data.available)
+        setAvailabilityReason(data.reason ?? null)
       }
       setAvailabilityChecked(true)
       setWaitlistMessage(null)
@@ -419,10 +422,12 @@ export function BookingWizard({
               </Button>
               {availabilityChecked && (
                 <p className={available ? "text-sm text-primary" : "text-sm text-destructive"}>
-                  {available ? "Available!" : "Sorry, not available for these dates."}
+                  {available
+                    ? "Available!"
+                    : (availabilityReason ?? "Sorry, not available for these dates.")}
                 </p>
               )}
-              {availabilityChecked && !available && isDateBased && (
+              {availabilityChecked && !available && isDateBased && !availabilityReason && (
                 <div className="space-y-2 rounded-md border border-border p-3">
                   <p className="text-sm text-muted-foreground">
                     Join the waitlist and we&rsquo;ll email you the moment a space opens up.

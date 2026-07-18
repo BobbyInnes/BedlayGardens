@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma"
-import { nightsBetween, startOfDay } from "@/lib/dates"
+import { isWeekend, nightsBetween, startOfDay } from "@/lib/dates"
 
 async function isSiteWideBlocked(dates: Date[]): Promise<boolean> {
   const count = await prisma.blockedDate.count({
@@ -42,8 +42,14 @@ async function isSlottedServiceAvailable(
   date: Date,
   serviceSlug: string,
   capacitySettingKey: string
-): Promise<{ available: boolean; remaining: number }> {
+): Promise<{ available: boolean; remaining: number; reason?: string }> {
   const day = startOfDay(date)
+
+  // Day care and meet & greets are weekday-only.
+  if (isWeekend(day)) {
+    return { available: false, remaining: 0, reason: "This service isn't available on Saturdays or Sundays." }
+  }
+
   const [capacitySetting, blocked, existingDogCount] = await Promise.all([
     prisma.setting.findUnique({ where: { key: capacitySettingKey } }),
     prisma.blockedDate.count({ where: { kennelUnitId: null, date: day } }),
@@ -67,13 +73,13 @@ async function isSlottedServiceAvailable(
 
 export async function isDaycareAvailable(
   date: Date
-): Promise<{ available: boolean; remaining: number }> {
+): Promise<{ available: boolean; remaining: number; reason?: string }> {
   return isSlottedServiceAvailable(date, "daycare", "daycare_max_capacity")
 }
 
 export async function isMeetGreetAvailable(
   date: Date
-): Promise<{ available: boolean; remaining: number }> {
+): Promise<{ available: boolean; remaining: number; reason?: string }> {
   return isSlottedServiceAvailable(date, "meet-greet", "meet_greet_max_capacity")
 }
 

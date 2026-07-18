@@ -271,7 +271,7 @@ export async function resolveBookingCreation(
 
     const availability = await isDaycareAvailable(date)
     if (availability.remaining < dogs.length) {
-      return { status: "error", message: "Not enough daycare capacity on that date." }
+      return { status: "error", message: availability.reason ?? "Not enough daycare capacity on that date." }
     }
 
     const pricing = await computeBookingPrice({
@@ -471,7 +471,7 @@ export async function resolveBookingCreation(
 
     const availability = await isMeetGreetAvailable(date)
     if (availability.remaining < dogs.length) {
-      return { status: "error", message: "Not enough meet & greet capacity on that date." }
+      return { status: "error", message: availability.reason ?? "Not enough meet & greet capacity on that date." }
     }
 
     const pricing = await computeBookingPrice({
