@@ -23,13 +23,13 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
   ),
   title: {
-    default: "Bedlay Gardens Kennels",
-    template: "%s | Bedlay Gardens Kennels",
+    default: "Bedlay Gardens LTD",
+    template: "%s | Bedlay Gardens LTD",
   },
   description:
     "Secure countryside dog boarding, daycare, forest walks, and dog walking near Glasgow.",
   openGraph: {
-    siteName: "Bedlay Gardens Kennels",
+    siteName: "Bedlay Gardens LTD",
     type: "website",
     locale: "en_GB",
   },

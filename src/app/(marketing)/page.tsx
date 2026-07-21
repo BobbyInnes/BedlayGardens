@@ -119,7 +119,7 @@ export default async function HomePage() {
     }
   }
 
-  const businessName = settings.business_name ?? "Bedlay Gardens Kennels"
+  const businessName = settings.business_name ?? "Bedlay Gardens LTD"
 
   return (
     <div>

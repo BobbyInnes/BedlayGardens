@@ -45,7 +45,7 @@ export async function signAgreement(
   const ipAddress =
     headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ?? headerList.get("x-real-ip") ?? "unknown"
   const signedAt = new Date()
-  const businessName = await getSetting("business_name", "Bedlay Gardens Kennels")
+  const businessName = await getSetting("business_name", "Bedlay Gardens LTD")
 
   const pdfBuffer = await generateAgreementPdf({
     businessName,

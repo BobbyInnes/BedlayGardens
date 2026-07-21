@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { KennelUnitEditForm } from "@/components/admin/kennel-unit-edit-form"
 
 export const metadata: Metadata = {
-  title: "Edit Kennel Unit | Admin",
+  title: "Edit Accommodation Unit | Admin",
 }
 
 export default async function EditKennelUnitPage({

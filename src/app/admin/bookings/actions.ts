@@ -54,7 +54,7 @@ export async function signAgreementForPhoneCustomer(
   }
 
   const signedAt = new Date()
-  const businessName = await getSetting("business_name", "Bedlay Gardens Kennels")
+  const businessName = await getSetting("business_name", "Bedlay Gardens LTD")
   const pdfBuffer = await generateAgreementPdf({
     businessName,
     version: agreement.version,
@@ -348,7 +348,7 @@ export async function modifyBookingDates(
     }
     if (noKennelAvailable) {
       await restoreOldOccupancy()
-      return { status: "error", message: "No kennels are available for those dates." }
+      return { status: "error", message: "No accommodation is available for those dates." }
     }
     if (!updated) {
       await restoreOldOccupancy()
@@ -390,19 +390,19 @@ export async function reassignKennel(
     include: { service: true, bookingDogs: true },
   })
   if (!booking || booking.service.slug !== "overnight-boarding" || !booking.kennelUnitId) {
-    return { status: "error", message: "This booking isn't a kennel stay." }
+    return { status: "error", message: "This booking isn't an accommodation stay." }
   }
   if (NON_MODIFIABLE_STATUSES.includes(booking.status)) {
     return { status: "error", message: "This booking can no longer be changed." }
   }
   if (newKennelUnitId === booking.kennelUnitId) {
-    return { status: "idle", message: "Already assigned to that kennel." }
+    return { status: "idle", message: "Already assigned to that accommodation." }
   }
 
   const newKennel = await prisma.kennelUnit.findUnique({ where: { id: newKennelUnitId } })
   const dogCount = booking.bookingDogs.length
   if (!newKennel || !newKennel.active || newKennel.dogCapacity < dogCount) {
-    return { status: "error", message: "That kennel can't take this booking." }
+    return { status: "error", message: "That accommodation can't take this booking." }
   }
 
   const nights = nightsBetween(booking.startDate, booking.endDate)
@@ -413,7 +413,7 @@ export async function reassignKennel(
     }),
   ])
   if (blocked > 0 || occupied > 0) {
-    return { status: "error", message: "That kennel isn't free for these dates." }
+    return { status: "error", message: "That accommodation isn't free for these dates." }
   }
 
   try {
@@ -426,7 +426,7 @@ export async function reassignKennel(
     })
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      return { status: "error", message: "That kennel was just taken for these dates. Please try again." }
+      return { status: "error", message: "That accommodation was just taken for these dates. Please try again." }
     }
     throw error
   }

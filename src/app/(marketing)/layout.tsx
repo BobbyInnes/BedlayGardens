@@ -12,7 +12,7 @@ export default async function MarketingLayout({
   children: React.ReactNode
 }) {
   const settings = await getSettings()
-  const businessName = settings.business_name ?? "Bedlay Gardens Kennels"
+  const businessName = settings.business_name ?? "Bedlay Gardens LTD"
 
   return (
     <div className="flex min-h-full flex-col">

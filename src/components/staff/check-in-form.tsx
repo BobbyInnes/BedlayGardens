@@ -65,10 +65,10 @@ export function CheckInForm({
 
       {isBoarding && (
         <div className="space-y-2">
-          <Label htmlFor="kennelUnitId">Kennel</Label>
+          <Label htmlFor="kennelUnitId">Accommodation</Label>
           <Select name="kennelUnitId" defaultValue={currentKennelUnitId ?? undefined}>
             <SelectTrigger id="kennelUnitId" className="w-full">
-              <SelectValue placeholder="Select kennel" />
+              <SelectValue placeholder="Select accommodation" />
             </SelectTrigger>
             <SelectContent>
               {kennelUnits.map((unit) => (

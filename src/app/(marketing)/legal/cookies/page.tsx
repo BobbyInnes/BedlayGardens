@@ -3,7 +3,7 @@ import { LegalPage } from "@/components/marketing/legal-page"
 
 export const metadata: Metadata = {
   title: "Cookie Notice",
-  description: "How Bedlay Gardens Kennels uses cookies on this website.",
+  description: "How Bedlay Gardens LTD uses cookies on this website.",
 }
 
 export default function CookiesPage() {

@@ -91,7 +91,7 @@ export default async function AdminBookingDetailPage({
           </div>
           {booking.kennelUnit && (
             <div>
-              <dt className="text-muted-foreground">Kennel</dt>
+              <dt className="text-muted-foreground">Accommodation</dt>
               <dd>{booking.kennelUnit.name}</dd>
             </div>
           )}
@@ -209,7 +209,7 @@ export default async function AdminBookingDetailPage({
 
       {modifiable && isBoarding && booking.kennelUnit && (
         <section className="space-y-3 rounded-lg border border-border p-4">
-          <h2 className="text-sm font-semibold">Reassign kennel</h2>
+          <h2 className="text-sm font-semibold">Reassign accommodation</h2>
           <ReassignKennelForm
             bookingId={booking.id}
             currentKennelUnitId={booking.kennelUnit.id}

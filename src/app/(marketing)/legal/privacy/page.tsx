@@ -3,14 +3,14 @@ import { LegalPage } from "@/components/marketing/legal-page"
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description: "How Bedlay Gardens Kennels collects, uses, and protects your personal data.",
+  description: "How Bedlay Gardens LTD collects, uses, and protects your personal data.",
 }
 
 export default function PrivacyPolicyPage() {
   return (
     <LegalPage title="Privacy Policy" updated="10 July 2026">
       <p>
-        This placeholder policy outlines how Bedlay Gardens Kennels (&ldquo;we&rdquo;, &ldquo;us&rdquo;)
+        This placeholder policy outlines how Bedlay Gardens LTD (&ldquo;we&rdquo;, &ldquo;us&rdquo;)
         handles personal data in line with UK GDPR. Replace this text with your
         finalised policy before launch.
       </p>

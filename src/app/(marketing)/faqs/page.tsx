@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma"
 
 export const metadata: Metadata = {
   title: "FAQs",
-  description: "Frequently asked questions about boarding, daycare, and dog walking at Bedlay Gardens Kennels.",
+  description: "Frequently asked questions about boarding, daycare, and dog walking at Bedlay Gardens LTD.",
 }
 
 export const revalidate = 60

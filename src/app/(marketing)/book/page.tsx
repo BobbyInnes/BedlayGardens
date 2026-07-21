@@ -7,7 +7,7 @@ import { sanitizeRichText } from "@/lib/sanitize-html"
 
 export const metadata: Metadata = {
   title: "Book a Stay",
-  description: "Book overnight boarding, daycare, secure forest walks, or dog walking at Bedlay Gardens Kennels.",
+  description: "Book overnight boarding, daycare, secure forest walks, or dog walking at Bedlay Gardens LTD.",
 }
 
 export const revalidate = 60

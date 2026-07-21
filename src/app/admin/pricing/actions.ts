@@ -82,7 +82,7 @@ export async function createKennelUnit(
 
   const existing = await prisma.kennelUnit.findUnique({ where: { name: parsed.data.name } })
   if (existing) {
-    return { status: "error", message: "A kennel with that name already exists." }
+    return { status: "error", message: "An accommodation unit with that name already exists." }
   }
 
   await prisma.kennelUnit.create({ data: parsed.data })

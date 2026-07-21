@@ -4,7 +4,7 @@ import { RegisterForm } from "@/components/marketing/register-form"
 
 export const metadata: Metadata = {
   title: "Create an Account",
-  description: "Create a Bedlay Gardens Kennels account to book stays and manage your dog's profile.",
+  description: "Create a Bedlay Gardens LTD account to book stays and manage your dog's profile.",
 }
 
 export default function RegisterPage() {

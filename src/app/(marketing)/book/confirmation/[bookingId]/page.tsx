@@ -78,7 +78,7 @@ export default async function BookingConfirmationPage({
         </div>
         {booking.kennelUnit && (
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Kennel</span>
+            <span className="text-muted-foreground">Accommodation</span>
             <span className="font-medium">{booking.kennelUnit.name}</span>
           </div>
         )}

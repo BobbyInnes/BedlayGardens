@@ -43,7 +43,7 @@ export default async function LocalAreaServicePage({
   const { area, service } = data
 
   const settings = await getSettings()
-  const businessName = settings.business_name ?? "Bedlay Gardens Kennels"
+  const businessName = settings.business_name ?? "Bedlay Gardens LTD"
   const otherAreas = LOCAL_AREAS.filter((a) => a.slug !== area.slug)
 
   const schema = {

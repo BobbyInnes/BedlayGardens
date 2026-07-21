@@ -67,7 +67,7 @@ export default async function AdminOccupancyPage({
       </div>
 
       {kennelUnits.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No active kennel units configured.</p>
+        <p className="text-sm text-muted-foreground">No active accommodation units configured.</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full border-collapse text-xs">

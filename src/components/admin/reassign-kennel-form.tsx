@@ -54,7 +54,7 @@ export function ReassignKennelForm({
         disabled={pending || selected === currentKennelUnitId}
         onClick={handleSubmit}
       >
-        {pending ? "Moving…" : "Reassign kennel"}
+        {pending ? "Moving…" : "Reassign accommodation"}
       </Button>
       {message && (
         <p className={message.error ? "text-sm text-destructive" : "text-sm text-primary"}>

@@ -4,7 +4,7 @@ import { LoginForm } from "@/components/marketing/login-form"
 
 export const metadata: Metadata = {
   title: "Log In",
-  description: "Log in to your Bedlay Gardens Kennels account.",
+  description: "Log in to your Bedlay Gardens LTD account.",
 }
 
 export default function LoginPage() {

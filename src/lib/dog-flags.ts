@@ -2,7 +2,7 @@ import type { DogFlagType } from "@/generated/prisma/client"
 
 export const DOG_FLAG_LABELS: Record<DogFlagType, string> = {
   NOT_DOG_SOCIABLE: "Not dog-sociable",
-  NO_SHARED_KENNEL: "No shared kennel",
+  NO_SHARED_KENNEL: "No shared accommodation",
   NO_GROUP_WALKS: "No group walks",
   RESOURCE_GUARDING: "Resource guarding",
   ESCAPE_RISK: "Escape risk",

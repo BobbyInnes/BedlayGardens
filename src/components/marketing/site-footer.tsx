@@ -16,7 +16,7 @@ const quickLinks = [
 
 export async function SiteFooter() {
   const settings = await getSettings()
-  const businessName = settings.business_name ?? "Bedlay Gardens Kennels"
+  const businessName = settings.business_name ?? "Bedlay Gardens LTD"
   const phone = settings.business_phone ?? ""
   const email = settings.business_email ?? ""
   const addressLine1 = settings.business_address_line1 ?? ""

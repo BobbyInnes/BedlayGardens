@@ -6,7 +6,7 @@ import { getSettings } from "@/lib/settings"
 export const metadata: Metadata = {
   title: "Contact Us",
   description:
-    "Get in touch with Bedlay Gardens Kennels — address, phone, opening hours, and a contact form.",
+    "Get in touch with Bedlay Gardens LTD — address, phone, opening hours, and a contact form.",
 }
 
 export const revalidate = 60

@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 export const metadata: Metadata = {
   title: "About Us",
   description:
-    "The story, team, and facilities behind Bedlay Gardens Kennels' countryside dog boarding.",
+    "The story, team, and facilities behind Bedlay Gardens LTD's countryside dog boarding.",
 }
 
 export const revalidate = 60

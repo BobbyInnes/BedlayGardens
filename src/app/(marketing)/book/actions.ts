@@ -109,7 +109,7 @@ export async function resolveBookingCreation(
         return {
           status: "error",
           compatibilityBlocked: true,
-          message: `${noSharedKennelDog.name} is flagged "${DOG_FLAG_LABELS[SHARED_KENNEL_BLOCKING_FLAG]}" and can't be booked into a kennel with another dog. Book separately.`,
+          message: `${noSharedKennelDog.name} is flagged "${DOG_FLAG_LABELS[SHARED_KENNEL_BLOCKING_FLAG]}" and can't be booked into accommodation with another dog. Book separately.`,
         }
       }
     }
@@ -204,7 +204,7 @@ export async function resolveBookingCreation(
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       const candidate = await findAvailableKennelUnit(startDate, endDate, dogs.length)
       if (!candidate) {
-        return { status: "error", message: "No kennels are available for these dates." }
+        return { status: "error", message: "No accommodation is available for these dates." }
       }
 
       try {

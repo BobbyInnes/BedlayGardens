@@ -10,7 +10,7 @@ export type EmailBranding = {
 }
 
 function layout(branding: EmailBranding, title: string, bodyHtml: string): string {
-  const businessName = branding.business_name ?? "Bedlay Gardens Kennels"
+  const businessName = branding.business_name ?? "Bedlay Gardens LTD"
   const addressLine = [
     branding.business_address_line1,
     branding.business_address_line2,

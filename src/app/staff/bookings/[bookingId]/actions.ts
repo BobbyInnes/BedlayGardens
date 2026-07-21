@@ -61,7 +61,7 @@ export async function checkInBooking(
         prisma.booking.update({ where: { id: bookingId }, data: { kennelUnitId } }),
       ])
     } catch {
-      return { status: "error", message: "That kennel isn't free for these dates." }
+      return { status: "error", message: "That accommodation isn't free for these dates." }
     }
   }
 

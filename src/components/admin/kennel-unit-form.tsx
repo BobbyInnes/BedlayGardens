@@ -37,7 +37,7 @@ export function KennelUnitForm() {
         <Input id="unit-capacity" name="dogCapacity" type="number" min={1} className="w-24" required />
       </div>
       <Button type="submit" size="sm" disabled={pending}>
-        {pending ? "Adding…" : "Add kennel"}
+        {pending ? "Adding…" : "Add accommodation"}
       </Button>
       {state.status === "error" && <p className="text-sm text-destructive">{state.message}</p>}
     </form>

@@ -139,7 +139,7 @@ export async function issueGoodwillCredit(
     await sendEmail({
       to: customer.email,
       subject: "Account credit added",
-      html: `<p>We've added ${formatPence(amountPence)} of account credit to your ${settings.business_name ?? "Bedlay Gardens Kennels"} account${reason ? `: ${reason}` : "."}</p>`,
+      html: `<p>We've added ${formatPence(amountPence)} of account credit to your ${settings.business_name ?? "Bedlay Gardens LTD"} account${reason ? `: ${reason}` : "."}</p>`,
     })
   }
 

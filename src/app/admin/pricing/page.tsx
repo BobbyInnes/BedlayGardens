@@ -42,7 +42,7 @@ export default async function AdminPricingPage() {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Kennel units</h2>
+        <h2 className="text-lg font-semibold">Accommodation units</h2>
         <KennelUnitForm />
         {kennelUnits.length > 0 ? (
           <ul className="divide-y divide-border rounded-lg border border-border">
@@ -68,14 +68,14 @@ export default async function AdminPricingPage() {
                   <ConfirmDeleteButton
                     onConfirm={deleteKennelUnit.bind(null, unit.id)}
                     title={`Delete ${unit.name}?`}
-                    description="Kennels with historical bookings are deactivated instead of deleted."
+                    description="Accommodation units with historical bookings are deactivated instead of deleted."
                   />
                 </div>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">No kennel units yet.</p>
+          <p className="text-sm text-muted-foreground">No accommodation units yet.</p>
         )}
       </section>
 

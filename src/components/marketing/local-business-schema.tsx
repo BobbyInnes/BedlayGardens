@@ -14,7 +14,7 @@ export async function LocalBusinessSchema() {
   const schema = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
-    name: settings.business_name ?? "Bedlay Gardens Kennels",
+    name: settings.business_name ?? "Bedlay Gardens LTD",
     description: settings.business_tagline,
     telephone: settings.business_phone,
     email: settings.business_email,

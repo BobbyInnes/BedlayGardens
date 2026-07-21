@@ -101,7 +101,7 @@ export default async function AdminReportsPage({
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-normal text-muted-foreground">
-              Kennel occupancy
+              Accommodation occupancy
             </CardTitle>
           </CardHeader>
           <CardContent>

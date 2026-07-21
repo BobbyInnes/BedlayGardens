@@ -25,7 +25,7 @@ export default async function AdminOverviewPage() {
   const occupancyPercent = kennelCount > 0 ? Math.round((occupiedCount / kennelCount) * 100) : 0
 
   const stats = [
-    { label: "Kennel occupancy today", value: `${occupancyPercent}%`, href: "/admin/occupancy" },
+    { label: "Accommodation occupancy today", value: `${occupancyPercent}%`, href: "/admin/occupancy" },
     { label: "Arrivals today", value: arrivalsToday, href: "/admin/bookings" },
     { label: "Vaccinations to verify", value: pendingVaccinations, href: "/admin/vaccinations" },
     { label: "Total customers", value: totalCustomers, href: "/admin/customers" },

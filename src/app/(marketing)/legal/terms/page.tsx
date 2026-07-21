@@ -3,7 +3,7 @@ import { LegalPage } from "@/components/marketing/legal-page"
 
 export const metadata: Metadata = {
   title: "Terms & Conditions",
-  description: "Booking, payment, and cancellation terms for Bedlay Gardens Kennels.",
+  description: "Booking, payment, and cancellation terms for Bedlay Gardens LTD.",
 }
 
 export default function TermsPage() {
@@ -11,7 +11,7 @@ export default function TermsPage() {
     <LegalPage title="Terms & Conditions" updated="10 July 2026">
       <p>
         This placeholder sets out the terms that apply when you book with Bedlay
-        Gardens Kennels. Replace this text with your finalised terms before
+        Gardens LTD. Replace this text with your finalised terms before
         launch, ideally reviewed alongside the digital boarding agreement.
       </p>
 
