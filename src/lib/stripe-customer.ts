@@ -3,7 +3,16 @@ import { stripe } from "@/lib/stripe"
 
 export async function ensureStripeCustomer(userId: string): Promise<string> {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } })
-  if (user.stripeCustomerId) return user.stripeCustomerId
+  if (user.stripeCustomerId) {
+    try {
+      await stripe!.customers.retrieve(user.stripeCustomerId)
+      return user.stripeCustomerId
+    } catch {
+      // Stored ID doesn't exist under the current API key (e.g. a test-mode
+      // customer left over from before switching to live keys) — fall
+      // through and create a fresh one.
+    }
+  }
 
   let customer
   try {
