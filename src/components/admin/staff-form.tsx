@@ -35,21 +35,35 @@ export function StaffForm({
   superAdminSlotAvailable?: boolean
 }) {
   const [state, formAction, pending] = useActionState(action, initialState)
-  const [role, setRole] = useState(staff?.role ?? "STAFF")
+  // On error, the action echoes back whatever was submitted so a failed save
+  // refills the form instead of blanking it — remount (via `key` below) so
+  // these `defaultValue`s actually take effect on the next render.
+  const values = state.status === "error" ? state.values : undefined
+  const [role, setRole] = useState(values?.role ?? staff?.role ?? "STAFF")
 
   return (
-    <form action={formAction} className="max-w-md space-y-4">
+    <form
+      key={values ? JSON.stringify(values) : "initial"}
+      action={formAction}
+      className="max-w-md space-y-4"
+    >
       <div className="space-y-2">
         <Label htmlFor="name">Name</Label>
-        <Input id="name" name="name" defaultValue={staff?.name} required />
+        <Input id="name" name="name" defaultValue={values?.name ?? staff?.name} required />
       </div>
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" name="email" type="email" defaultValue={staff?.email} required />
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          defaultValue={values?.email ?? staff?.email}
+          required
+        />
       </div>
       <div className="space-y-2">
         <Label htmlFor="phone">Phone</Label>
-        <Input id="phone" name="phone" type="tel" defaultValue={staff?.phone ?? ""} />
+        <Input id="phone" name="phone" type="tel" defaultValue={values?.phone ?? staff?.phone ?? ""} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="jobTitle">Job title</Label>
@@ -57,7 +71,7 @@ export function StaffForm({
           id="jobTitle"
           name="jobTitle"
           placeholder="e.g. Kennel Manager"
-          defaultValue={staff?.jobTitle ?? ""}
+          defaultValue={values?.jobTitle ?? staff?.jobTitle ?? ""}
         />
         <p className="text-xs text-muted-foreground">
           Shown under their name in the &ldquo;Meet the team&rdquo; section on the About page.
@@ -82,7 +96,7 @@ export function StaffForm({
         <Label htmlFor="bio">Bio</Label>
         <RichTextEditor
           name="bio"
-          defaultValue={staff?.bio}
+          defaultValue={values?.bio ?? staff?.bio}
           placeholder="A couple of sentences about them for visitors to read"
         />
         <p className="text-xs text-muted-foreground">
@@ -118,7 +132,7 @@ export function StaffForm({
           <input
             type="checkbox"
             name="isSuperAdmin"
-            defaultChecked={staff?.isSuperAdmin}
+            defaultChecked={values?.isSuperAdmin ?? staff?.isSuperAdmin}
             disabled={!superAdminSlotAvailable && !staff?.isSuperAdmin}
             className="mt-0.5 size-4 rounded border-input"
           />

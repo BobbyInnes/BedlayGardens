@@ -10,7 +10,32 @@ import { savePublicUpload, deletePublicUpload } from "@/lib/storage"
 import { sanitizeRichText } from "@/lib/sanitize-html"
 import { canManageAdmins, superAdminSlotAvailable, MAX_SUPER_ADMINS } from "@/lib/admin-permissions"
 
-export type AdminActionState = { status: "idle" | "error"; message?: string }
+export type AdminActionState = {
+  status: "idle" | "error"
+  message?: string
+  values?: {
+    name: string
+    email: string
+    phone: string
+    jobTitle: string
+    bio: string
+    role: "STAFF" | "ADMIN"
+    isSuperAdmin: boolean
+  }
+}
+
+/** Re-reads whatever the user submitted so a failed save can refill the form instead of blanking it. */
+function formValues(formData: FormData): NonNullable<AdminActionState["values"]> {
+  return {
+    name: (formData.get("name") as string | null) ?? "",
+    email: (formData.get("email") as string | null) ?? "",
+    phone: (formData.get("phone") as string | null) ?? "",
+    jobTitle: (formData.get("jobTitle") as string | null) ?? "",
+    bio: (formData.get("bio") as string | null) ?? "",
+    role: formData.get("role") === "ADMIN" ? "ADMIN" : "STAFF",
+    isSuperAdmin: formData.get("isSuperAdmin") === "on",
+  }
+}
 
 async function requireAdmin() {
   const session = await auth()
@@ -58,22 +83,38 @@ export async function createStaff(
     role: formData.get("role"),
   })
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Invalid input",
+      values: formValues(formData),
+    }
   }
 
   const canManage = await canManageAdmins(session)
   if (parsed.data.role === "ADMIN" && !canManage) {
-    return { status: "error", message: "Only a super admin can create an admin account." }
+    return {
+      status: "error",
+      message: "Only a super admin can create an admin account.",
+      values: formValues(formData),
+    }
   }
 
   const password = (formData.get("password") as string | null)?.trim()
   if (!password || password.length < 8) {
-    return { status: "error", message: "Set a temporary password of at least 8 characters." }
+    return {
+      status: "error",
+      message: "Set a temporary password of at least 8 characters.",
+      values: formValues(formData),
+    }
   }
 
   const existing = await prisma.user.findUnique({ where: { email: parsed.data.email } })
   if (existing) {
-    return { status: "error", message: "A user with that email already exists." }
+    return {
+      status: "error",
+      message: "A user with that email already exists.",
+      values: formValues(formData),
+    }
   }
 
   const wantsSuperAdmin =
@@ -82,6 +123,7 @@ export async function createStaff(
     return {
       status: "error",
       message: `There can only be ${MAX_SUPER_ADMINS} super admins at a time. Remove super admin status from another account first.`,
+      values: formValues(formData),
     }
   }
 
@@ -125,7 +167,11 @@ export async function updateStaff(
 
   const viewerCanManage = await canManageAdmins(session)
   if (staff.role === "ADMIN" && !viewerCanManage) {
-    return { status: "error", message: "Only a super admin can edit an admin account." }
+    return {
+      status: "error",
+      message: "Only a super admin can edit an admin account.",
+      values: formValues(formData),
+    }
   }
 
   const parsed = staffSchema.safeParse({
@@ -137,11 +183,19 @@ export async function updateStaff(
     role: formData.get("role"),
   })
   if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
+    return {
+      status: "error",
+      message: parsed.error.issues[0]?.message ?? "Invalid input",
+      values: formValues(formData),
+    }
   }
 
   if (parsed.data.role === "ADMIN" && staff.role !== "ADMIN" && !viewerCanManage) {
-    return { status: "error", message: "Only a super admin can promote someone to admin." }
+    return {
+      status: "error",
+      message: "Only a super admin can promote someone to admin.",
+      values: formValues(formData),
+    }
   }
 
   const wantsSuperAdmin =
@@ -157,6 +211,7 @@ export async function updateStaff(
     return {
       status: "error",
       message: `There can only be ${MAX_SUPER_ADMINS} super admins at a time. Remove super admin status from another account first.`,
+      values: formValues(formData),
     }
   }
 
@@ -164,6 +219,7 @@ export async function updateStaff(
     return {
       status: "error",
       message: "You can't remove super admin status from the only remaining super admin.",
+      values: formValues(formData),
     }
   }
 
@@ -171,7 +227,11 @@ export async function updateStaff(
     where: { email: parsed.data.email, NOT: { id: staffId } },
   })
   if (existing) {
-    return { status: "error", message: "A user with that email already exists." }
+    return {
+      status: "error",
+      message: "A user with that email already exists.",
+      values: formValues(formData),
+    }
   }
 
   let photoUrl = staff.photoUrl
