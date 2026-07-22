@@ -2,9 +2,10 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { signOut } from "next-auth/react"
 import { ChevronDown, LayoutDashboard, LogOut, Menu, UserRound } from "lucide-react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -67,8 +68,19 @@ function useSessionUser() {
 
 export function SiteHeader({ businessName }: { businessName: string }) {
   const pathname = usePathname()
+  const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const user = useSessionUser()
+
+  function handleAdminClick(e: React.MouseEvent) {
+    e.preventDefault()
+    if (user?.role === "ADMIN") {
+      router.push("/admin")
+    } else {
+      toast.error("Access only allowed to administrators")
+    }
+    setOpen(false)
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/90">
@@ -90,6 +102,16 @@ export function SiteHeader({ businessName }: { businessName: string }) {
               {link.label}
             </Link>
           ))}
+          <Link
+            href="/admin"
+            onClick={handleAdminClick}
+            className={cn(
+              "text-sm font-medium text-muted-foreground transition-colors hover:text-primary",
+              pathname.startsWith("/admin") && "text-primary"
+            )}
+          >
+            Admin
+          </Link>
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
@@ -152,6 +174,16 @@ export function SiteHeader({ businessName }: { businessName: string }) {
                   {link.label}
                 </Link>
               ))}
+              <Link
+                href="/admin"
+                onClick={handleAdminClick}
+                className={cn(
+                  "rounded-md px-3 py-2.5 text-base font-medium text-muted-foreground hover:bg-muted hover:text-foreground",
+                  pathname.startsWith("/admin") && "bg-muted text-primary"
+                )}
+              >
+                Admin
+              </Link>
               {user?.name ? (
                 <>
                   <Link

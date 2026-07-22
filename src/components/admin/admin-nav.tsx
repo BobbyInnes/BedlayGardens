@@ -19,6 +19,7 @@ import {
   ListOrdered,
   Star,
   ArrowLeftRight,
+  Home,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -75,6 +76,14 @@ export function AdminNav() {
       >
         <ArrowLeftRight className="size-4" aria-hidden="true" />
         Staff Portal
+      </Link>
+
+      <Link
+        href="/"
+        className="flex shrink-0 items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium whitespace-nowrap text-muted-foreground hover:bg-muted hover:text-foreground"
+      >
+        <Home className="size-4" aria-hidden="true" />
+        Home Page
       </Link>
     </nav>
   )
