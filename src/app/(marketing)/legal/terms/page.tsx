@@ -1,12 +1,26 @@
 import type { Metadata } from "next"
 import { LegalPage } from "@/components/marketing/legal-page"
+import { getSetting } from "@/lib/settings"
+import { sanitizeRichText } from "@/lib/sanitize-html"
 
 export const metadata: Metadata = {
   title: "Terms & Conditions",
   description: "Booking, payment, and cancellation terms for Bedlay Gardens LTD.",
 }
 
-export default function TermsPage() {
+export const revalidate = 60
+
+export default async function TermsPage() {
+  const termsConditions = await getSetting("terms_conditions", "")
+
+  if (termsConditions.trim()) {
+    return (
+      <LegalPage title="Terms & Conditions" updated="10 July 2026">
+        <div dangerouslySetInnerHTML={{ __html: sanitizeRichText(termsConditions) }} />
+      </LegalPage>
+    )
+  }
+
   return (
     <LegalPage title="Terms & Conditions" updated="10 July 2026">
       <p>

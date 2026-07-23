@@ -5,16 +5,13 @@ import { getSetting } from "@/lib/settings"
 import { AnnouncementBannerForm } from "@/components/admin/announcement-banner-form"
 import { AboutBannerForm } from "@/components/admin/about-banner-form"
 import { AboutTextForm } from "@/components/admin/about-text-form"
-import { updateAboutStory, updateAboutFacility } from "@/app/admin/content/actions"
+import { updateAboutStory, updateAboutFacility, updateTermsConditions } from "@/app/admin/content/actions"
 import { BusinessEmailForm } from "@/components/admin/business-email-form"
 import { OpeningHoursForm } from "@/components/admin/opening-hours-form"
 import { FaqCreateForm } from "@/components/admin/faq-create-form"
 import { FaqListItem } from "@/components/admin/faq-list-item"
 import { TestimonialCreateForm } from "@/components/admin/testimonial-create-form"
 import { TestimonialListItem } from "@/components/admin/testimonial-list-item"
-import { PublishAgreementForm } from "@/components/admin/publish-agreement-form"
-import { AgreementSectionCreateForm } from "@/components/admin/agreement-section-create-form"
-import { AgreementSectionListItem } from "@/components/admin/agreement-section-list-item"
 import { GoogleReviewUrlForm } from "@/components/admin/google-review-url-form"
 
 export const metadata: Metadata = {
@@ -27,27 +24,25 @@ export default async function AdminContentPage() {
     openingHours,
     faqs,
     testimonials,
-    activeAgreement,
-    agreementSections,
     googleReviewUrl,
     businessEmail,
     announcementBanner,
     aboutBanner,
     aboutStory,
     aboutFacility,
+    termsConditions,
   ] = await Promise.all([
       auth(),
       getSetting("opening_hours", ""),
       prisma.faq.findMany({ orderBy: { sortOrder: "asc" } }),
       prisma.testimonial.findMany({ orderBy: { id: "asc" } }),
-      prisma.agreement.findFirst({ where: { active: true }, orderBy: { publishedAt: "desc" } }),
-      prisma.agreementSection.findMany({ orderBy: { sortOrder: "asc" } }),
       getSetting("google_business_review_url", ""),
       getSetting("business_email", ""),
       getSetting("announcement_banner", ""),
       getSetting("about_banner", ""),
       getSetting("about_story", ""),
       getSetting("about_facility", ""),
+      getSetting("terms_conditions", ""),
     ])
   const isSuperAdmin = session?.user.isSuperAdmin ?? false
 
@@ -106,6 +101,17 @@ export default async function AdminContentPage() {
       </section>
 
       <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Terms &amp; Conditions</h2>
+        <AboutTextForm
+          action={updateTermsConditions}
+          name="terms_conditions"
+          value={termsConditions}
+          placeholder="The terms shown on the public Terms & Conditions page…"
+          helpText="Shown on the public /legal/terms page, linked from the site footer and the booking review step. Leave blank to use the default placeholder text."
+        />
+      </section>
+
+      <section className="space-y-3">
         <h2 className="text-lg font-semibold">Opening hours</h2>
         <OpeningHoursForm openingHours={openingHours} />
       </section>
@@ -136,29 +142,6 @@ export default async function AdminContentPage() {
         ) : (
           <p className="text-sm text-muted-foreground">No testimonials yet.</p>
         )}
-      </section>
-
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Boarding agreement</h2>
-        <p className="text-sm text-muted-foreground">
-          Build the agreement out of named sections below, then publish a new version once they&rsquo;re
-          ready. Editing or adding a section doesn&rsquo;t change what customers have already signed —
-          only publishing does.
-        </p>
-        <AgreementSectionCreateForm />
-        {agreementSections.length > 0 ? (
-          <ul className="divide-y divide-border rounded-lg border border-border">
-            {agreementSections.map((section) => (
-              <AgreementSectionListItem key={section.id} section={section} />
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted-foreground">No sections yet.</p>
-        )}
-        <PublishAgreementForm
-          currentVersion={activeAgreement?.version}
-          activeSectionCount={agreementSections.filter((s) => s.active).length}
-        />
       </section>
 
       <section className="space-y-3">

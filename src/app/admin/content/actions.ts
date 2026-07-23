@@ -219,6 +219,26 @@ export async function updateAboutFacility(
   return { status: "idle", message: "Our facility updated." }
 }
 
+// /legal/terms page copy. Empty value falls back to the default placeholder text.
+export async function updateTermsConditions(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  await requireAdmin()
+  const raw = ((formData.get("terms_conditions") as string | null) ?? "").trim()
+  const value = raw ? sanitizeRichText(raw) : ""
+
+  await prisma.setting.upsert({
+    where: { key: "terms_conditions" },
+    update: { value },
+    create: { key: "terms_conditions", value },
+  })
+
+  revalidatePath("/admin/content")
+  revalidatePath("/legal/terms")
+  return { status: "idle", message: "Terms & Conditions updated." }
+}
+
 export async function updateOpeningHours(
   _prevState: AdminActionState,
   formData: FormData

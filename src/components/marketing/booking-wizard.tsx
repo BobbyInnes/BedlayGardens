@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { formatPence } from "@/lib/format"
+import { cn } from "@/lib/utils"
 import { createBooking, type BookingActionState } from "@/app/(marketing)/book/actions"
 import { joinWaitlist } from "@/app/portal/waitlist/actions"
 
@@ -103,6 +104,8 @@ export function BookingWizard({
   const [submitting, setSubmitting] = React.useState(false)
   const [submitError, setSubmitError] = React.useState<string | null>(null)
   const [requiresTrialVisit, setRequiresTrialVisit] = React.useState(false)
+  const [agreedToTerms, setAgreedToTerms] = React.useState(false)
+  const [termsError, setTermsError] = React.useState(false)
 
   const dogCount = selectedDogIds.length || 1
 
@@ -243,6 +246,11 @@ export function BookingWizard({
   const depositPreviewPence = Math.round(totalPreviewPence * (depositPercent / 100))
 
   async function handleSubmit() {
+    if (!agreedToTerms) {
+      setTermsError(true)
+      return
+    }
+    setTermsError(false)
     setSubmitting(true)
     setSubmitError(null)
     setRequiresTrialVisit(false)
@@ -721,16 +729,37 @@ export function BookingWizard({
                 : "Nothing to pay now — your booking is confirmed straight away and we'll email you an invoice after the service."}
           </p>
 
-          <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+          <div
+            className={cn(
+              "flex items-start gap-2 rounded-lg border p-3 text-sm",
+              termsError ? "border-destructive bg-destructive/5" : "border-primary/30 bg-primary/5"
+            )}
+          >
             <ScrollText className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
-            <p>
-              By confirming, you agree to our{" "}
-              <Link href="/legal/terms" target="_blank" className="font-medium text-primary underline">
-                Terms &amp; Conditions
-              </Link>
-              , including our cancellation policy — please read them before booking.
-            </p>
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => {
+                  setAgreedToTerms(e.target.checked)
+                  if (e.target.checked) setTermsError(false)
+                }}
+                className="mt-0.5 size-4 shrink-0 rounded border-input"
+              />
+              <span>
+                I have read and agree to the{" "}
+                <Link href="/legal/terms" target="_blank" className="font-medium text-primary underline">
+                  Terms &amp; Conditions
+                </Link>
+                , including the cancellation policy.
+              </span>
+            </label>
           </div>
+          {termsError && (
+            <p className="text-sm text-destructive">
+              You must agree to the Terms &amp; Conditions before confirming your booking.
+            </p>
+          )}
 
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setStepIndex((i) => i - 1)} disabled={submitting}>
