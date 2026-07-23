@@ -15,7 +15,7 @@ import { getSetting, getSettings } from "@/lib/settings"
 import { sendEmail } from "@/lib/email"
 import { bookingConfirmationEmail } from "@/lib/email-templates"
 import { logAudit } from "@/lib/audit"
-import { GROUP_BLOCKING_FLAGS, SHARED_KENNEL_BLOCKING_FLAG, DOG_FLAG_LABELS } from "@/lib/dog-flags"
+import { GROUP_BLOCKING_FLAGS, SHARED_KENNEL_BLOCKING_FLAGS, DOG_FLAG_LABELS } from "@/lib/dog-flags"
 import { hasCurrentSignedAgreement } from "@/lib/agreement"
 import { checkTrialGate } from "@/lib/trial"
 import { getApplicablePriceRules, minNightsRequired } from "@/lib/price-rules"
@@ -105,13 +105,16 @@ export async function resolveBookingCreation(
   if (!overrideCompatibilityFlags) {
     if (dogs.length > 1) {
       const noSharedKennelDog = dogs.find((dog) =>
-        dog.flags.some((f) => f.type === SHARED_KENNEL_BLOCKING_FLAG)
+        dog.flags.some((f) => SHARED_KENNEL_BLOCKING_FLAGS.includes(f.type))
       )
       if (noSharedKennelDog) {
+        const flagType = noSharedKennelDog.flags.find((f) =>
+          SHARED_KENNEL_BLOCKING_FLAGS.includes(f.type)
+        )!.type
         return {
           status: "error",
           compatibilityBlocked: true,
-          message: `${noSharedKennelDog.name} is flagged "${DOG_FLAG_LABELS[SHARED_KENNEL_BLOCKING_FLAG]}" and can't be booked into accommodation with another dog. Book separately.`,
+          message: `${noSharedKennelDog.name} is flagged "${DOG_FLAG_LABELS[flagType]}" and can't be booked into accommodation with another dog. Book separately.`,
         }
       }
     }

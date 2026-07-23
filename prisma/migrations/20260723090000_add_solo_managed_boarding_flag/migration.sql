@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "DogFlagType" ADD VALUE 'SOLO_MANAGED_BOARDING';

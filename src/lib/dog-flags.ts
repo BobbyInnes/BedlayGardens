@@ -6,6 +6,7 @@ export const DOG_FLAG_LABELS: Record<DogFlagType, string> = {
   NO_GROUP_WALKS: "No group walks",
   RESOURCE_GUARDING: "Resource guarding",
   ESCAPE_RISK: "Escape risk",
+  SOLO_MANAGED_BOARDING: "Solo / managed boarding",
 }
 
 export const DOG_FLAG_TYPES: DogFlagType[] = [
@@ -14,10 +15,15 @@ export const DOG_FLAG_TYPES: DogFlagType[] = [
   "NO_GROUP_WALKS",
   "RESOURCE_GUARDING",
   "ESCAPE_RISK",
+  "SOLO_MANAGED_BOARDING",
 ]
 
 /** Flags that block a self-service group booking (forest walks / dog-walking van runs) unless overridden. */
-export const GROUP_BLOCKING_FLAGS: DogFlagType[] = ["NOT_DOG_SOCIABLE", "NO_GROUP_WALKS"]
+export const GROUP_BLOCKING_FLAGS: DogFlagType[] = [
+  "NOT_DOG_SOCIABLE",
+  "NO_GROUP_WALKS",
+  "SOLO_MANAGED_BOARDING",
+]
 
-/** Flag that blocks more than one dog sharing a single kennel unit unless overridden. */
-export const SHARED_KENNEL_BLOCKING_FLAG: DogFlagType = "NO_SHARED_KENNEL"
+/** Flags that block more than one dog sharing a single kennel unit unless overridden. */
+export const SHARED_KENNEL_BLOCKING_FLAGS: DogFlagType[] = ["NO_SHARED_KENNEL", "SOLO_MANAGED_BOARDING"]

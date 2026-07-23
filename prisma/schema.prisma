@@ -129,6 +129,7 @@ enum DogFlagType {
   NO_GROUP_WALKS
   RESOURCE_GUARDING
   ESCAPE_RISK
+  SOLO_MANAGED_BOARDING
 }
 
 enum WaitlistStatus {
