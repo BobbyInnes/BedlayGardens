@@ -5,7 +5,6 @@ import { z } from "zod"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { sanitizeRichText } from "@/lib/sanitize-html"
-import { AGREEMENT_SECTION_NAMES } from "@/lib/agreement-sections"
 
 export type AdminActionState = { status: "idle" | "error"; message?: string }
 
@@ -308,102 +307,4 @@ export async function updateGoogleReviewUrl(
 
   revalidatePath("/admin/content")
   return { status: "idle", message: "Google review link updated." }
-}
-
-const agreementSectionSchema = z.object({
-  name: z.enum(AGREEMENT_SECTION_NAMES, { message: "Select a valid section name" }),
-  text: z.string().trim().min(1, "Text is required").max(10000),
-  sortOrder: z.coerce.number().int().default(0),
-})
-
-export async function createAgreementSection(
-  _prevState: AdminActionState,
-  formData: FormData
-): Promise<AdminActionState> {
-  await requireAdmin()
-  const parsed = agreementSectionSchema.safeParse({
-    name: formData.get("name"),
-    text: formData.get("text"),
-    sortOrder: formData.get("sortOrder") || "0",
-  })
-  if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
-  }
-
-  await prisma.agreementSection.create({
-    data: { ...parsed.data, text: sanitizeRichText(parsed.data.text) },
-  })
-
-  revalidatePath("/admin/content")
-  return { status: "idle" }
-}
-
-export async function updateAgreementSection(
-  sectionId: string,
-  _prevState: AdminActionState,
-  formData: FormData
-): Promise<AdminActionState> {
-  await requireAdmin()
-  const parsed = agreementSectionSchema.safeParse({
-    name: formData.get("name"),
-    text: formData.get("text"),
-    sortOrder: formData.get("sortOrder") || "0",
-  })
-  if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
-  }
-
-  await prisma.agreementSection.update({
-    where: { id: sectionId },
-    data: { ...parsed.data, text: sanitizeRichText(parsed.data.text) },
-  })
-
-  revalidatePath("/admin/content")
-  return { status: "idle" }
-}
-
-export async function toggleAgreementSectionActive(sectionId: string, active: boolean) {
-  await requireAdmin()
-  await prisma.agreementSection.update({ where: { id: sectionId }, data: { active } })
-  revalidatePath("/admin/content")
-}
-
-export async function deleteAgreementSection(sectionId: string) {
-  await requireAdmin()
-  await prisma.agreementSection.delete({ where: { id: sectionId } })
-  revalidatePath("/admin/content")
-}
-
-const publishAgreementSchema = z.object({
-  version: z.string().trim().min(1, "Version label is required").max(50),
-})
-
-export async function publishAgreement(
-  _prevState: AdminActionState,
-  formData: FormData
-): Promise<AdminActionState> {
-  await requireAdmin()
-  const parsed = publishAgreementSchema.safeParse({ version: formData.get("version") })
-  if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
-  }
-
-  const sections = await prisma.agreementSection.findMany({
-    where: { active: true },
-    orderBy: { sortOrder: "asc" },
-  })
-  if (sections.length === 0) {
-    return { status: "error", message: "Add at least one active section before publishing." }
-  }
-  const text = sections.map((s) => `<p><strong>${s.name}</strong></p>${sanitizeRichText(s.text)}`).join("")
-
-  await prisma.$transaction([
-    prisma.agreement.updateMany({ where: { active: true }, data: { active: false } }),
-    prisma.agreement.create({
-      data: { version: parsed.data.version, text, active: true },
-    }),
-  ])
-
-  revalidatePath("/admin/content")
-  return { status: "idle", message: "New agreement version published — customers will be asked to re-sign." }
 }
