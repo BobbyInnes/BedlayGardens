@@ -13,6 +13,8 @@ import { FaqListItem } from "@/components/admin/faq-list-item"
 import { TestimonialCreateForm } from "@/components/admin/testimonial-create-form"
 import { TestimonialListItem } from "@/components/admin/testimonial-list-item"
 import { PublishAgreementForm } from "@/components/admin/publish-agreement-form"
+import { AgreementSectionCreateForm } from "@/components/admin/agreement-section-create-form"
+import { AgreementSectionListItem } from "@/components/admin/agreement-section-list-item"
 import { GoogleReviewUrlForm } from "@/components/admin/google-review-url-form"
 
 export const metadata: Metadata = {
@@ -26,6 +28,7 @@ export default async function AdminContentPage() {
     faqs,
     testimonials,
     activeAgreement,
+    agreementSections,
     googleReviewUrl,
     businessEmail,
     announcementBanner,
@@ -38,6 +41,7 @@ export default async function AdminContentPage() {
       prisma.faq.findMany({ orderBy: { sortOrder: "asc" } }),
       prisma.testimonial.findMany({ orderBy: { id: "asc" } }),
       prisma.agreement.findFirst({ where: { active: true }, orderBy: { publishedAt: "desc" } }),
+      prisma.agreementSection.findMany({ orderBy: { sortOrder: "asc" } }),
       getSetting("google_business_review_url", ""),
       getSetting("business_email", ""),
       getSetting("announcement_banner", ""),
@@ -136,7 +140,25 @@ export default async function AdminContentPage() {
 
       <section className="space-y-4">
         <h2 className="text-lg font-semibold">Boarding agreement</h2>
-        <PublishAgreementForm currentVersion={activeAgreement?.version} currentText={activeAgreement?.text} />
+        <p className="text-sm text-muted-foreground">
+          Build the agreement out of named sections below, then publish a new version once they&rsquo;re
+          ready. Editing or adding a section doesn&rsquo;t change what customers have already signed —
+          only publishing does.
+        </p>
+        <AgreementSectionCreateForm />
+        {agreementSections.length > 0 ? (
+          <ul className="divide-y divide-border rounded-lg border border-border">
+            {agreementSections.map((section) => (
+              <AgreementSectionListItem key={section.id} section={section} />
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">No sections yet.</p>
+        )}
+        <PublishAgreementForm
+          currentVersion={activeAgreement?.version}
+          activeSectionCount={agreementSections.filter((s) => s.active).length}
+        />
       </section>
 
       <section className="space-y-3">

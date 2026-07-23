@@ -56,6 +56,8 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
   const [startDate, setStartDate] = React.useState(todayISO())
   const [endDate, setEndDate] = React.useState("")
   const [date, setDate] = React.useState(todayISO())
+  const [daycareDuration, setDaycareDuration] = React.useState<"FULL_DAY" | "HALF_DAY">("FULL_DAY")
+  const [daycareHalfDaySlot, setDaycareHalfDaySlot] = React.useState<"AM" | "PM" | "">("")
   const [walkSlots, setWalkSlots] = React.useState<WalkSlotOption[]>([])
   const [selectedSlotId, setSelectedSlotId] = React.useState("")
   const [vanRuns, setVanRuns] = React.useState<VanRunOption[]>([])
@@ -160,6 +162,9 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
         startDate: isBoarding ? startDate : undefined,
         endDate: isBoarding ? endDate : undefined,
         date: isDateBased ? date : undefined,
+        daycareDuration: isDaycare ? daycareDuration : undefined,
+        daycareHalfDaySlot:
+          isDaycare && daycareDuration === "HALF_DAY" && daycareHalfDaySlot ? daycareHalfDaySlot : undefined,
         walkSlotId: isForestWalk ? selectedSlotId : undefined,
         vanRunId: isDogWalking ? selectedRunId : undefined,
         pickupAddress: isDogWalking ? pickupAddress : undefined,
@@ -197,7 +202,7 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
     (isBoarding
       ? !!startDate && !!endDate
       : isDateBased
-        ? !!date
+        ? !!date && (!isDaycare || daycareDuration === "FULL_DAY" || !!daycareHalfDaySlot)
         : isForestWalk
           ? !!selectedSlotId
           : isDogWalking
@@ -400,6 +405,46 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
             <div className="space-y-2">
               <Label htmlFor="date">Date</Label>
               <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+          )}
+
+          {isDaycare && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Duration</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={daycareDuration === "FULL_DAY" ? "default" : "outline"}
+                    onClick={() => setDaycareDuration("FULL_DAY")}
+                  >
+                    Full Day
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={daycareDuration === "HALF_DAY" ? "default" : "outline"}
+                    onClick={() => setDaycareDuration("HALF_DAY")}
+                  >
+                    Half Day
+                  </Button>
+                </div>
+              </div>
+
+              {daycareDuration === "HALF_DAY" && (
+                <div className="space-y-2">
+                  <Label htmlFor="halfDaySlot">Half day session</Label>
+                  <select
+                    id="halfDaySlot"
+                    value={daycareHalfDaySlot}
+                    onChange={(e) => setDaycareHalfDaySlot(e.target.value as "AM" | "PM")}
+                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                  >
+                    <option value="">Select AM or PM</option>
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                  </select>
+                </div>
+              )}
             </div>
           )}
 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { auth } from "@/auth"
 import { getActiveAgreement, hasCurrentSignedAgreement } from "@/lib/agreement"
+import { sanitizeRichText } from "@/lib/sanitize-html"
 import { SignAgreementForm } from "@/components/portal/sign-agreement-form"
 
 export const metadata: Metadata = {
@@ -29,9 +30,10 @@ export default async function AgreementPage({
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-16 sm:px-6">
       <h1 className="text-2xl font-semibold tracking-tight">Boarding Agreement</h1>
 
-      <div className="max-h-96 overflow-y-auto rounded-lg border border-border p-4 text-sm whitespace-pre-wrap">
-        {agreement.text}
-      </div>
+      <div
+        className="max-h-96 overflow-y-auto rounded-lg border border-border p-4 text-sm"
+        dangerouslySetInnerHTML={{ __html: sanitizeRichText(agreement.text) }}
+      />
 
       {alreadySigned ? (
         <p className="text-sm text-primary">You&rsquo;ve already signed the current version — thank you.</p>

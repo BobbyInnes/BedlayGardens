@@ -70,6 +70,16 @@ export default async function BookingConfirmationPage({
               : ""}
           </span>
         </div>
+        {booking.daycareDuration && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Duration</span>
+            <span className="font-medium">
+              {booking.daycareDuration === "HALF_DAY"
+                ? `Half Day${booking.daycareHalfDaySlot ? ` (${booking.daycareHalfDaySlot})` : ""}`
+                : "Full Day"}
+            </span>
+          </div>
+        )}
         <div className="flex justify-between">
           <span className="text-muted-foreground">Dogs</span>
           <span className="font-medium">

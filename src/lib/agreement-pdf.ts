@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib"
+import { htmlToPlainText } from "@/lib/sanitize-html"
 
 const PAGE_WIDTH = 595
 const PAGE_HEIGHT = 842
@@ -59,7 +60,7 @@ export async function generateAgreementPdf(options: {
   drawLine(`Version: ${options.version}`)
   y -= 10
 
-  for (const line of wrapText(options.text, font, PAGE_WIDTH - MARGIN * 2)) {
+  for (const line of wrapText(htmlToPlainText(options.text), font, PAGE_WIDTH - MARGIN * 2)) {
     drawLine(line)
   }
 

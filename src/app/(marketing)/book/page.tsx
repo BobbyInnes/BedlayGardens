@@ -3,6 +3,7 @@ import Link from "next/link"
 import { ArrowRight, AlertTriangle } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 import { formatPriceWithSuffix } from "@/lib/format"
+import { formatPenceCompact } from "@/lib/service-display"
 import { sanitizeRichText } from "@/lib/sanitize-html"
 
 export const metadata: Metadata = {
@@ -49,7 +50,9 @@ export default async function BookPage() {
                 dangerouslySetInnerHTML={{ __html: sanitizeRichText(service.description) }}
               />
               <p className="mt-2 text-sm font-medium text-primary">
-                {formatPriceWithSuffix(service.basePricePence, service.pricingModel)}
+                {service.halfDayPricePence != null
+                  ? `${formatPenceCompact(service.basePricePence)}/Full day & ${formatPenceCompact(service.halfDayPricePence)}/Half day`
+                  : formatPriceWithSuffix(service.basePricePence, service.pricingModel)}
               </p>
             </div>
             <ArrowRight className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />

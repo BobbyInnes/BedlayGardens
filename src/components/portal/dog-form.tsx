@@ -80,6 +80,21 @@ export function DogForm({
             defaultValue={dog?.weightKg ?? ""}
           />
         </div>
+        <div className="space-y-2">
+          <Label htmlFor="size">Pet size</Label>
+          <Select name="size" defaultValue={dog?.size ?? ""}>
+            <SelectTrigger id="size" className="w-full">
+              <SelectValue placeholder="Select" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="MINIATURE">Miniature</SelectItem>
+              <SelectItem value="SMALL">Small</SelectItem>
+              <SelectItem value="MEDIUM">Medium</SelectItem>
+              <SelectItem value="LARGE">Large</SelectItem>
+              <SelectItem value="GIANT">Giant</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">

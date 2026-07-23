@@ -39,6 +39,24 @@ enum VaccinationStatus {
   EXPIRED
 }
 
+enum DaycareDuration {
+  FULL_DAY
+  HALF_DAY
+}
+
+enum DaycareHalfDaySlot {
+  AM
+  PM
+}
+
+enum DogSize {
+  MINIATURE
+  SMALL
+  MEDIUM
+  LARGE
+  GIANT
+}
+
 enum BookingStatus {
   DRAFT
   PENDING_PAYMENT
@@ -213,6 +231,8 @@ model Service {
   description    String
   pricingModel   PricingModel
   basePricePence Int
+  // Only used for the daycare service's half-day option; null elsewhere.
+  halfDayPricePence Int?
   paymentTiming  PaymentTiming @default(DEPOSIT_THEN_BALANCE)
   active         Boolean      @default(true)
   sortOrder      Int          @default(0)
@@ -233,6 +253,7 @@ model Dog {
   breed            String
   dob              DateTime?
   sex              String?
+  size             DogSize?
   neutered         Boolean   @default(false)
   weightKg         Float?
   photoUrl         String?
@@ -318,6 +339,9 @@ model Booking {
   balanceDueDate     DateTime?
   cancellationReason String?
   createdAt          DateTime      @default(now())
+  // Only set for daycare bookings.
+  daycareDuration    DaycareDuration?
+  daycareHalfDaySlot DaycareHalfDaySlot?
 
   bookingDogs       BookingDog[]
   bookingAddons     BookingAddon[]
@@ -675,6 +699,18 @@ model Agreement {
   active      Boolean  @default(true)
 
   signedAgreements SignedAgreement[]
+}
+
+// Named, ordered building blocks an admin composes into a new Agreement
+// version when they publish (see publishAgreement) — editing a section here
+// doesn't change what's currently signed; only publishing does.
+model AgreementSection {
+  id        String   @id @default(cuid())
+  name      String
+  text      String
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  updatedAt DateTime @updatedAt
 }
 
 model SignedAgreement {

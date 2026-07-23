@@ -29,6 +29,8 @@ const baseSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   date: z.string().optional(),
+  daycareDuration: z.enum(["FULL_DAY", "HALF_DAY"]).optional(),
+  daycareHalfDaySlot: z.enum(["AM", "PM"]).optional(),
   walkSlotId: z.string().optional(),
   vanRunId: z.string().optional(),
   pickupAddress: z.string().optional(),
@@ -257,6 +259,10 @@ export async function resolveBookingCreation(
   } else if (service.slug === "daycare") {
     if (!data.date) return { status: "error", message: "Select a date." }
     const date = startOfDay(new Date(data.date))
+    const daycareDuration = data.daycareDuration ?? "FULL_DAY"
+    if (daycareDuration === "HALF_DAY" && !data.daycareHalfDaySlot) {
+      return { status: "error", message: "Select AM or PM for a half day booking." }
+    }
 
     const gate = skipVaccinationGate ? { ok: true, perDog: [] } : await checkVaccinationGate(data.dogIds, date)
     if (!gate.ok) {
@@ -274,10 +280,15 @@ export async function resolveBookingCreation(
       return { status: "error", message: availability.reason ?? "Not enough daycare capacity on that date." }
     }
 
+    const unitPricePence =
+      daycareDuration === "HALF_DAY" && service.halfDayPricePence != null
+        ? service.halfDayPricePence
+        : service.basePricePence
+
     const pricing = await computeBookingPrice({
       serviceId: service.id,
       pricingModel: service.pricingModel,
-      basePricePence: service.basePricePence,
+      basePricePence: unitPricePence,
       dates: [date],
       dogCount: dogs.length,
       addons: [],
@@ -303,6 +314,8 @@ export async function resolveBookingCreation(
           serviceId: service.id,
           startDate: date,
           endDate: date,
+          daycareDuration,
+          daycareHalfDaySlot: daycareDuration === "HALF_DAY" ? data.daycareHalfDaySlot : null,
           ...paymentFieldsFor(service.paymentTiming, pricing),
           totalPence: pricing.totalPence,
         },

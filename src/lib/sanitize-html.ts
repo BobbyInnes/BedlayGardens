@@ -26,3 +26,11 @@ export function sanitizeRichText(value: string): string {
     disallowedTagsMode: "discard",
   }).trim()
 }
+
+// For contexts that can't render HTML (e.g. drawing text into a generated
+// PDF) — turns block breaks into newlines, then strips every remaining tag
+// and decodes entities.
+export function htmlToPlainText(value: string): string {
+  const withBreaks = value.replace(/<\/(p|div)>/gi, "\n").replace(/<br\s*\/?>/gi, "\n")
+  return sanitizeHtml(withBreaks, { allowedTags: [], allowedAttributes: {} }).trim()
+}

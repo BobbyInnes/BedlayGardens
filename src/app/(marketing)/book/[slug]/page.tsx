@@ -110,6 +110,7 @@ export default async function BookServicePage({
           name: service.name,
           pricingModel: service.pricingModel,
           basePricePence: service.basePricePence,
+          halfDayPricePence: service.halfDayPricePence,
           paymentTiming: service.paymentTiming,
         }}
         dogs={dogs.map((dog) => ({ id: dog.id, name: dog.name, breed: dog.breed }))}

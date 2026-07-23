@@ -52,9 +52,10 @@ async function main() {
       slug: "daycare",
       name: "Day Care",
       description:
-        "Drop off before 9am and collect at 12:30pm (£15 half day) or 5pm (£26 full day) — a full day of care and exercise.",
+        "Full day: drop off before 9am, collect by 5:30pm — £26 per dog. Half day: AM (7:30am–12:30pm) or PM (1pm–6pm) — £20 per dog. Choose full or half day (and AM/PM for half day) when you book.",
       pricingModel: "PER_DAY" as const,
       basePricePence: 2600,
+      halfDayPricePence: 2000,
       paymentTiming: "FULL_UPFRONT" as const,
       sortOrder: 2,
     },

@@ -4,32 +4,31 @@ import { useActionState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { publishAgreement, type AdminActionState } from "@/app/admin/content/actions"
 
 const initialState: AdminActionState = { status: "idle" }
 
 export function PublishAgreementForm({
   currentVersion,
-  currentText,
+  activeSectionCount,
 }: {
   currentVersion?: string
-  currentText?: string
+  activeSectionCount: number
 }) {
   const [state, formAction, pending] = useActionState(publishAgreement, initialState)
 
   return (
     <form action={formAction} className="max-w-xl space-y-3">
+      <p className="text-sm text-muted-foreground">
+        Publishing assembles the {activeSectionCount} active section{activeSectionCount === 1 ? "" : "s"}{" "}
+        below, in order, into a new version.
+      </p>
       <div className="space-y-2">
         <Label htmlFor="version">New version label</Label>
         <Input id="version" name="version" placeholder="v2" required />
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="text">Agreement text</Label>
-        <Textarea id="text" name="text" defaultValue={currentText} rows={10} required />
-      </div>
       <div className="flex items-center gap-3">
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending || activeSectionCount === 0}>
           {pending ? "Publishing…" : "Publish new version"}
         </Button>
         {currentVersion && (

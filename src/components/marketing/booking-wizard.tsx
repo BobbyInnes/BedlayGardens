@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { AlertTriangle, Loader2 } from "lucide-react"
+import { AlertTriangle, Loader2, ScrollText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -20,6 +20,7 @@ type ServiceInfo = {
   name: string
   pricingModel: PricingModel
   basePricePence: number
+  halfDayPricePence: number | null
   paymentTiming: PaymentTiming
 }
 
@@ -69,6 +70,8 @@ export function BookingWizard({
   const [startDate, setStartDate] = React.useState(todayISO())
   const [endDate, setEndDate] = React.useState("")
   const [date, setDate] = React.useState(todayISO())
+  const [daycareDuration, setDaycareDuration] = React.useState<"FULL_DAY" | "HALF_DAY">("FULL_DAY")
+  const [daycareHalfDaySlot, setDaycareHalfDaySlot] = React.useState<"AM" | "PM" | "">("")
   const [walkSlots, setWalkSlots] = React.useState<WalkSlotOption[]>([])
   const [selectedSlotId, setSelectedSlotId] = React.useState("")
   const [vanRuns, setVanRuns] = React.useState<VanRunOption[]>([])
@@ -220,13 +223,17 @@ export function BookingWizard({
   // Client-side price preview mirroring the server's boarding discount logic.
   const nights = isBoarding ? nightsBetween(startDate, endDate) : 1
   const units = isBoarding ? nights : 1
+  const unitPricePence =
+    isDaycare && daycareDuration === "HALF_DAY" && service.halfDayPricePence != null
+      ? service.halfDayPricePence
+      : service.basePricePence
   let basePreviewPence: number
   if (isBoarding && dogCount >= 2) {
-    const firstDog = service.basePricePence * units
-    const extraRate = service.basePricePence * (1 - secondDogDiscountPercent / 100)
+    const firstDog = unitPricePence * units
+    const extraRate = unitPricePence * (1 - secondDogDiscountPercent / 100)
     basePreviewPence = Math.round(firstDog + extraRate * units * (dogCount - 1))
   } else {
-    basePreviewPence = service.basePricePence * units * dogCount
+    basePreviewPence = unitPricePence * units * dogCount
   }
   const addonsPreviewPence = selectedAddonIds.reduce((sum, id) => {
     const addon = addons.find((a) => a.id === id)
@@ -247,6 +254,9 @@ export function BookingWizard({
         startDate: isBoarding ? startDate : undefined,
         endDate: isBoarding ? endDate : undefined,
         date: isDateBased ? date : undefined,
+        daycareDuration: isDaycare ? daycareDuration : undefined,
+        daycareHalfDaySlot:
+          isDaycare && daycareDuration === "HALF_DAY" && daycareHalfDaySlot ? daycareHalfDaySlot : undefined,
         walkSlotId: isForestWalk ? selectedSlotId : undefined,
         vanRunId: isDogWalking ? selectedRunId : undefined,
         pickupAddress: isDogWalking ? pickupAddress : undefined,
@@ -323,6 +333,46 @@ export function BookingWizard({
                   setAvailabilityChecked(false)
                 }}
               />
+            </div>
+          )}
+
+          {isDaycare && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Duration</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={daycareDuration === "FULL_DAY" ? "default" : "outline"}
+                    onClick={() => setDaycareDuration("FULL_DAY")}
+                  >
+                    Full Day
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={daycareDuration === "HALF_DAY" ? "default" : "outline"}
+                    onClick={() => setDaycareDuration("HALF_DAY")}
+                  >
+                    Half Day
+                  </Button>
+                </div>
+              </div>
+
+              {daycareDuration === "HALF_DAY" && (
+                <div className="space-y-2">
+                  <Label htmlFor="halfDaySlot">Half day session</Label>
+                  <select
+                    id="halfDaySlot"
+                    value={daycareHalfDaySlot}
+                    onChange={(e) => setDaycareHalfDaySlot(e.target.value as "AM" | "PM")}
+                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                  >
+                    <option value="">Select AM or PM</option>
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                  </select>
+                </div>
+              )}
             </div>
           )}
 
@@ -467,7 +517,8 @@ export function BookingWizard({
               (isBoarding && !available) ||
               (isDateBased && !available) ||
               (isForestWalk && !selectedSlotId) ||
-              (isDogWalking && (!selectedRunId || !pickupAddress || !postcode))
+              (isDogWalking && (!selectedRunId || !pickupAddress || !postcode)) ||
+              (isDaycare && daycareDuration === "HALF_DAY" && !daycareHalfDaySlot)
             }
           >
             Continue
@@ -503,6 +554,11 @@ export function BookingWizard({
               ))}
             </ul>
           )}
+
+          <div className="space-y-2">
+            <Label htmlFor="dogCount">Number of dogs</Label>
+            <Input id="dogCount" type="number" value={dogCount} disabled readOnly />
+          </div>
 
           {trialWarning && trialWarning.length > 0 && (
             <div className="flex items-start gap-3 rounded-lg border border-destructive bg-destructive/10 p-4 text-destructive">
@@ -601,7 +657,13 @@ export function BookingWizard({
           <div className="space-y-2 rounded-lg border border-border p-4 text-sm">
             <div className="flex justify-between">
               <span>
-                {service.name} × {dogCount} dog{dogCount > 1 ? "s" : ""}
+                {service.name}
+                {isDaycare
+                  ? daycareDuration === "HALF_DAY"
+                    ? ` (Half Day${daycareHalfDaySlot ? ` – ${daycareHalfDaySlot}` : ""})`
+                    : " (Full Day)"
+                  : ""}{" "}
+                × {dogCount} dog{dogCount > 1 ? "s" : ""}
                 {isBoarding ? ` × ${nights} night${nights === 1 ? "" : "s"}` : ""}
               </span>
               <span>{formatPence(basePreviewPence)}</span>
@@ -658,6 +720,17 @@ export function BookingWizard({
                 ? "Confirming reserves your booking — you'll then pay your deposit securely with Stripe, and we'll collect the balance before check-in."
                 : "Nothing to pay now — your booking is confirmed straight away and we'll email you an invoice after the service."}
           </p>
+
+          <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+            <ScrollText className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+            <p>
+              By confirming, you agree to our{" "}
+              <Link href="/legal/terms" target="_blank" className="font-medium text-primary underline">
+                Terms &amp; Conditions
+              </Link>
+              , including our cancellation policy — please read them before booking.
+            </p>
+          </div>
 
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setStepIndex((i) => i - 1)} disabled={submitting}>

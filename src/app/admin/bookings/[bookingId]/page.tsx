@@ -95,6 +95,16 @@ export default async function AdminBookingDetailPage({
               <dd>{booking.kennelUnit.name}</dd>
             </div>
           )}
+          {booking.daycareDuration && (
+            <div>
+              <dt className="text-muted-foreground">Duration</dt>
+              <dd>
+                {booking.daycareDuration === "HALF_DAY"
+                  ? `Half Day${booking.daycareHalfDaySlot ? ` (${booking.daycareHalfDaySlot})` : ""}`
+                  : "Full Day"}
+              </dd>
+            </div>
+          )}
           <div>
             <dt className="text-muted-foreground">Dogs</dt>
             <dd>{booking.bookingDogs.map((bd) => bd.dog.name).join(", ")}</dd>

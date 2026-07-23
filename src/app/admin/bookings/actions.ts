@@ -186,6 +186,8 @@ const manualBookingSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   date: z.string().optional(),
+  daycareDuration: z.enum(["FULL_DAY", "HALF_DAY"]).optional(),
+  daycareHalfDaySlot: z.enum(["AM", "PM"]).optional(),
   walkSlotId: z.string().optional(),
   vanRunId: z.string().optional(),
   pickupAddress: z.string().optional(),

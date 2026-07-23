@@ -27,6 +27,7 @@ export function ServiceForm({
   submitLabel: string
 }) {
   const [state, formAction, pending] = useActionState(action, initialState)
+  const isDaycare = service?.slug === "daycare"
 
   return (
     <form action={formAction} className="max-w-xl space-y-5">
@@ -54,36 +55,72 @@ export function ServiceForm({
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="space-y-2">
-          <Label htmlFor="pricingModel">Pricing model</Label>
-          <Select name="pricingModel" defaultValue={service?.pricingModel ?? "PER_NIGHT"}>
-            <SelectTrigger id="pricingModel" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="PER_NIGHT">Per night</SelectItem>
-              <SelectItem value="PER_DAY">Per day</SelectItem>
-              <SelectItem value="PER_SESSION">Per session</SelectItem>
-            </SelectContent>
-          </Select>
+      {isDaycare ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <input type="hidden" name="pricingModel" value={service.pricingModel} />
+          <input type="hidden" name="sortOrder" value={service.sortOrder} />
+          <div className="space-y-2">
+            <Label htmlFor="basePricePence">Full day price (pence)</Label>
+            <Input
+              id="basePricePence"
+              name="basePricePence"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              step={1}
+              defaultValue={service?.basePricePence}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="halfDayPricePence">Half day price (pence)</Label>
+            <Input
+              id="halfDayPricePence"
+              name="halfDayPricePence"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              step={1}
+              defaultValue={service?.halfDayPricePence ?? ""}
+              required
+            />
+          </div>
+          <p className="text-xs text-muted-foreground sm:col-span-2">
+            Charged when a customer selects Full Day or Half Day when booking Day Care.
+          </p>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="basePricePence">Base price (pence)</Label>
-          <Input
-            id="basePricePence"
-            name="basePricePence"
-            type="number"
-            min={0}
-            defaultValue={service?.basePricePence}
-            required
-          />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="pricingModel">Pricing model</Label>
+            <Select name="pricingModel" defaultValue={service?.pricingModel ?? "PER_NIGHT"}>
+              <SelectTrigger id="pricingModel" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PER_NIGHT">Per night</SelectItem>
+                <SelectItem value="PER_DAY">Per day</SelectItem>
+                <SelectItem value="PER_SESSION">Per session</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="basePricePence">Base price (pence)</Label>
+            <Input
+              id="basePricePence"
+              name="basePricePence"
+              type="number"
+              min={0}
+              defaultValue={service?.basePricePence}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="sortOrder">Sort order</Label>
+            <Input id="sortOrder" name="sortOrder" type="number" defaultValue={service?.sortOrder ?? 0} />
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="sortOrder">Sort order</Label>
-          <Input id="sortOrder" name="sortOrder" type="number" defaultValue={service?.sortOrder ?? 0} />
-        </div>
-      </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="paymentTiming">Payment timing</Label>

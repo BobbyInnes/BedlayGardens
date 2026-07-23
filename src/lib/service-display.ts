@@ -7,7 +7,7 @@ import type { PricingModel } from "@/generated/prisma/client"
 // rate per service.
 const SERVICE_DURATIONS: Record<string, string> = {
   "meet-greet": "1 hour",
-  daycare: "To 12:30pm or 5pm",
+  daycare: "Full day, or half day AM/PM",
   "secure-forest-walks": "1 or 3 hours",
   "dog-walking": "Per session",
   "overnight-boarding": "Overnight",
