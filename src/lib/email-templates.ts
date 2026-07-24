@@ -53,6 +53,27 @@ function dateRange(startDate: Date, endDate: Date): string {
   return `${start} – ${end}`
 }
 
+export function welcomeEmail(
+  branding: EmailBranding,
+  name: string,
+  addDogUrl: string
+): { subject: string; html: string } {
+  const businessName = branding.business_name ?? "Bedlay Gardens LTD"
+  return {
+    subject: `Welcome to ${businessName}`,
+    html: layout(
+      branding,
+      `Welcome, ${name}!`,
+      `
+        <p>Thanks for creating an account with ${businessName} — we're looking forward to meeting your dog.</p>
+        <p>Next, add a dog profile with their details and vaccination records so you're ready to book:</p>
+        <p style="margin: 16px 0;"><a href="${addDogUrl}" style="color: #3f5a3a; font-weight: bold;">Add a dog →</a></p>
+        <p>Once that's done, you can book Day Care, Home Boarding, Secure Forest Walks, and more from your account any time.</p>
+      `
+    ),
+  }
+}
+
 export function bookingConfirmationEmail(
   branding: EmailBranding,
   booking: BookingSummary

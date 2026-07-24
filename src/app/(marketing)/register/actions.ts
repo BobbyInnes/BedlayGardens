@@ -4,6 +4,10 @@ import bcrypt from "bcryptjs"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { signIn } from "@/auth"
+import { getSettings } from "@/lib/settings"
+import { getSiteUrl } from "@/lib/stripe"
+import { sendEmail } from "@/lib/email"
+import { welcomeEmail } from "@/lib/email-templates"
 
 const registerSchema = z
   .object({
@@ -92,6 +96,15 @@ export async function registerAction(
       addressPostcode: addressPostcode || null,
     },
   })
+
+  // A failed welcome email must not fail the registration itself.
+  try {
+    const settings = await getSettings()
+    const welcome = welcomeEmail(settings, name, `${getSiteUrl()}/portal/dogs/new`)
+    await sendEmail({ to: email, subject: welcome.subject, html: welcome.html })
+  } catch (error) {
+    console.error("[register] failed to send welcome email", error)
+  }
 
   await signIn("credentials", { email, password, redirectTo: "/portal" })
 

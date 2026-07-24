@@ -1,14 +1,13 @@
 import type { PricingModel } from "@/generated/prisma/client"
 
 // Display-only card metadata keyed by service slug (same hardcoded-by-slug
-// convention as ON_SITE_SERVICE_SLUGS). Durations come from
-// DESIGN-bedlay-gardens.md §4 — half-day daycare and 3-hour forest walks are
-// described in the service copy, since the booking engine prices one base
-// rate per service.
+// convention as ON_SITE_SERVICE_SLUGS) — kept in sync manually with each
+// service's actual name/description, since the booking engine prices one
+// base rate per service and has no structured duration field of its own.
 const SERVICE_DURATIONS: Record<string, string> = {
   "meet-greet": "1 hour",
   daycare: "Full day, or half day AM/PM",
-  "secure-forest-walks": "1 or 3 hours",
+  "secure-forest-walks": "1 hour",
   "dog-walking": "Per session",
   "overnight-boarding": "Overnight",
 }
