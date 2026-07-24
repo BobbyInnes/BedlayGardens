@@ -156,7 +156,11 @@ model User {
   passwordHash     String?
   name             String
   phone            String?
-  address          String?
+  workPhone        String?
+  addressLine1     String?
+  addressLine2     String?
+  addressCity      String?
+  addressPostcode  String?
   role             Role      @default(CUSTOMER)
   isSuperAdmin     Boolean   @default(false)
   active           Boolean   @default(true)

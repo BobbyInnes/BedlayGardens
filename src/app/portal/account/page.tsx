@@ -40,7 +40,11 @@ export default async function AccountPage() {
         <ProfileForm
           name={user?.name ?? ""}
           phone={user?.phone ?? ""}
-          address={user?.address ?? ""}
+          workPhone={user?.workPhone ?? ""}
+          addressLine1={user?.addressLine1 ?? ""}
+          addressLine2={user?.addressLine2 ?? ""}
+          addressCity={user?.addressCity ?? ""}
+          addressPostcode={user?.addressPostcode ?? ""}
         />
       </section>
 

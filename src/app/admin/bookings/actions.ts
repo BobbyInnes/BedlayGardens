@@ -108,11 +108,21 @@ export async function getCustomerDogs(customerId: string) {
   })
 }
 
-const quickCustomerSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(200),
-  email: z.string().trim().email("Enter a valid email address").max(200),
-  phone: z.string().trim().max(50).optional().or(z.literal("")),
-})
+const quickCustomerSchema = z
+  .object({
+    name: z.string().trim().min(1, "Name is required").max(200),
+    email: z.string().trim().email("Enter a valid email address").max(200),
+    phone: z.string().trim().max(50).optional().or(z.literal("")),
+    workPhone: z.string().trim().max(50).optional().or(z.literal("")),
+    addressLine1: z.string().trim().min(1, "Address line 1 is required").max(200),
+    addressLine2: z.string().trim().max(200).optional().or(z.literal("")),
+    addressCity: z.string().trim().max(100).optional().or(z.literal("")),
+    addressPostcode: z.string().trim().max(20).optional().or(z.literal("")),
+  })
+  .refine((data) => !!data.phone || !!data.workPhone, {
+    message: "Enter a telephone number or a work phone number.",
+    path: ["phone"],
+  })
 
 export type QuickCustomerResult = AdminActionState & {
   customer?: { id: string; name: string; email: string; phone: string | null }
@@ -122,6 +132,11 @@ export async function createQuickCustomer(input: {
   name: string
   email: string
   phone?: string
+  workPhone?: string
+  addressLine1: string
+  addressLine2?: string
+  addressCity?: string
+  addressPostcode?: string
 }): Promise<QuickCustomerResult> {
   await requireAdmin()
   const parsed = quickCustomerSchema.safeParse(input)
@@ -139,6 +154,11 @@ export async function createQuickCustomer(input: {
       name: parsed.data.name,
       email: parsed.data.email,
       phone: parsed.data.phone || null,
+      workPhone: parsed.data.workPhone || null,
+      addressLine1: parsed.data.addressLine1,
+      addressLine2: parsed.data.addressLine2 || null,
+      addressCity: parsed.data.addressCity || null,
+      addressPostcode: parsed.data.addressPostcode || null,
       role: "CUSTOMER",
     },
     select: { id: true, name: true, email: true, phone: true },

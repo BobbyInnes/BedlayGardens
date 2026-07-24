@@ -12,11 +12,20 @@ import { setOptOut } from "@/lib/notification-preferences"
 
 export type ActionState = { status: "idle" | "success" | "error"; message?: string }
 
-const profileSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(200),
-  phone: z.string().trim().max(50).optional().or(z.literal("")),
-  address: z.string().trim().max(500).optional().or(z.literal("")),
-})
+const profileSchema = z
+  .object({
+    name: z.string().trim().min(1, "Name is required").max(200),
+    phone: z.string().trim().max(50).optional().or(z.literal("")),
+    workPhone: z.string().trim().max(50).optional().or(z.literal("")),
+    addressLine1: z.string().trim().min(1, "Address line 1 is required").max(200),
+    addressLine2: z.string().trim().max(200).optional().or(z.literal("")),
+    addressCity: z.string().trim().max(100).optional().or(z.literal("")),
+    addressPostcode: z.string().trim().max(20).optional().or(z.literal("")),
+  })
+  .refine((data) => !!data.phone || !!data.workPhone, {
+    message: "Enter a telephone number or a work phone number.",
+    path: ["phone"],
+  })
 
 export async function updateProfile(
   _prevState: ActionState,
@@ -28,7 +37,11 @@ export async function updateProfile(
   const parsed = profileSchema.safeParse({
     name: formData.get("name"),
     phone: formData.get("phone"),
-    address: formData.get("address"),
+    workPhone: formData.get("workPhone"),
+    addressLine1: formData.get("addressLine1"),
+    addressLine2: formData.get("addressLine2"),
+    addressCity: formData.get("addressCity"),
+    addressPostcode: formData.get("addressPostcode"),
   })
   if (!parsed.success) {
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
@@ -39,7 +52,11 @@ export async function updateProfile(
     data: {
       name: parsed.data.name,
       phone: parsed.data.phone || null,
-      address: parsed.data.address || null,
+      workPhone: parsed.data.workPhone || null,
+      addressLine1: parsed.data.addressLine1,
+      addressLine2: parsed.data.addressLine2 || null,
+      addressCity: parsed.data.addressCity || null,
+      addressPostcode: parsed.data.addressPostcode || null,
     },
   })
 
@@ -162,7 +179,11 @@ export async function deleteAccount() {
           email: `deleted-${randomUUID()}@bedlaygardens.invalid`,
           passwordHash: null,
           phone: null,
-          address: null,
+          workPhone: null,
+          addressLine1: null,
+          addressLine2: null,
+          addressCity: null,
+          addressPostcode: null,
           active: false,
         },
       })

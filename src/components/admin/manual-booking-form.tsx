@@ -42,6 +42,11 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
   const [newName, setNewName] = React.useState("")
   const [newEmail, setNewEmail] = React.useState("")
   const [newPhone, setNewPhone] = React.useState("")
+  const [newWorkPhone, setNewWorkPhone] = React.useState("")
+  const [newAddressLine1, setNewAddressLine1] = React.useState("")
+  const [newAddressLine2, setNewAddressLine2] = React.useState("")
+  const [newAddressCity, setNewAddressCity] = React.useState("")
+  const [newAddressPostcode, setNewAddressPostcode] = React.useState("")
   const [customerError, setCustomerError] = React.useState<string | null>(null)
 
   // Dogs
@@ -105,7 +110,16 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
 
   async function submitNewCustomer() {
     setCustomerError(null)
-    const result = await createQuickCustomer({ name: newName, email: newEmail, phone: newPhone })
+    const result = await createQuickCustomer({
+      name: newName,
+      email: newEmail,
+      phone: newPhone,
+      workPhone: newWorkPhone,
+      addressLine1: newAddressLine1,
+      addressLine2: newAddressLine2,
+      addressCity: newAddressCity,
+      addressPostcode: newAddressPostcode,
+    })
     if (result.status === "error") {
       setCustomerError(result.message ?? "Could not create customer.")
       return
@@ -279,15 +293,65 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
                     onChange={(e) => setNewEmail(e.target.value)}
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="newPhone">Telephone number</Label>
+                    <Input id="newPhone" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newWorkPhone">Work phone number</Label>
+                    <Input
+                      id="newWorkPhone"
+                      value={newWorkPhone}
+                      onChange={(e) => setNewWorkPhone(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">Enter at least one phone number.</p>
                 <div className="space-y-2">
-                  <Label htmlFor="newPhone">Phone</Label>
-                  <Input id="newPhone" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} />
+                  <Label htmlFor="newAddressLine1">Address line 1</Label>
+                  <Input
+                    id="newAddressLine1"
+                    value={newAddressLine1}
+                    onChange={(e) => setNewAddressLine1(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="newAddressLine2">Address line 2 (optional)</Label>
+                  <Input
+                    id="newAddressLine2"
+                    value={newAddressLine2}
+                    onChange={(e) => setNewAddressLine2(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="newAddressCity">Town / city</Label>
+                    <Input
+                      id="newAddressCity"
+                      value={newAddressCity}
+                      onChange={(e) => setNewAddressCity(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newAddressPostcode">Postcode</Label>
+                    <Input
+                      id="newAddressPostcode"
+                      value={newAddressPostcode}
+                      onChange={(e) => setNewAddressPostcode(e.target.value)}
+                    />
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Button type="button" variant="outline" size="sm" onClick={() => setShowNewCustomer(false)}>
                     Cancel
                   </Button>
-                  <Button type="button" size="sm" onClick={submitNewCustomer}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={submitNewCustomer}
+                    disabled={!newAddressLine1.trim() || (!newPhone.trim() && !newWorkPhone.trim())}
+                  >
                     Create customer
                   </Button>
                 </div>
