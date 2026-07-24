@@ -187,6 +187,9 @@ export async function deleteAccount() {
           active: false,
         },
       })
+    } else if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      // Already deleted (e.g. a stale session retrying after a prior successful
+      // delete) — nothing left to do but sign out below.
     } else {
       throw error
     }
