@@ -32,10 +32,10 @@ export function LoginForm() {
       </TabsList>
 
       <TabsContent value="password" className="mt-6">
-        <form action={passwordAction} className="space-y-5">
+        <form action={passwordAction} className="space-y-5" autoComplete="off">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" required autoComplete="email" />
+            <Input id="email" name="email" type="email" required autoComplete="off" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
@@ -44,7 +44,7 @@ export function LoginForm() {
               name="password"
               type="password"
               required
-              autoComplete="current-password"
+              autoComplete="new-password"
             />
           </div>
           <Button type="submit" disabled={passwordPending} className="w-full">
@@ -59,10 +59,10 @@ export function LoginForm() {
       </TabsContent>
 
       <TabsContent value="magic-link" className="mt-6">
-        <form action={magicLinkAction} className="space-y-5">
+        <form action={magicLinkAction} className="space-y-5" autoComplete="off">
           <div className="space-y-2">
             <Label htmlFor="magic-email">Email</Label>
-            <Input id="magic-email" name="email" type="email" required autoComplete="email" />
+            <Input id="magic-email" name="email" type="email" required autoComplete="off" />
           </div>
           <Button type="submit" disabled={magicLinkPending} className="w-full">
             {magicLinkPending ? "Sending…" : "Email me a sign-in link"}
