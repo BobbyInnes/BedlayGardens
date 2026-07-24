@@ -20,9 +20,20 @@ type Db = PrismaClient
 async function resetUser(prisma: Db, email: string) {
   const existing = await prisma.user.findUnique({ where: { email } })
   if (!existing) return
-  await prisma.booking.deleteMany({ where: { customerId: existing.id } })
-  await prisma.dog.deleteMany({ where: { ownerId: existing.id } })
-  await prisma.user.delete({ where: { id: existing.id } })
+  const customerId = existing.id
+  // Everything with a non-cascading FK to this customer (directly, or via one
+  // of their bookings) has to go before the booking/user rows themselves.
+  await prisma.trialVisit.deleteMany({ where: { booking: { customerId } } })
+  await prisma.review.deleteMany({ where: { customerId } })
+  await prisma.signedAgreement.deleteMany({ where: { customerId } })
+  await prisma.subscription.deleteMany({ where: { customerId } })
+  await prisma.waitlistEntry.deleteMany({ where: { customerId } })
+  await prisma.creditLedger.deleteMany({ where: { customerId } })
+  await prisma.notificationPreference.deleteMany({ where: { customerId } })
+  await prisma.messageLog.deleteMany({ where: { customerId } })
+  await prisma.booking.deleteMany({ where: { customerId } })
+  await prisma.dog.deleteMany({ where: { ownerId: customerId } })
+  await prisma.user.delete({ where: { id: customerId } })
 }
 
 async function seed() {
@@ -48,6 +59,24 @@ async function seed() {
       emailVerified: new Date(),
     },
   })
+
+  // Sign whatever agreement is currently active so this seeded customer
+  // behaves like a returning customer, not one blocked at /portal/agreement
+  // before they can book.
+  const activeAgreement = await prisma.agreement.findFirst({
+    where: { active: true },
+    orderBy: { publishedAt: "desc" },
+  })
+  if (activeAgreement) {
+    await prisma.signedAgreement.create({
+      data: {
+        agreementId: activeAgreement.id,
+        customerId: customer.id,
+        signedName: customer.name,
+        ipAddress: "127.0.0.1",
+      },
+    })
+  }
   const admin = await prisma.user.create({
     data: {
       name: "E2E Admin",

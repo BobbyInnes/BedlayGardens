@@ -1,6 +1,17 @@
 import { test, expect } from "@playwright/test"
 import { E2E_CUSTOMER_EMAIL, E2E_CUSTOMER_PASSWORD, E2E_DOG_NAME } from "./fixtures"
 
+// Day care is blocked on weekends, so pick the next weekday on/after the given
+// offset rather than a fixed +N days that could land on a Saturday/Sunday.
+function nextWeekday(daysAhead: number): Date {
+  const date = new Date()
+  date.setDate(date.getDate() + daysAhead)
+  while (date.getDay() === 0 || date.getDay() === 6) {
+    date.setDate(date.getDate() + 1)
+  }
+  return date
+}
+
 test("customer can book daycare end to end", async ({ page }) => {
   await page.goto("/login")
   await page.getByRole("textbox", { name: "Email", exact: true }).fill(E2E_CUSTOMER_EMAIL)
@@ -12,8 +23,7 @@ test("customer can book daycare end to end", async ({ page }) => {
 
   const dateInput = page.locator('input[type="date"]')
   await dateInput.first().waitFor({ state: "visible" })
-  const futureDate = new Date()
-  futureDate.setDate(futureDate.getDate() + 30)
+  const futureDate = nextWeekday(30)
   await dateInput.first().fill(futureDate.toISOString().slice(0, 10))
 
   await page.getByRole("button", { name: "Check availability" }).click()
@@ -26,6 +36,7 @@ test("customer can book daycare end to end", async ({ page }) => {
   await page.getByRole("button", { name: "Continue" }).click()
 
   await expect(page.getByRole("button", { name: "Confirm booking" })).toBeVisible()
+  await page.getByRole("checkbox", { name: /Terms & Conditions/ }).click()
   await page.getByRole("button", { name: "Confirm booking" }).click()
 
   await page.waitForURL("**/book/confirmation/**", { timeout: 10_000 })

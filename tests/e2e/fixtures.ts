@@ -12,6 +12,13 @@ export const E2E_ADMIN_PASSWORD = "E2ETestPass123!"
 export const E2E_STAFF_EMAIL = "e2e.staff@example.com"
 export const E2E_STAFF_PASSWORD = "E2ETestPass123!"
 
+// Used by new-customer-with-dog.spec.ts, which registers this account fresh
+// (rather than relying on the seed) and cleans it up before/after each run.
+export const E2E_NEW_CUSTOMER_NAME = "E2E New Customer"
+export const E2E_NEW_CUSTOMER_EMAIL = "e2e.newcustomer@example.com"
+export const E2E_NEW_CUSTOMER_PASSWORD = "E2ETestPass123!"
+export const E2E_NEW_CUSTOMER_DOG_NAME = "E2E New Dog"
+
 // The seed writes the ids of the entities it created/found here; the smoke
 // suite reads them to reach dynamic `[id]` routes. Resolved from the project
 // root so it works from both the seed and the Playwright runner.

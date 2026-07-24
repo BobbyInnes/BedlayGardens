@@ -70,5 +70,11 @@ npx playwright test --ui       # interactive UI: run/re-run, live preview, timel
   without being bounced to the login page. Soft assertions, so one run reports
   every broken route at once.
 - **`booking-flow.spec.ts`** — a customer books daycare end to end.
+- **`new-customer-with-dog.spec.ts`** — a brand new customer registers, adds a
+  dog (with a pet size), and adds a vaccination record for it. Unlike the
+  other specs it doesn't rely on `seed.ts` — it registers its own account
+  (`E2E_NEW_CUSTOMER_EMAIL` in `fixtures.ts`) and resets it before/after via
+  `reset-new-customer.ts`, run as a separate `tsx` process (see the comment in
+  that file for why it can't be imported straight into the spec).
 
 Test accounts and the seed-id contract live in `fixtures.ts`.
