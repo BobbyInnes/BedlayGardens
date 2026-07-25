@@ -5,6 +5,7 @@ import { z } from "zod"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { sanitizeRichText } from "@/lib/sanitize-html"
+import { NAV_LINKS, navSettingKey } from "@/lib/nav-links"
 
 export type AdminActionState = { status: "idle" | "error"; message?: string }
 
@@ -256,6 +257,35 @@ export async function updateVacancies(
   revalidatePath("/admin/content")
   revalidatePath("/vacancies")
   return { status: "idle", message: "Vacancies updated." }
+}
+
+// Main menu item visibility (Home/Services/Gallery/etc.) — a checked box
+// means "on", an absent setting also means "on" (see navSettingKey), so a box
+// only needs writing when it's unchecked.
+export async function updateNavVisibility(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  await requireAdmin()
+
+  await Promise.all(
+    NAV_LINKS.map((link) => {
+      const value = formData.get(link.key) === "on" ? "true" : "false"
+      const key = navSettingKey(link.key)
+      return prisma.setting.upsert({
+        where: { key },
+        update: { value },
+        create: { key, value },
+      })
+    })
+  )
+
+  revalidatePath("/admin/content")
+  // Nav links render in the shared marketing layout, not the "/" page itself
+  // — revalidating "/" alone wouldn't touch that layout's cache, so every
+  // other route would keep showing the stale menu.
+  revalidatePath("/", "layout")
+  return { status: "idle", message: "Main menu updated." }
 }
 
 export async function updateOpeningHours(

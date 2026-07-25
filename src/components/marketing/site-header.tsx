@@ -24,16 +24,7 @@ import {
 } from "@/components/ui/sheet"
 import { Logo } from "@/components/marketing/logo"
 import { cn } from "@/lib/utils"
-
-const navLinks = [
-  { href: "/", label: "Home" },
-  { href: "/services", label: "Services" },
-  { href: "/#how-it-works", label: "How It Works" },
-  { href: "/gallery", label: "Gallery" },
-  { href: "/about", label: "About Us" },
-  { href: "/vacancies", label: "Vacancies" },
-  { href: "/contact", label: "Contact" },
-]
+import type { NavLinkDef } from "@/lib/nav-links"
 
 type SessionUser = {
   name?: string | null
@@ -67,7 +58,13 @@ function useSessionUser() {
   return user
 }
 
-export function SiteHeader({ businessName }: { businessName: string }) {
+export function SiteHeader({
+  businessName,
+  navLinks,
+}: {
+  businessName: string
+  navLinks: NavLinkDef[]
+}) {
   const pathname = usePathname()
   const router = useRouter()
   const [open, setOpen] = React.useState(false)

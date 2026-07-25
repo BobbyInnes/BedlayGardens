@@ -1,10 +1,11 @@
 import type { Metadata } from "next"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { getSetting } from "@/lib/settings"
+import { getSetting, getSettings } from "@/lib/settings"
 import { AnnouncementBannerForm } from "@/components/admin/announcement-banner-form"
 import { AboutBannerForm } from "@/components/admin/about-banner-form"
 import { AboutTextForm } from "@/components/admin/about-text-form"
+import { NavVisibilityForm } from "@/components/admin/nav-visibility-form"
 import {
   updateAboutStory,
   updateAboutFacility,
@@ -37,6 +38,7 @@ export default async function AdminContentPage() {
     aboutFacility,
     termsConditions,
     vacancies,
+    settings,
   ] = await Promise.all([
       auth(),
       getSetting("opening_hours", ""),
@@ -50,6 +52,7 @@ export default async function AdminContentPage() {
       getSetting("about_facility", ""),
       getSetting("terms_conditions", ""),
       getSetting("vacancies", ""),
+      getSettings(),
     ])
   const isSuperAdmin = session?.user.isSuperAdmin ?? false
 
@@ -58,6 +61,16 @@ export default async function AdminContentPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Content</h1>
       </div>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Main menu</h2>
+        <p className="text-sm text-muted-foreground">
+          Choose which links appear in the site&rsquo;s main menu. Unticking an item hides it from
+          both the desktop and mobile menu — the page itself still exists, it just won&rsquo;t be
+          linked from the menu.
+        </p>
+        <NavVisibilityForm settings={settings} />
+      </section>
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Business email</h2>
