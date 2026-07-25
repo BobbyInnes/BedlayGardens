@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,16 +11,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { MediaItem } from "@/generated/prisma/client"
+import type { GalleryCategory, MediaItem } from "@/generated/prisma/client"
 import { updateMedia, type AdminActionState } from "@/app/admin/media/actions"
 
 const initialState: AdminActionState = { status: "idle" }
 
-export function MediaEditForm({ media }: { media: MediaItem }) {
+export function MediaEditForm({
+  media,
+  categories,
+}: {
+  media: MediaItem
+  categories: GalleryCategory[]
+}) {
   const [state, formAction, pending] = useActionState(
     updateMedia.bind(null, media.id),
     initialState
   )
+  const [usage, setUsage] = useState<string>(media.usage)
 
   return (
     <form action={formAction} className="max-w-xl space-y-4">
@@ -36,10 +43,29 @@ export function MediaEditForm({ media }: { media: MediaItem }) {
           <Label htmlFor="caption">Caption</Label>
           <Input id="caption" name="caption" defaultValue={media.caption ?? ""} />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="category">Category</Label>
-          <Input id="category" name="category" defaultValue={media.category ?? ""} />
-        </div>
+        {usage === "GALLERY" ? (
+          <div className="space-y-2">
+            <Label htmlFor="galleryCategoryId">Gallery category</Label>
+            <Select name="galleryCategoryId" defaultValue={media.galleryCategoryId ?? "none"}>
+              <SelectTrigger id="galleryCategoryId" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Uncategorized</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <Label htmlFor="category">Category</Label>
+            <Input id="category" name="category" defaultValue={media.category ?? ""} />
+          </div>
+        )}
         <div className="space-y-2">
           <Label htmlFor="altText">Alt text</Label>
           <Input id="altText" name="altText" defaultValue={media.altText ?? ""} />
@@ -52,7 +78,7 @@ export function MediaEditForm({ media }: { media: MediaItem }) {
 
       <div className="space-y-2">
         <Label htmlFor="usage">Used on</Label>
-        <Select name="usage" defaultValue={media.usage}>
+        <Select name="usage" value={usage} onValueChange={setUsage}>
           <SelectTrigger id="usage" className="w-full">
             <SelectValue />
           </SelectTrigger>

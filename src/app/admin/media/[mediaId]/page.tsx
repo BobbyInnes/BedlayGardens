@@ -13,13 +13,16 @@ export default async function EditMediaPage({
   params: Promise<{ mediaId: string }>
 }) {
   const { mediaId } = await params
-  const media = await prisma.mediaItem.findUnique({ where: { id: mediaId } })
+  const [media, categories] = await Promise.all([
+    prisma.mediaItem.findUnique({ where: { id: mediaId } }),
+    prisma.galleryCategory.findMany({ orderBy: { sortOrder: "asc" } }),
+  ])
   if (!media) notFound()
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">Edit media</h1>
-      <MediaEditForm media={media} />
+      <MediaEditForm media={media} categories={categories} />
     </div>
   )
 }

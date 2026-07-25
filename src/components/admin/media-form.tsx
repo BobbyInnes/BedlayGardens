@@ -12,12 +12,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { createMedia, type AdminActionState } from "@/app/admin/media/actions"
+import type { GalleryCategory } from "@/generated/prisma/client"
 
 const initialState: AdminActionState = { status: "idle" }
 
-export function MediaForm() {
+export function MediaForm({ categories }: { categories: GalleryCategory[] }) {
   const [state, formAction, pending] = useActionState(createMedia, initialState)
   const [type, setType] = useState("IMAGE")
+  const [usage, setUsage] = useState("GALLERY")
 
   return (
     <form action={formAction} className="max-w-xl space-y-4">
@@ -37,7 +39,7 @@ export function MediaForm() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="usage">Used on</Label>
-          <Select name="usage" defaultValue="GALLERY">
+          <Select name="usage" value={usage} onValueChange={setUsage}>
             <SelectTrigger id="usage" className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -72,14 +74,37 @@ export function MediaForm() {
           <Label htmlFor="caption">Caption</Label>
           <Input id="caption" name="caption" />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="category">Category</Label>
-          <Input id="category" name="category" placeholder="accommodation, forest walks…" />
-          <p className="text-xs text-muted-foreground">
-            For &ldquo;Service page&rdquo; photos, set this to the service&rsquo;s slug (e.g.
-            daycare, overnight-boarding) so it appears on that service&rsquo;s card.
-          </p>
-        </div>
+        {usage === "GALLERY" ? (
+          <div className="space-y-2">
+            <Label htmlFor="galleryCategoryId">Gallery category</Label>
+            <Select name="galleryCategoryId" defaultValue="none">
+              <SelectTrigger id="galleryCategoryId" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Uncategorized</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Which filter button this shows under on the public gallery page. Manage the list
+              of categories above.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <Label htmlFor="category">Category</Label>
+            <Input id="category" name="category" placeholder="accommodation, forest walks…" />
+            <p className="text-xs text-muted-foreground">
+              For &ldquo;Service page&rdquo; photos, set this to the service&rsquo;s slug (e.g.
+              daycare, overnight-boarding) so it appears on that service&rsquo;s card.
+            </p>
+          </div>
+        )}
         <div className="space-y-2">
           <Label htmlFor="altText">Alt text</Label>
           <Input id="altText" name="altText" />

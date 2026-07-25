@@ -23,9 +23,17 @@ const mediaSchema = z.object({
   caption: z.string().trim().max(200).optional().or(z.literal("")),
   altText: z.string().trim().max(200).optional().or(z.literal("")),
   category: z.string().trim().max(100).optional().or(z.literal("")),
+  galleryCategoryId: z.string().trim().optional().or(z.literal("")),
   sortOrder: z.coerce.number().int().default(0),
   embedUrl: z.string().trim().max(1000).optional().or(z.literal("")),
 })
+
+// The gallery-category <Select> uses "none" for "uncategorized" — Radix
+// doesn't allow an empty-string item value, so that sentinel needs mapping
+// back to null before it reaches the database.
+function normalizeGalleryCategoryId(value: string | undefined): string | null {
+  return value && value !== "none" ? value : null
+}
 
 function revalidatePublicPaths() {
   revalidatePath("/gallery")
@@ -45,7 +53,12 @@ export async function createMedia(
     usage: formData.get("usage"),
     caption: formData.get("caption"),
     altText: formData.get("altText"),
-    category: formData.get("category"),
+    // Only one of these two inputs is actually rendered at a time (depending
+    // on "Used on"), so the other is absent from the DOM entirely rather
+    // than merely empty — formData.get returns null, not undefined, for a
+    // missing field, which z.optional() alone doesn't accept.
+    category: formData.get("category") ?? "",
+    galleryCategoryId: formData.get("galleryCategoryId") ?? "",
     sortOrder: formData.get("sortOrder") || "0",
     embedUrl: formData.get("embedUrl") ?? "",
   })
@@ -76,6 +89,7 @@ export async function createMedia(
       caption: parsed.data.caption || null,
       altText: parsed.data.altText || null,
       category: parsed.data.category || null,
+      galleryCategoryId: normalizeGalleryCategoryId(parsed.data.galleryCategoryId),
       sortOrder: parsed.data.sortOrder,
     },
   })
@@ -89,6 +103,7 @@ const mediaUpdateSchema = z.object({
   caption: z.string().trim().max(200).optional().or(z.literal("")),
   altText: z.string().trim().max(200).optional().or(z.literal("")),
   category: z.string().trim().max(100).optional().or(z.literal("")),
+  galleryCategoryId: z.string().trim().optional().or(z.literal("")),
   sortOrder: z.coerce.number().int().default(0),
   usage: z.enum(["GALLERY", "HERO", "SERVICE", "ABOUT"]),
 })
@@ -105,7 +120,8 @@ export async function updateMedia(
   const parsed = mediaUpdateSchema.safeParse({
     caption: formData.get("caption"),
     altText: formData.get("altText"),
-    category: formData.get("category"),
+    category: formData.get("category") ?? "",
+    galleryCategoryId: formData.get("galleryCategoryId") ?? "",
     sortOrder: formData.get("sortOrder") || "0",
     usage: formData.get("usage"),
   })
@@ -131,6 +147,7 @@ export async function updateMedia(
       caption: parsed.data.caption || null,
       altText: parsed.data.altText || null,
       category: parsed.data.category || null,
+      galleryCategoryId: normalizeGalleryCategoryId(parsed.data.galleryCategoryId),
       sortOrder: parsed.data.sortOrder,
       usage: parsed.data.usage,
     },
@@ -153,4 +170,72 @@ export async function deleteMedia(mediaId: string) {
 
   revalidatePublicPaths()
   revalidatePath("/admin/media")
+}
+
+const galleryCategorySchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(60),
+  sortOrder: z.coerce.number().int().default(0),
+})
+
+export async function createGalleryCategory(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  await requireAdmin()
+  const parsed = galleryCategorySchema.safeParse({
+    name: formData.get("name"),
+    sortOrder: formData.get("sortOrder") || "0",
+  })
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
+  }
+
+  const existing = await prisma.galleryCategory.findUnique({ where: { name: parsed.data.name } })
+  if (existing) {
+    return { status: "error", message: "A category with this name already exists." }
+  }
+
+  await prisma.galleryCategory.create({ data: parsed.data })
+
+  revalidatePath("/admin/media")
+  revalidatePath("/gallery")
+  return { status: "idle" }
+}
+
+export async function updateGalleryCategory(
+  categoryId: string,
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  await requireAdmin()
+  const parsed = galleryCategorySchema.safeParse({
+    name: formData.get("name"),
+    sortOrder: formData.get("sortOrder") || "0",
+  })
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
+  }
+
+  const existing = await prisma.galleryCategory.findFirst({
+    where: { name: parsed.data.name, id: { not: categoryId } },
+  })
+  if (existing) {
+    return { status: "error", message: "A category with this name already exists." }
+  }
+
+  await prisma.galleryCategory.update({ where: { id: categoryId }, data: parsed.data })
+
+  revalidatePath("/admin/media")
+  revalidatePath("/gallery")
+  return { status: "idle" }
+}
+
+// Media items in this category aren't deleted — they just fall back to
+// "uncategorized" (MediaItem.galleryCategoryId -> SetNull), same as if the
+// admin had never assigned one.
+export async function deleteGalleryCategory(categoryId: string) {
+  await requireAdmin()
+  await prisma.galleryCategory.delete({ where: { id: categoryId } })
+  revalidatePath("/admin/media")
+  revalidatePath("/gallery")
 }

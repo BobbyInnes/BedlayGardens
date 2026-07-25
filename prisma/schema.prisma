@@ -28,9 +28,9 @@ enum PricingModel {
 
 // When the customer pays for a service, configured per-service by admins.
 enum PaymentTiming {
-  FULL_UPFRONT         // 100% at booking time
+  FULL_UPFRONT // 100% at booking time
   DEPOSIT_THEN_BALANCE // deposit at booking, balance before check-in
-  INVOICE_AFTER        // confirmed without payment; invoiced at check-out
+  INVOICE_AFTER // confirmed without payment; invoiced at check-out
 }
 
 enum VaccinationStatus {
@@ -230,18 +230,18 @@ model VerificationToken {
 }
 
 model Service {
-  id             String       @id @default(cuid())
-  name           String
-  slug           String       @unique
-  description    String
-  pricingModel   PricingModel
-  basePricePence Int
+  id                String        @id @default(cuid())
+  name              String
+  slug              String        @unique
+  description       String
+  pricingModel      PricingModel
+  basePricePence    Int
   // Only used for the daycare service's half-day option; null elsewhere.
   halfDayPricePence Int?
-  paymentTiming  PaymentTiming @default(DEPOSIT_THEN_BALANCE)
-  active         Boolean      @default(true)
-  sortOrder      Int          @default(0)
-  requiresTrial  Boolean      @default(false)
+  paymentTiming     PaymentTiming @default(DEPOSIT_THEN_BALANCE)
+  active            Boolean       @default(true)
+  sortOrder         Int           @default(0)
+  requiresTrial     Boolean       @default(false)
 
   bookings        Booking[]
   addons          Addon[]
@@ -329,21 +329,21 @@ model KennelOccupancy {
 }
 
 model Booking {
-  id                 String        @id @default(cuid())
+  id                 String              @id @default(cuid())
   customerId         String
-  customer           User          @relation(fields: [customerId], references: [id])
+  customer           User                @relation(fields: [customerId], references: [id])
   serviceId          String
-  service            Service       @relation(fields: [serviceId], references: [id])
+  service            Service             @relation(fields: [serviceId], references: [id])
   startDate          DateTime
   endDate            DateTime
-  status             BookingStatus @default(DRAFT)
+  status             BookingStatus       @default(DRAFT)
   kennelUnitId       String?
-  kennelUnit         KennelUnit?   @relation(fields: [kennelUnitId], references: [id])
+  kennelUnit         KennelUnit?         @relation(fields: [kennelUnitId], references: [id])
   totalPence         Int
   depositPence       Int
   balanceDueDate     DateTime?
   cancellationReason String?
-  createdAt          DateTime      @default(now())
+  createdAt          DateTime            @default(now())
   // Only set for daycare bookings.
   daycareDuration    DaycareDuration?
   daycareHalfDaySlot DaycareHalfDaySlot?
@@ -529,18 +529,35 @@ model Setting {
 }
 
 model MediaItem {
-  id           String     @id @default(cuid())
-  type         MediaType
-  url          String
-  thumbnailUrl String?
-  caption      String?
-  altText      String?
-  category     String?
-  sortOrder    Int        @default(0)
-  usage        MediaUsage
-  createdAt    DateTime   @default(now())
+  id                String           @id @default(cuid())
+  type              MediaType
+  url               String
+  thumbnailUrl      String?
+  caption           String?
+  altText           String?
+  // Freeform tag — for usage=SERVICE this holds the service's slug (matched
+  // against Service.slug to pick that service's card photo), unrelated to
+  // the admin-managed gallery categories below. Kept separate from
+  // galleryCategoryId so neither use interferes with the other.
+  category          String?
+  galleryCategoryId String?
+  galleryCategory   GalleryCategory? @relation(fields: [galleryCategoryId], references: [id], onDelete: SetNull)
+  sortOrder         Int              @default(0)
+  usage             MediaUsage
+  createdAt         DateTime         @default(now())
 
   pupdates Pupdate[]
+}
+
+// Admin-managed filter categories for the public /gallery page (Admin ->
+// Media -> Gallery Categories) — distinct from MediaItem.category, which is
+// a different, unrelated freeform field used for service-page photo matching.
+model GalleryCategory {
+  id        String @id @default(cuid())
+  name      String @unique
+  sortOrder Int    @default(0)
+
+  mediaItems MediaItem[]
 }
 
 model Testimonial {

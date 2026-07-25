@@ -14,7 +14,12 @@ export default async function GalleryPage() {
   const items = await prisma.mediaItem.findMany({
     where: { usage: "GALLERY" },
     orderBy: { sortOrder: "asc" },
+    include: { galleryCategory: true },
   })
+  // GalleryGrid just wants a display category string per item — sourced from
+  // the admin-managed GalleryCategory relation, not the legacy freeform
+  // MediaItem.category field (that one's used for service-page photo matching).
+  const galleryItems = items.map((item) => ({ ...item, category: item.galleryCategory?.name ?? null }))
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
@@ -26,7 +31,7 @@ export default async function GalleryPage() {
       </div>
 
       {items.length > 0 ? (
-        <GalleryGrid items={items} />
+        <GalleryGrid items={galleryItems} />
       ) : (
         <p className="text-center text-muted-foreground">
           Photos and videos are coming soon.

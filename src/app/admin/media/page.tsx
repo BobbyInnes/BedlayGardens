@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { MediaForm } from "@/components/admin/media-form"
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
+import { GalleryCategoryCreateForm } from "@/components/admin/gallery-category-create-form"
+import { GalleryCategoryListItem } from "@/components/admin/gallery-category-list-item"
 import { deleteMedia } from "@/app/admin/media/actions"
 
 export const metadata: Metadata = {
@@ -12,10 +14,17 @@ export const metadata: Metadata = {
 }
 
 export default async function AdminMediaPage() {
-  const items = await prisma.mediaItem.findMany({
-    where: { usage: { not: "PUPDATE" } },
-    orderBy: [{ usage: "asc" }, { sortOrder: "asc" }],
-  })
+  const [items, galleryCategories] = await Promise.all([
+    prisma.mediaItem.findMany({
+      where: { usage: { not: "PUPDATE" } },
+      orderBy: [{ usage: "asc" }, { sortOrder: "asc" }],
+      include: { galleryCategory: true },
+    }),
+    prisma.galleryCategory.findMany({
+      orderBy: { sortOrder: "asc" },
+      include: { _count: { select: { mediaItems: true } } },
+    }),
+  ])
 
   return (
     <div className="space-y-8">
@@ -24,8 +33,28 @@ export default async function AdminMediaPage() {
       </div>
 
       <section className="space-y-4">
+        <h2 className="text-lg font-semibold">Gallery categories</h2>
+        <p className="text-sm text-muted-foreground">
+          Filter buttons shown on the public gallery page. Renaming updates everywhere the
+          category is used; deleting one just leaves its photos uncategorized.
+        </p>
+        {galleryCategories.length > 0 && (
+          <ul className="max-w-xl divide-y divide-border rounded-lg border border-border">
+            {galleryCategories.map((category) => (
+              <GalleryCategoryListItem
+                key={category.id}
+                category={category}
+                itemCount={category._count.mediaItems}
+              />
+            ))}
+          </ul>
+        )}
+        <GalleryCategoryCreateForm nextSortOrder={galleryCategories.length} />
+      </section>
+
+      <section className="space-y-4">
         <h2 className="text-lg font-semibold">Add media</h2>
-        <MediaForm />
+        <MediaForm categories={galleryCategories} />
       </section>
 
       <section className="space-y-4">
@@ -50,7 +79,9 @@ export default async function AdminMediaPage() {
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <p className="text-sm font-medium">{item.caption || "(no caption)"}</p>
-                  <p className="text-xs text-muted-foreground">{item.category}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {item.usage === "GALLERY" ? item.galleryCategory?.name : item.category}
+                  </p>
                 </div>
                 <Badge variant="secondary">{item.usage}</Badge>
               </div>
