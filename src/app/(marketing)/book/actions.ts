@@ -51,6 +51,38 @@ function isUniqueConstraintError(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
 }
 
+// P2034: Postgres aborted the transaction for a write conflict — the outcome
+// of a "SERIALIZABLE" transaction that raced another one over the same rows.
+function isSerializationError(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034"
+}
+
+// Day care and meet & greet capacity are both enforced by counting existing
+// bookings for the day, then inserting, inside one transaction — a plain
+// "read count, then write" check like that is exactly the write-skew race
+// Postgres's default READ COMMITTED isolation does not prevent: two
+// concurrent bookings can each read the count as under capacity and both
+// commit, going over. SERIALIZABLE isolation makes Postgres detect that and
+// abort one side (surfaced by Prisma as P2034) rather than let it happen —
+// retried here a few times before giving up, same shape as the kennel
+// booking retry loop below for unique-constraint races.
+async function runCapacityCheckedTransaction<T>(
+  fn: (tx: Prisma.TransactionClient) => Promise<T>
+): Promise<T | undefined> {
+  const MAX_ATTEMPTS = 5
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    try {
+      return await prisma.$transaction(fn, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      })
+    } catch (error) {
+      if (isSerializationError(error)) continue
+      throw error
+    }
+  }
+  return undefined
+}
+
 export type BookingCreationResult = BookingActionState & { bookingId?: string }
 
 export async function resolveBookingCreation(
@@ -297,7 +329,7 @@ export async function resolveBookingCreation(
       addons: [],
     })
 
-    const booking = await prisma.$transaction(async (tx) => {
+    const booking = await runCapacityCheckedTransaction(async (tx) => {
       const recheckCount = await tx.bookingDog.count({
         where: {
           booking: {
@@ -499,7 +531,7 @@ export async function resolveBookingCreation(
       addons: [],
     })
 
-    const booking = await prisma.$transaction(async (tx) => {
+    const booking = await runCapacityCheckedTransaction(async (tx) => {
       const recheckCount = await tx.bookingDog.count({
         where: {
           booking: {
