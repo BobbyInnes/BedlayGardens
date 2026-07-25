@@ -6,7 +6,6 @@ import { ChevronLeft, ChevronRight, Play, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
-import { cn } from "@/lib/utils"
 
 type GalleryItem = {
   id: string
@@ -90,7 +89,10 @@ export function GalleryGrid({ items }: { items: GalleryItem[] }) {
       </div>
 
       <Dialog open={openIndex !== null} onOpenChange={(open) => !open && setOpenIndex(null)}>
-        <DialogContent showCloseButton={false} className="max-w-3xl border-0 bg-transparent p-0 shadow-none">
+        <DialogContent
+          showCloseButton={false}
+          className="max-w-[95vw] border-0 bg-transparent p-0 shadow-none sm:max-w-[90vw] lg:max-w-6xl"
+        >
           <DialogTitle className="sr-only">{activeItem?.caption ?? "Gallery preview"}</DialogTitle>
           {activeItem && (
             <div className="relative overflow-hidden rounded-xl bg-background">
@@ -130,31 +132,41 @@ export function GalleryGrid({ items }: { items: GalleryItem[] }) {
                 </>
               )}
 
-              <div className={cn("relative aspect-4/3 w-full sm:aspect-video")}>
-                {activeItem.type === "VIDEO" ? (
-                  <video
-                    src={activeItem.url}
-                    controls
-                    autoPlay
-                    className="size-full object-contain"
-                  />
-                ) : activeItem.type === "EMBED" ? (
+              {activeItem.type === "EMBED" ? (
+                // Video embeds have no natural size to size around, so they
+                // still get a fixed 16:9 box like a normal video player.
+                <div className="relative aspect-video w-full">
                   <iframe
                     src={activeItem.url}
                     className="size-full"
                     allow="autoplay; encrypted-media"
                     allowFullScreen
                   />
-                ) : (
-                  <Image
-                    src={activeItem.url}
-                    alt={activeItem.altText ?? activeItem.caption ?? "Gallery image"}
-                    fill
-                    sizes="100vw"
-                    className="object-contain"
-                  />
-                )}
-              </div>
+                </div>
+              ) : (
+                // Images/videos size to their own aspect ratio instead of a
+                // fixed box, capped to the viewport — a portrait photo forced
+                // into a 4:3/16:9 box would otherwise show tiny, letterboxed.
+                <div className="flex max-h-[85vh] items-center justify-center bg-background">
+                  {activeItem.type === "VIDEO" ? (
+                    <video
+                      src={activeItem.url}
+                      controls
+                      autoPlay
+                      className="max-h-[85vh] w-auto max-w-full"
+                    />
+                  ) : (
+                    <Image
+                      src={activeItem.url}
+                      alt={activeItem.altText ?? activeItem.caption ?? "Gallery image"}
+                      width={1600}
+                      height={1200}
+                      sizes="95vw"
+                      className="h-auto max-h-[85vh] w-auto max-w-full object-contain"
+                    />
+                  )}
+                </div>
+              )}
               {activeItem.caption && (
                 <p className="px-4 py-3 text-sm text-muted-foreground">{activeItem.caption}</p>
               )}
