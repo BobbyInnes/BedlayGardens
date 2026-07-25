@@ -5,7 +5,12 @@ import { getSetting } from "@/lib/settings"
 import { AnnouncementBannerForm } from "@/components/admin/announcement-banner-form"
 import { AboutBannerForm } from "@/components/admin/about-banner-form"
 import { AboutTextForm } from "@/components/admin/about-text-form"
-import { updateAboutStory, updateAboutFacility, updateTermsConditions } from "@/app/admin/content/actions"
+import {
+  updateAboutStory,
+  updateAboutFacility,
+  updateTermsConditions,
+  updateVacancies,
+} from "@/app/admin/content/actions"
 import { BusinessEmailForm } from "@/components/admin/business-email-form"
 import { OpeningHoursForm } from "@/components/admin/opening-hours-form"
 import { FaqCreateForm } from "@/components/admin/faq-create-form"
@@ -31,6 +36,7 @@ export default async function AdminContentPage() {
     aboutStory,
     aboutFacility,
     termsConditions,
+    vacancies,
   ] = await Promise.all([
       auth(),
       getSetting("opening_hours", ""),
@@ -43,6 +49,7 @@ export default async function AdminContentPage() {
       getSetting("about_story", ""),
       getSetting("about_facility", ""),
       getSetting("terms_conditions", ""),
+      getSetting("vacancies", ""),
     ])
   const isSuperAdmin = session?.user.isSuperAdmin ?? false
 
@@ -108,6 +115,17 @@ export default async function AdminContentPage() {
           value={termsConditions}
           placeholder="The terms shown on the public Terms & Conditions page…"
           helpText="Shown on the public /legal/terms page, linked from the site footer and the booking review step. Leave blank to use the default placeholder text."
+        />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Vacancies</h2>
+        <AboutTextForm
+          action={updateVacancies}
+          name="vacancies"
+          value={vacancies}
+          placeholder="Details of current job vacancies…"
+          helpText="Shown on the public /vacancies page, linked from the site menu. Leave blank to show 'No current vacancies'."
         />
       </section>
 

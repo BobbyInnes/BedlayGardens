@@ -1,11 +1,12 @@
 import sanitizeHtml from "sanitize-html"
 
 // Small allowlist matching exactly what the admin RichTextEditor toolbar can
-// produce (bold, underline, italic, coloured text, paragraphs/line breaks).
-// Anything else — scripts, links, images, event handlers, arbitrary styles —
+// produce (bold, underline, italic, coloured text, paragraphs/line breaks,
+// and images uploaded through the editor's own image button). Anything else
+// — scripts, links, arbitrary img sources, event handlers, arbitrary styles —
 // is stripped. Used both when saving admin input and again at render time
 // (defense in depth, and it upgrades old plain-text values automatically).
-const ALLOWED_TAGS = ["b", "strong", "i", "em", "u", "span", "br", "p", "div"]
+const ALLOWED_TAGS = ["b", "strong", "i", "em", "u", "span", "br", "p", "div", "img"]
 
 export function sanitizeRichText(value: string): string {
   // Legacy/plain-text values (and anything pasted without markup) use real
@@ -17,12 +18,16 @@ export function sanitizeRichText(value: string): string {
     allowedTags: ALLOWED_TAGS,
     allowedAttributes: {
       span: ["style"],
+      img: ["src", "alt"],
     },
     allowedStyles: {
       span: {
         color: [/^#[0-9a-fA-F]{3,8}$/, /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/],
       },
     },
+    // Uploaded images always come back as https R2 URLs — block javascript:/data:
+    // URIs so a hand-crafted src can't be used to inject a script.
+    allowedSchemesByTag: { img: ["https"] },
     disallowedTagsMode: "discard",
   }).trim()
 }

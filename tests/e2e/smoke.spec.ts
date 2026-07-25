@@ -31,6 +31,7 @@ const publicRoutes = present([
   "/services",
   "/gallery",
   "/faqs",
+  "/vacancies",
   "/book",
   `/book/${ids.serviceSlug}`,
   "/login",

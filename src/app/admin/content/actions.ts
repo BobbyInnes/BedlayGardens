@@ -238,6 +238,26 @@ export async function updateTermsConditions(
   return { status: "idle", message: "Terms & Conditions updated." }
 }
 
+// /vacancies page copy. Empty value means "no current vacancies" on the public page.
+export async function updateVacancies(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  await requireAdmin()
+  const raw = ((formData.get("vacancies") as string | null) ?? "").trim()
+  const value = raw ? sanitizeRichText(raw) : ""
+
+  await prisma.setting.upsert({
+    where: { key: "vacancies" },
+    update: { value },
+    create: { key: "vacancies", value },
+  })
+
+  revalidatePath("/admin/content")
+  revalidatePath("/vacancies")
+  return { status: "idle", message: "Vacancies updated." }
+}
+
 export async function updateOpeningHours(
   _prevState: AdminActionState,
   formData: FormData

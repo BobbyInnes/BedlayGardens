@@ -31,6 +31,7 @@ const navLinks = [
   { href: "/#how-it-works", label: "How It Works" },
   { href: "/gallery", label: "Gallery" },
   { href: "/about", label: "About Us" },
+  { href: "/vacancies", label: "Vacancies" },
   { href: "/contact", label: "Contact" },
 ]
 
