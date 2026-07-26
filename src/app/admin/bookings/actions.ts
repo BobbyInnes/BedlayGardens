@@ -138,7 +138,7 @@ export async function createQuickCustomer(input: {
   addressCity?: string
   addressPostcode?: string
 }): Promise<QuickCustomerResult> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const parsed = quickCustomerSchema.safeParse(input)
   if (!parsed.success) {
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
@@ -162,6 +162,14 @@ export async function createQuickCustomer(input: {
       role: "CUSTOMER",
     },
     select: { id: true, name: true, email: true, phone: true },
+  })
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "CREATE_CUSTOMER",
+    entity: "User",
+    entityId: customer.id,
+    meta: `${customer.name} <${customer.email}>`,
   })
 
   return { status: "idle", customer }
