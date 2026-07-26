@@ -188,7 +188,7 @@ export async function createQuickDog(input: {
   name: string
   breed: string
 }): Promise<QuickDogResult> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const parsed = quickDogSchema.safeParse(input)
   if (!parsed.success) {
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
@@ -202,6 +202,14 @@ export async function createQuickDog(input: {
   const dog = await prisma.dog.create({
     data: { ownerId: parsed.data.ownerId, name: parsed.data.name, breed: parsed.data.breed },
     select: { id: true, name: true, breed: true },
+  })
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "CREATE_DOG",
+    entity: "Dog",
+    entityId: dog.id,
+    meta: `${dog.name} (${dog.breed}) — owner ${owner.name}`,
   })
 
   return { status: "idle", dog }

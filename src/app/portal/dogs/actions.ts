@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { z } from "zod"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 import { saveUpload, deleteUpload } from "@/lib/storage"
 
 const dogSchema = z.object({
@@ -95,6 +96,14 @@ export async function createDog(
     const key = await saveUpload(`dogs/${dog.id}`, photo.name, buffer)
     await prisma.dog.update({ where: { id: dog.id }, data: { photoUrl: key } })
   }
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "CREATE_DOG",
+    entity: "Dog",
+    entityId: dog.id,
+    meta: `${dog.name} (${dog.breed})`,
+  })
 
   revalidatePath("/portal/dogs")
   redirect("/portal/dogs")

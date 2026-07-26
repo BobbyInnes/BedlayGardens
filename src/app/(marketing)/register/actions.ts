@@ -3,6 +3,7 @@
 import bcrypt from "bcryptjs"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 import { signIn } from "@/auth"
 import { getSettings } from "@/lib/settings"
 import { getSiteUrl } from "@/lib/stripe"
@@ -82,7 +83,7 @@ export async function registerAction(
   }
 
   const passwordHash = await bcrypt.hash(password, 10)
-  await prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       name,
       email,
@@ -95,6 +96,14 @@ export async function registerAction(
       addressCity: addressCity || null,
       addressPostcode: addressPostcode || null,
     },
+  })
+
+  await logAudit({
+    actorId: user.id,
+    action: "CREATE_CUSTOMER",
+    entity: "User",
+    entityId: user.id,
+    meta: `${user.name} <${user.email}> — self-registered`,
   })
 
   // A failed welcome email must not fail the registration itself.
