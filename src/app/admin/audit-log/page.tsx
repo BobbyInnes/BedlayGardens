@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { buildAuditLogWhere, AUDIT_LOG_CATEGORIES } from "@/lib/audit-log-filters"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -30,10 +31,18 @@ function formatDateTime(date: Date): string {
   })
 }
 
+type AuditLogSearchParams = {
+  q?: string
+  user?: string
+  category?: string
+  from?: string
+  to?: string
+}
+
 export default async function AdminAuditLogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>
+  searchParams: Promise<AuditLogSearchParams>
 }) {
   const session = await auth()
   // Super-admin only — everyone else (including regular admins) gets a 404
@@ -42,48 +51,91 @@ export default async function AdminAuditLogPage({
     notFound()
   }
 
-  const { q = "" } = await searchParams
-  const query = q.trim()
+  const { q = "", user = "", category = "", from = "", to = "" } = await searchParams
+  const filters = { q, user, category, from, to }
 
   const logs = await prisma.auditLog.findMany({
-    where: query
-      ? {
-          OR: [
-            { action: { contains: query, mode: "insensitive" } },
-            { entity: { contains: query, mode: "insensitive" } },
-            { entityId: { contains: query, mode: "insensitive" } },
-            { meta: { contains: query, mode: "insensitive" } },
-            { actor: { name: { contains: query, mode: "insensitive" } } },
-            { actor: { email: { contains: query, mode: "insensitive" } } },
-          ],
-        }
-      : undefined,
+    where: buildAuditLogWhere(filters),
     orderBy: { createdAt: "desc" },
     include: { actor: true },
     take: 200,
   })
+
+  const exportParams = new URLSearchParams()
+  if (q.trim()) exportParams.set("q", q.trim())
+  if (user.trim()) exportParams.set("user", user.trim())
+  if (category) exportParams.set("category", category)
+  if (from) exportParams.set("from", from)
+  if (to) exportParams.set("to", to)
+  const exportQuery = exportParams.toString()
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Audit Log</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Every change made in the admin area — who, what, and when. Visible to super admins
+          Every change made in the system — who, what, and when. Visible to super admins
           only. Showing the most recent {logs.length === 200 ? "200" : logs.length}
           {logs.length === 200 ? " (of possibly more) " : " "}
-          entries{query ? ` matching "${query}"` : ""}.
+          entries matching the filters below.
         </p>
       </div>
 
       <form className="flex flex-wrap items-end gap-3">
         <div className="space-y-2">
-          <Label htmlFor="q">Search (person, action, or detail)</Label>
-          <Input id="q" name="q" defaultValue={q} className="w-72" />
+          <Label htmlFor="q">Search (action or detail)</Label>
+          <Input id="q" name="q" defaultValue={q} className="w-64" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="user">Staff name or customer ID</Label>
+          <Input id="user" name="user" defaultValue={user} className="w-56" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="category">Category</Label>
+          <select
+            id="category"
+            name="category"
+            defaultValue={category}
+            className="h-9 w-40 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="">All</option>
+            {AUDIT_LOG_CATEGORIES.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="from">From</Label>
+          <Input id="from" name="from" type="date" defaultValue={from} className="w-40" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="to">To</Label>
+          <Input id="to" name="to" type="date" defaultValue={to} className="w-40" />
         </div>
         <Button type="submit" variant="outline">
-          Search
+          Filter
         </Button>
+        {(q || user || category || from || to) && (
+          <Button asChild variant="ghost">
+            <a href="/admin/audit-log">Clear</a>
+          </Button>
+        )}
       </form>
+
+      <div className="flex gap-2">
+        <Button asChild variant="outline" size="sm">
+          <a href={`/api/admin/audit-log/export?format=csv${exportQuery ? `&${exportQuery}` : ""}`}>
+            Export CSV
+          </a>
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <a href={`/api/admin/audit-log/export?format=json${exportQuery ? `&${exportQuery}` : ""}`}>
+            Export JSON
+          </a>
+        </Button>
+      </div>
 
       {logs.length > 0 ? (
         <div className="overflow-x-auto rounded-lg border border-border">
@@ -120,7 +172,9 @@ export default async function AdminAuditLogPage({
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">
-          {query ? "No matching entries." : "No changes have been logged yet."}
+          {q || user || category || from || to
+            ? "No matching entries."
+            : "No changes have been logged yet."}
         </p>
       )}
     </div>
