@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs"
 
 import { authConfig } from "@/auth.config"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -43,4 +44,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       from: process.env.EMAIL_FROM ?? "Bedlay Gardens <onboarding@resend.dev>",
     }),
   ],
+  events: {
+    async signIn({ user, account }) {
+      if (!user.id) return
+      await logAudit({
+        actorId: user.id,
+        action: "LOGIN",
+        entity: "User",
+        entityId: user.id,
+        meta: `Logged in via ${account?.provider === "resend" ? "email link" : "password"}`,
+      })
+    },
+  },
 })
