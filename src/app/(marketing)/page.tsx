@@ -189,7 +189,7 @@ export default async function HomePage() {
                 Announcement
               </h2>
               <div
-                className="space-y-2 text-sm leading-relaxed text-foreground [&>p:first-child]:text-base [&>p:first-child]:font-semibold"
+                className="space-y-2 text-sm leading-relaxed text-foreground [&>p:first-child]:text-base [&>p:first-child]:font-semibold [&_img]:inline [&_img]:align-middle"
                 dangerouslySetInnerHTML={{ __html: sanitizeRichText(settings.announcement_banner) }}
               />
             </div>

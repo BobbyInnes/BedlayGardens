@@ -46,7 +46,7 @@ export default async function BookPage() {
             <div>
               <p className="font-semibold">{service.name}</p>
               <div
-                className="mt-1 text-sm text-muted-foreground"
+                className="mt-1 text-sm text-muted-foreground [&_img]:inline [&_img]:align-middle"
                 dangerouslySetInnerHTML={{ __html: sanitizeRichText(service.description) }}
               />
               <p className="mt-2 text-sm font-medium text-primary">

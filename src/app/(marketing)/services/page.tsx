@@ -79,7 +79,7 @@ export default async function ServicesPage() {
               <CardContent className="flex flex-1 flex-col gap-6">
                 <div className="flex-1 space-y-4">
                   <div
-                    className="text-sm text-muted-foreground"
+                    className="text-sm text-muted-foreground [&_img]:inline [&_img]:align-middle"
                     dangerouslySetInnerHTML={{ __html: sanitizeRichText(service.description) }}
                   />
 

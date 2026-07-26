@@ -52,7 +52,7 @@ export default async function AboutPage() {
               <Megaphone className="size-5" aria-hidden="true" />
             </span>
             <div
-              className="space-y-2 text-sm leading-relaxed text-foreground [&>p:first-child]:text-base [&>p:first-child]:font-semibold"
+              className="space-y-2 text-sm leading-relaxed text-foreground [&>p:first-child]:text-base [&>p:first-child]:font-semibold [&_img]:inline [&_img]:align-middle"
               dangerouslySetInnerHTML={{ __html: sanitizeRichText(settings.about_banner) }}
             />
           </div>
@@ -71,7 +71,7 @@ export default async function AboutPage() {
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Our story</h2>
             <div
-              className="space-y-4 text-muted-foreground"
+              className="space-y-4 text-muted-foreground [&_img]:inline [&_img]:align-middle"
               dangerouslySetInnerHTML={{ __html: storyHtml }}
             />
           </div>
@@ -115,7 +115,7 @@ export default async function AboutPage() {
           <div className="order-1 space-y-4 sm:order-2">
             <h2 className="text-xl font-semibold">Our facility</h2>
             <div
-              className="space-y-4 text-muted-foreground"
+              className="space-y-4 text-muted-foreground [&_img]:inline [&_img]:align-middle"
               dangerouslySetInnerHTML={{ __html: facilityHtml }}
             />
           </div>
@@ -152,7 +152,7 @@ export default async function AboutPage() {
                     )}
                     {member.bio && (
                       <div
-                        className="mt-1 text-sm text-muted-foreground"
+                        className="mt-1 text-sm text-muted-foreground [&_img]:inline [&_img]:align-middle"
                         dangerouslySetInnerHTML={{ __html: sanitizeRichText(member.bio) }}
                       />
                     )}

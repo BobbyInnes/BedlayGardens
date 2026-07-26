@@ -16,7 +16,10 @@ export default async function TermsPage() {
   if (termsConditions.trim()) {
     return (
       <LegalPage title="Terms & Conditions" updated="10 July 2026">
-        <div dangerouslySetInnerHTML={{ __html: sanitizeRichText(termsConditions) }} />
+        <div
+          className="[&_img]:inline [&_img]:align-middle"
+          dangerouslySetInnerHTML={{ __html: sanitizeRichText(termsConditions) }}
+        />
       </LegalPage>
     )
   }

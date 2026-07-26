@@ -73,7 +73,7 @@ export default async function LocalAreaServicePage({
           </p>
         </div>
         <div
-          className="mt-3 text-muted-foreground"
+          className="mt-3 text-muted-foreground [&_img]:inline [&_img]:align-middle"
           dangerouslySetInnerHTML={{ __html: sanitizeRichText(service.description) }}
         />
         <Button className="mt-6" asChild>

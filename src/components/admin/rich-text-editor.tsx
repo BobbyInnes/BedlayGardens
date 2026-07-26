@@ -214,7 +214,7 @@ export function RichTextEditor({
         onInput={sync}
         onBlur={sync}
         data-placeholder={placeholder}
-        className="min-h-24 px-2.5 py-2 text-sm outline-none empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)] [&_img]:max-w-full [&_img]:rounded-md"
+        className="min-h-24 px-2.5 py-2 text-sm outline-none empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)] [&_img]:inline [&_img]:max-w-full [&_img]:rounded-md [&_img]:align-middle"
         dangerouslySetInnerHTML={{ __html: html }}
       />
       <input ref={hiddenRef} type="hidden" name={name} defaultValue={defaultValue ?? ""} />

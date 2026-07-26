@@ -21,7 +21,7 @@ export default async function VacanciesPage() {
 
       {vacancies.trim() ? (
         <div
-          className="space-y-4 text-sm leading-6 text-foreground [&_h2]:mt-8 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-foreground [&_p]:text-muted-foreground [&_li]:text-muted-foreground [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-5"
+          className="space-y-4 text-sm leading-6 text-foreground [&_h2]:mt-8 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-foreground [&_p]:text-muted-foreground [&_li]:text-muted-foreground [&_ul]:list-disc [&_ul]:space-y-1 [&_ul]:pl-5 [&_img]:inline [&_img]:align-middle"
           dangerouslySetInnerHTML={{ __html: sanitizeRichText(vacancies) }}
         />
       ) : (

@@ -31,7 +31,7 @@ export default async function AgreementPage({
       <h1 className="text-2xl font-semibold tracking-tight">Boarding Agreement</h1>
 
       <div
-        className="max-h-96 overflow-y-auto rounded-lg border border-border p-4 text-sm"
+        className="max-h-96 overflow-y-auto rounded-lg border border-border p-4 text-sm [&_img]:inline [&_img]:align-middle"
         dangerouslySetInnerHTML={{ __html: sanitizeRichText(agreement.text) }}
       />
 

@@ -74,7 +74,7 @@ export function ServiceCard({
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-6">
         <div
-          className="line-clamp-4 flex-1 text-sm text-muted-foreground"
+          className="line-clamp-4 flex-1 text-sm text-muted-foreground [&_img]:inline [&_img]:align-middle"
           dangerouslySetInnerHTML={{ __html: sanitizeRichText(description) }}
         />
         <Button asChild className="w-full">
