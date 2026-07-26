@@ -6,11 +6,12 @@ import { prisma } from "@/lib/prisma"
 import { Badge } from "@/components/ui/badge"
 import { formatPence } from "@/lib/format"
 import { ToggleActiveButton } from "@/components/admin/toggle-active-button"
+import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
 import { CustomerNotesForm } from "@/components/admin/customer-notes-form"
 import { DogFlagsManager } from "@/components/admin/dog-flags-manager"
 import { GoodwillCreditForm } from "@/components/admin/goodwill-credit-form"
 import { PromoteCustomerForm } from "@/components/admin/promote-customer-form"
-import { toggleCustomerActive } from "@/app/admin/customers/actions"
+import { toggleCustomerActive, deleteCustomer } from "@/app/admin/customers/actions"
 import { getAvailableCreditPence } from "@/lib/vouchers"
 import { canManageAdmins } from "@/lib/admin-permissions"
 
@@ -134,6 +135,22 @@ export default async function AdminCustomerDetailPage({
           <p className="text-sm text-muted-foreground">No bookings yet.</p>
         )}
       </section>
+
+      {session?.user.isSuperAdmin && (
+        <section className="space-y-3 rounded-lg border border-destructive/50 p-4">
+          <h2 className="text-sm font-semibold text-destructive">Danger zone</h2>
+          <p className="text-sm text-muted-foreground">
+            Permanently deletes this customer, all {customer.dogs.length} dog(s), and all{" "}
+            {customer.bookings.length} booking(s). This cannot be undone.
+          </p>
+          <ConfirmDeleteButton
+            label="Delete customer"
+            title={`Delete ${customer.name}?`}
+            description={`This will permanently delete ${customer.name}, their ${customer.dogs.length} dog(s), and their ${customer.bookings.length} booking(s). This cannot be undone.`}
+            onConfirm={deleteCustomer.bind(null, customer.id)}
+          />
+        </section>
+      )}
 
       <Link href="/admin/customers" className="inline-block text-sm font-medium text-primary hover:underline">
         ← Back to customers

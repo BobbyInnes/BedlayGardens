@@ -9,6 +9,7 @@ import { sendEmail } from "@/lib/email"
 import { getSettings } from "@/lib/settings"
 import { formatPence } from "@/lib/format"
 import { canManageAdmins } from "@/lib/admin-permissions"
+import { deleteCustomerAndAllData } from "@/lib/delete-customer"
 import type { DogFlagType } from "@/generated/prisma/client"
 
 export type AdminActionState = { status: "idle" | "error"; message?: string }
@@ -107,6 +108,36 @@ export async function removeDogFlag(customerId: string, flagId: string) {
     meta: flag.type,
   })
   revalidatePath(`/admin/customers/${customerId}`)
+}
+
+// Irreversible — deletes the customer, their dogs, and every booking, not
+// just the account itself. Restricted to super admins (not just any admin),
+// since regular staff shouldn't be able to erase booking/financial history.
+export async function deleteCustomer(customerId: string) {
+  const session = await requireAdmin()
+  if (!session.user.isSuperAdmin) {
+    throw new Error("Only a super admin can delete a customer.")
+  }
+
+  const customer = await prisma.user.findFirst({
+    where: { id: customerId, role: "CUSTOMER" },
+    include: { _count: { select: { dogs: true, bookings: true } } },
+  })
+  if (!customer) {
+    throw new Error("Customer not found.")
+  }
+
+  await prisma.$transaction((tx) => deleteCustomerAndAllData(tx, customerId))
+  await logAudit({
+    actorId: session.user.id,
+    action: "DELETE_CUSTOMER",
+    entity: "User",
+    entityId: customerId,
+    meta: `${customer.name} <${customer.email}> — ${customer._count.dogs} dog(s), ${customer._count.bookings} booking(s) deleted`,
+  })
+
+  revalidatePath("/admin/customers")
+  redirect("/admin/customers")
 }
 
 export async function issueGoodwillCredit(
