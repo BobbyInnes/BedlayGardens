@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 
 async function requireAdmin() {
   const session = await auth()
@@ -13,8 +14,15 @@ async function requireAdmin() {
 }
 
 export async function moderateReview(reviewId: string, status: "APPROVED" | "REJECTED") {
-  await requireAdmin()
+  const session = await requireAdmin()
   await prisma.review.update({ where: { id: reviewId }, data: { status } })
+  await logAudit({
+    actorId: session.user.id,
+    action: "MODERATE_REVIEW",
+    entity: "Review",
+    entityId: reviewId,
+    meta: status,
+  })
   revalidatePath("/admin/reviews")
   revalidatePath("/")
 }

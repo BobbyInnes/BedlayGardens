@@ -6,6 +6,7 @@ import { z } from "zod"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { sanitizeRichText } from "@/lib/sanitize-html"
+import { logAudit } from "@/lib/audit"
 
 export type AdminActionState = { status: "idle" | "error"; message?: string }
 
@@ -51,7 +52,7 @@ export async function createService(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const parsed = readServiceFields(formData)
   if (!parsed.success) {
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
@@ -62,8 +63,15 @@ export async function createService(
     return { status: "error", message: "A service with that slug already exists." }
   }
 
-  await prisma.service.create({
+  const service = await prisma.service.create({
     data: { ...parsed.data, description: sanitizeRichText(parsed.data.description) },
+  })
+  await logAudit({
+    actorId: session.user.id,
+    action: "CREATE_SERVICE",
+    entity: "Service",
+    entityId: service.id,
+    meta: `${parsed.data.name} (${parsed.data.slug})`,
   })
   revalidatePath("/admin/services")
   revalidatePath("/services")
@@ -76,7 +84,7 @@ export async function updateService(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const parsed = readServiceFields(formData)
   if (!parsed.success) {
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
@@ -93,6 +101,13 @@ export async function updateService(
     where: { id: serviceId },
     data: { ...parsed.data, description: sanitizeRichText(parsed.data.description) },
   })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_SERVICE",
+    entity: "Service",
+    entityId: serviceId,
+    meta: `${parsed.data.name} (${parsed.data.slug}) — £${(parsed.data.basePricePence / 100).toFixed(2)}`,
+  })
   revalidatePath("/admin/services")
   revalidatePath("/services")
   revalidatePath("/book")
@@ -100,21 +115,43 @@ export async function updateService(
 }
 
 export async function toggleServiceActive(serviceId: string, active: boolean) {
-  await requireAdmin()
-  await prisma.service.update({ where: { id: serviceId }, data: { active } })
+  const session = await requireAdmin()
+  const service = await prisma.service.update({ where: { id: serviceId }, data: { active } })
+  await logAudit({
+    actorId: session.user.id,
+    action: "TOGGLE_SERVICE_ACTIVE",
+    entity: "Service",
+    entityId: serviceId,
+    meta: `${service.name} — ${active ? "activated" : "deactivated"}`,
+  })
   revalidatePath("/admin/services")
   revalidatePath("/services")
   revalidatePath("/book")
 }
 
 export async function deleteService(serviceId: string) {
-  await requireAdmin()
+  const session = await requireAdmin()
+  const service = await prisma.service.findUnique({ where: { id: serviceId } })
   const bookingCount = await prisma.booking.count({ where: { serviceId } })
 
   if (bookingCount > 0) {
     await prisma.service.update({ where: { id: serviceId }, data: { active: false } })
+    await logAudit({
+      actorId: session.user.id,
+      action: "DEACTIVATE_SERVICE",
+      entity: "Service",
+      entityId: serviceId,
+      meta: `${service?.name ?? serviceId} — deactivated instead of deleted (${bookingCount} existing bookings)`,
+    })
   } else {
     await prisma.service.delete({ where: { id: serviceId } })
+    await logAudit({
+      actorId: session.user.id,
+      action: "DELETE_SERVICE",
+      entity: "Service",
+      entityId: serviceId,
+      meta: service?.name ?? serviceId,
+    })
   }
 
   revalidatePath("/admin/services")
@@ -133,7 +170,7 @@ export async function createAddon(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const parsed = addonSchema.safeParse({
     name: formData.get("name"),
     description: formData.get("description"),
@@ -143,7 +180,7 @@ export async function createAddon(
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
   }
 
-  await prisma.addon.create({
+  const addon = await prisma.addon.create({
     data: {
       serviceId,
       name: parsed.data.name,
@@ -151,27 +188,55 @@ export async function createAddon(
       pricePence: parsed.data.pricePence,
     },
   })
+  await logAudit({
+    actorId: session.user.id,
+    action: "CREATE_ADDON",
+    entity: "Addon",
+    entityId: addon.id,
+    meta: `${parsed.data.name} — £${(parsed.data.pricePence / 100).toFixed(2)}`,
+  })
   revalidatePath(`/admin/services/${serviceId}`)
   revalidatePath("/services")
   return { status: "idle" }
 }
 
 export async function toggleAddonActive(addonId: string, active: boolean) {
-  await requireAdmin()
+  const session = await requireAdmin()
   const addon = await prisma.addon.update({ where: { id: addonId }, data: { active } })
+  await logAudit({
+    actorId: session.user.id,
+    action: "TOGGLE_ADDON_ACTIVE",
+    entity: "Addon",
+    entityId: addonId,
+    meta: `${addon.name} — ${active ? "activated" : "deactivated"}`,
+  })
   revalidatePath(`/admin/services/${addon.serviceId}`)
   revalidatePath("/services")
 }
 
 export async function deleteAddon(addonId: string) {
-  await requireAdmin()
+  const session = await requireAdmin()
   const addon = await prisma.addon.findUnique({ where: { id: addonId } })
   if (!addon) return
   const usageCount = await prisma.bookingAddon.count({ where: { addonId } })
   if (usageCount > 0) {
     await prisma.addon.update({ where: { id: addonId }, data: { active: false } })
+    await logAudit({
+      actorId: session.user.id,
+      action: "DEACTIVATE_ADDON",
+      entity: "Addon",
+      entityId: addonId,
+      meta: `${addon.name} — deactivated instead of deleted (used in ${usageCount} bookings)`,
+    })
   } else {
     await prisma.addon.delete({ where: { id: addonId } })
+    await logAudit({
+      actorId: session.user.id,
+      action: "DELETE_ADDON",
+      entity: "Addon",
+      entityId: addonId,
+      meta: addon.name,
+    })
   }
   if (addon.serviceId) revalidatePath(`/admin/services/${addon.serviceId}`)
   revalidatePath("/services")
@@ -197,7 +262,7 @@ export async function createPriceRule(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const parsed = priceRuleSchema.safeParse({
     label: formData.get("label"),
     startDate: formData.get("startDate"),
@@ -217,7 +282,7 @@ export async function createPriceRule(
     return { status: "error", message: "Enter an override price." }
   }
 
-  await prisma.priceRule.create({
+  const rule = await prisma.priceRule.create({
     data: {
       serviceId,
       label: parsed.data.label,
@@ -228,14 +293,32 @@ export async function createPriceRule(
       minNights: parsed.data.minNights ?? null,
     },
   })
+  await logAudit({
+    actorId: session.user.id,
+    action: "CREATE_PRICE_RULE",
+    entity: "PriceRule",
+    entityId: rule.id,
+    meta: `${parsed.data.label}: ${parsed.data.startDate} → ${parsed.data.endDate}, ${
+      parsed.data.priceType === "multiplier"
+        ? `×${parsed.data.multiplier}`
+        : `override £${((parsed.data.overridePricePence ?? 0) / 100).toFixed(2)}`
+    }`,
+  })
   revalidatePath(`/admin/services/${serviceId}`)
   return { status: "idle" }
 }
 
 export async function deletePriceRule(priceRuleId: string) {
-  await requireAdmin()
+  const session = await requireAdmin()
   const rule = await prisma.priceRule.findUnique({ where: { id: priceRuleId } })
   if (!rule) return
   await prisma.priceRule.delete({ where: { id: priceRuleId } })
+  await logAudit({
+    actorId: session.user.id,
+    action: "DELETE_PRICE_RULE",
+    entity: "PriceRule",
+    entityId: priceRuleId,
+    meta: rule.label,
+  })
   revalidatePath(`/admin/services/${rule.serviceId}`)
 }

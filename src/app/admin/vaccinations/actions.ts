@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 
 async function requireAdmin() {
   const session = await auth()
@@ -21,6 +22,13 @@ export async function verifyVaccinationRecord(
   await prisma.vaccinationRecord.update({
     where: { id: recordId },
     data: { status, verifiedById: session.user.id, verifiedAt: new Date() },
+  })
+  await logAudit({
+    actorId: session.user.id,
+    action: "VERIFY_VACCINATION_RECORD",
+    entity: "VaccinationRecord",
+    entityId: recordId,
+    meta: status,
   })
 
   revalidatePath("/admin/vaccinations")

@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { sanitizeRichText } from "@/lib/sanitize-html"
+import { sanitizeRichText, htmlToPlainText } from "@/lib/sanitize-html"
 import { NAV_LINKS, navSettingKey } from "@/lib/nav-links"
+import { logAudit } from "@/lib/audit"
 
 export type AdminActionState = { status: "idle" | "error"; message?: string }
 
@@ -15,6 +16,13 @@ async function requireAdmin() {
     throw new Error("Unauthorized")
   }
   return session
+}
+
+// Short plain-text preview for audit log meta — rich text HTML would be
+// noisy and largely unreadable in a log list.
+function previewText(value: string, maxLength = 150): string {
+  const plain = htmlToPlainText(value)
+  return plain.length > maxLength ? `${plain.slice(0, maxLength)}…` : plain
 }
 
 const faqSchema = z.object({
@@ -27,7 +35,7 @@ export async function createFaq(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const parsed = faqSchema.safeParse({
     question: formData.get("question"),
     answer: formData.get("answer"),
@@ -37,7 +45,14 @@ export async function createFaq(
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
   }
 
-  await prisma.faq.create({ data: parsed.data })
+  const faq = await prisma.faq.create({ data: parsed.data })
+  await logAudit({
+    actorId: session.user.id,
+    action: "CREATE_FAQ",
+    entity: "Faq",
+    entityId: faq.id,
+    meta: parsed.data.question,
+  })
 
   revalidatePath("/admin/content")
   revalidatePath("/faqs")
@@ -49,7 +64,7 @@ export async function updateFaq(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const parsed = faqSchema.safeParse({
     question: formData.get("question"),
     answer: formData.get("answer"),
@@ -60,6 +75,13 @@ export async function updateFaq(
   }
 
   await prisma.faq.update({ where: { id: faqId }, data: parsed.data })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_FAQ",
+    entity: "Faq",
+    entityId: faqId,
+    meta: parsed.data.question,
+  })
 
   revalidatePath("/admin/content")
   revalidatePath("/faqs")
@@ -67,8 +89,15 @@ export async function updateFaq(
 }
 
 export async function deleteFaq(faqId: string) {
-  await requireAdmin()
-  await prisma.faq.delete({ where: { id: faqId } })
+  const session = await requireAdmin()
+  const faq = await prisma.faq.delete({ where: { id: faqId } })
+  await logAudit({
+    actorId: session.user.id,
+    action: "DELETE_FAQ",
+    entity: "Faq",
+    entityId: faqId,
+    meta: faq.question,
+  })
   revalidatePath("/admin/content")
   revalidatePath("/faqs")
 }
@@ -82,7 +111,7 @@ export async function createTestimonial(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const parsed = testimonialSchema.safeParse({
     author: formData.get("author"),
     text: formData.get("text"),
@@ -91,7 +120,14 @@ export async function createTestimonial(
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
   }
 
-  await prisma.testimonial.create({ data: parsed.data })
+  const testimonial = await prisma.testimonial.create({ data: parsed.data })
+  await logAudit({
+    actorId: session.user.id,
+    action: "CREATE_TESTIMONIAL",
+    entity: "Testimonial",
+    entityId: testimonial.id,
+    meta: parsed.data.author,
+  })
 
   revalidatePath("/admin/content")
   revalidatePath("/")
@@ -103,7 +139,7 @@ export async function updateTestimonial(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const parsed = testimonialSchema.safeParse({
     author: formData.get("author"),
     text: formData.get("text"),
@@ -113,6 +149,13 @@ export async function updateTestimonial(
   }
 
   await prisma.testimonial.update({ where: { id: testimonialId }, data: parsed.data })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_TESTIMONIAL",
+    entity: "Testimonial",
+    entityId: testimonialId,
+    meta: parsed.data.author,
+  })
 
   revalidatePath("/admin/content")
   revalidatePath("/")
@@ -120,15 +163,29 @@ export async function updateTestimonial(
 }
 
 export async function toggleTestimonialVisible(testimonialId: string, visible: boolean) {
-  await requireAdmin()
+  const session = await requireAdmin()
   await prisma.testimonial.update({ where: { id: testimonialId }, data: { visible } })
+  await logAudit({
+    actorId: session.user.id,
+    action: "TOGGLE_TESTIMONIAL_VISIBLE",
+    entity: "Testimonial",
+    entityId: testimonialId,
+    meta: visible ? "shown" : "hidden",
+  })
   revalidatePath("/admin/content")
   revalidatePath("/")
 }
 
 export async function deleteTestimonial(testimonialId: string) {
-  await requireAdmin()
-  await prisma.testimonial.delete({ where: { id: testimonialId } })
+  const session = await requireAdmin()
+  const testimonial = await prisma.testimonial.delete({ where: { id: testimonialId } })
+  await logAudit({
+    actorId: session.user.id,
+    action: "DELETE_TESTIMONIAL",
+    entity: "Testimonial",
+    entityId: testimonialId,
+    meta: testimonial.author,
+  })
   revalidatePath("/admin/content")
   revalidatePath("/")
 }
@@ -138,7 +195,7 @@ export async function updateAnnouncementBanner(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const raw = ((formData.get("announcement_banner") as string | null) ?? "").trim()
   const value = raw ? sanitizeRichText(raw) : ""
 
@@ -146,6 +203,13 @@ export async function updateAnnouncementBanner(
     where: { key: "announcement_banner" },
     update: { value },
     create: { key: "announcement_banner", value },
+  })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_SETTING",
+    entity: "Setting",
+    entityId: "announcement_banner",
+    meta: value ? previewText(value) : "cleared (hidden)",
   })
 
   revalidatePath("/admin/content")
@@ -161,7 +225,7 @@ export async function updateAboutBanner(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const raw = ((formData.get("about_banner") as string | null) ?? "").trim()
   const value = raw ? sanitizeRichText(raw) : ""
 
@@ -169,6 +233,13 @@ export async function updateAboutBanner(
     where: { key: "about_banner" },
     update: { value },
     create: { key: "about_banner", value },
+  })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_SETTING",
+    entity: "Setting",
+    entityId: "about_banner",
+    meta: value ? previewText(value) : "cleared (hidden)",
   })
 
   revalidatePath("/admin/content")
@@ -184,7 +255,7 @@ export async function updateAboutStory(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const raw = ((formData.get("about_story") as string | null) ?? "").trim()
   const value = raw ? sanitizeRichText(raw) : ""
 
@@ -192,6 +263,13 @@ export async function updateAboutStory(
     where: { key: "about_story" },
     update: { value },
     create: { key: "about_story", value },
+  })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_SETTING",
+    entity: "Setting",
+    entityId: "about_story",
+    meta: value ? previewText(value) : "cleared (using default text)",
   })
 
   revalidatePath("/admin/content")
@@ -204,7 +282,7 @@ export async function updateAboutFacility(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const raw = ((formData.get("about_facility") as string | null) ?? "").trim()
   const value = raw ? sanitizeRichText(raw) : ""
 
@@ -212,6 +290,13 @@ export async function updateAboutFacility(
     where: { key: "about_facility" },
     update: { value },
     create: { key: "about_facility", value },
+  })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_SETTING",
+    entity: "Setting",
+    entityId: "about_facility",
+    meta: value ? previewText(value) : "cleared (using default text)",
   })
 
   revalidatePath("/admin/content")
@@ -224,7 +309,7 @@ export async function updateTermsConditions(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const raw = ((formData.get("terms_conditions") as string | null) ?? "").trim()
   const value = raw ? sanitizeRichText(raw) : ""
 
@@ -232,6 +317,13 @@ export async function updateTermsConditions(
     where: { key: "terms_conditions" },
     update: { value },
     create: { key: "terms_conditions", value },
+  })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_SETTING",
+    entity: "Setting",
+    entityId: "terms_conditions",
+    meta: value ? previewText(value) : "cleared (using default placeholder)",
   })
 
   revalidatePath("/admin/content")
@@ -244,7 +336,7 @@ export async function updateVacancies(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const raw = ((formData.get("vacancies") as string | null) ?? "").trim()
   const value = raw ? sanitizeRichText(raw) : ""
 
@@ -252,6 +344,13 @@ export async function updateVacancies(
     where: { key: "vacancies" },
     update: { value },
     create: { key: "vacancies", value },
+  })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_SETTING",
+    entity: "Setting",
+    entityId: "vacancies",
+    meta: value ? previewText(value) : "cleared (no current vacancies)",
   })
 
   revalidatePath("/admin/content")
@@ -266,11 +365,14 @@ export async function updateNavVisibility(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
 
+  const hidden: string[] = []
   await Promise.all(
     NAV_LINKS.map((link) => {
-      const value = formData.get(link.key) === "on" ? "true" : "false"
+      const isOn = formData.get(link.key) === "on"
+      if (!isOn) hidden.push(link.label)
+      const value = isOn ? "true" : "false"
       const key = navSettingKey(link.key)
       return prisma.setting.upsert({
         where: { key },
@@ -279,6 +381,13 @@ export async function updateNavVisibility(
       })
     })
   )
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_NAV_VISIBILITY",
+    entity: "Setting",
+    entityId: "nav_visibility",
+    meta: hidden.length > 0 ? `hidden: ${hidden.join(", ")}` : "all menu items visible",
+  })
 
   revalidatePath("/admin/content")
   // Nav links render in the shared marketing layout, not the "/" page itself
@@ -292,13 +401,20 @@ export async function updateOpeningHours(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const openingHours = ((formData.get("opening_hours") as string | null) ?? "").trim()
 
   await prisma.setting.upsert({
     where: { key: "opening_hours" },
     update: { value: openingHours },
     create: { key: "opening_hours", value: openingHours },
+  })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_SETTING",
+    entity: "Setting",
+    entityId: "opening_hours",
+    meta: openingHours || "cleared",
   })
 
   revalidatePath("/admin/content")
@@ -334,6 +450,13 @@ export async function updateBusinessEmail(
     update: { value: parsed.data },
     create: { key: "business_email", value: parsed.data },
   })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_SETTING",
+    entity: "Setting",
+    entityId: "business_email",
+    meta: parsed.data,
+  })
 
   revalidatePath("/admin/content")
   revalidatePath("/")
@@ -346,13 +469,20 @@ export async function updateGoogleReviewUrl(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const url = ((formData.get("google_business_review_url") as string | null) ?? "").trim()
 
   await prisma.setting.upsert({
     where: { key: "google_business_review_url" },
     update: { value: url },
     create: { key: "google_business_review_url", value: url },
+  })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_SETTING",
+    entity: "Setting",
+    entityId: "google_business_review_url",
+    meta: url || "cleared",
   })
 
   revalidatePath("/admin/content")

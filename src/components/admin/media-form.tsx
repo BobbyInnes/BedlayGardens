@@ -21,6 +21,21 @@ export function MediaForm({ categories }: { categories: GalleryCategory[] }) {
   const [type, setType] = useState("IMAGE")
   const [usage, setUsage] = useState("GALLERY")
 
+  // The Type dropdown defaults to Image and nothing forces changing it, so
+  // picking a video file while it's still on Image silently saves the file
+  // tagged as an image — it uploads fine, but nowhere that renders it knows
+  // to use a <video> player. Auto-correct from the actual file's MIME type
+  // the moment one is chosen, so the mismatch can't happen.
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.type.startsWith("video/")) {
+      setType("VIDEO")
+    } else if (file.type.startsWith("image/")) {
+      setType("IMAGE")
+    }
+  }
+
   return (
     <form action={formAction} className="max-w-xl space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
@@ -65,7 +80,13 @@ export function MediaForm({ categories }: { categories: GalleryCategory[] }) {
       ) : (
         <div className="space-y-2">
           <Label htmlFor="file">File</Label>
-          <Input id="file" name="file" type="file" accept={type === "IMAGE" ? "image/*" : "video/*"} />
+          <Input
+            id="file"
+            name="file"
+            type="file"
+            accept={type === "IMAGE" ? "image/*" : "video/*"}
+            onChange={handleFileChange}
+          />
         </div>
       )}
 

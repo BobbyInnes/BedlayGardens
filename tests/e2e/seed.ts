@@ -24,6 +24,7 @@ async function resetUser(prisma: Db, email: string) {
   // Everything with a non-cascading FK to this customer (directly, or via one
   // of their bookings) has to go before the booking/user rows themselves.
   await prisma.trialVisit.deleteMany({ where: { booking: { customerId } } })
+  await prisma.auditLog.deleteMany({ where: { actorId: customerId } })
   await prisma.review.deleteMany({ where: { customerId } })
   await prisma.signedAgreement.deleteMany({ where: { customerId } })
   await prisma.subscription.deleteMany({ where: { customerId } })

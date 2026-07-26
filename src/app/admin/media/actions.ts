@@ -6,6 +6,7 @@ import { z } from "zod"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { savePublicUpload, deletePublicUpload } from "@/lib/storage"
+import { logAudit } from "@/lib/audit"
 
 export type AdminActionState = { status: "idle" | "error"; message?: string }
 
@@ -46,7 +47,7 @@ export async function createMedia(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
 
   const parsed = mediaSchema.safeParse({
     type: formData.get("type"),
@@ -81,7 +82,7 @@ export async function createMedia(
     url = await savePublicUpload("media", file.name, buffer)
   }
 
-  await prisma.mediaItem.create({
+  const media = await prisma.mediaItem.create({
     data: {
       type: parsed.data.type,
       usage: parsed.data.usage,
@@ -92,6 +93,13 @@ export async function createMedia(
       galleryCategoryId: normalizeGalleryCategoryId(parsed.data.galleryCategoryId),
       sortOrder: parsed.data.sortOrder,
     },
+  })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPLOAD_MEDIA",
+    entity: "MediaItem",
+    entityId: media.id,
+    meta: `${parsed.data.type} for ${parsed.data.usage}${parsed.data.caption ? ` — ${parsed.data.caption}` : ""}`,
   })
 
   revalidatePublicPaths()
@@ -113,7 +121,7 @@ export async function updateMedia(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const existing = await prisma.mediaItem.findUnique({ where: { id: mediaId } })
   if (!existing) return { status: "error", message: "Media not found." }
 
@@ -152,6 +160,13 @@ export async function updateMedia(
       usage: parsed.data.usage,
     },
   })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_MEDIA",
+    entity: "MediaItem",
+    entityId: mediaId,
+    meta: `${parsed.data.usage}${parsed.data.caption ? ` — ${parsed.data.caption}` : ""}${url !== existing.url ? " (file replaced)" : ""}`,
+  })
 
   revalidatePublicPaths()
   revalidatePath("/admin/media")
@@ -159,7 +174,7 @@ export async function updateMedia(
 }
 
 export async function deleteMedia(mediaId: string) {
-  await requireAdmin()
+  const session = await requireAdmin()
   const media = await prisma.mediaItem.findUnique({ where: { id: mediaId } })
   if (!media) return
 
@@ -167,6 +182,13 @@ export async function deleteMedia(mediaId: string) {
     await deletePublicUpload(media.url).catch(() => {})
   }
   await prisma.mediaItem.delete({ where: { id: mediaId } })
+  await logAudit({
+    actorId: session.user.id,
+    action: "DELETE_MEDIA",
+    entity: "MediaItem",
+    entityId: mediaId,
+    meta: `${media.usage}${media.caption ? ` — ${media.caption}` : ""}`,
+  })
 
   revalidatePublicPaths()
   revalidatePath("/admin/media")
@@ -181,7 +203,7 @@ export async function createGalleryCategory(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const parsed = galleryCategorySchema.safeParse({
     name: formData.get("name"),
     sortOrder: formData.get("sortOrder") || "0",
@@ -195,7 +217,14 @@ export async function createGalleryCategory(
     return { status: "error", message: "A category with this name already exists." }
   }
 
-  await prisma.galleryCategory.create({ data: parsed.data })
+  const category = await prisma.galleryCategory.create({ data: parsed.data })
+  await logAudit({
+    actorId: session.user.id,
+    action: "CREATE_GALLERY_CATEGORY",
+    entity: "GalleryCategory",
+    entityId: category.id,
+    meta: category.name,
+  })
 
   revalidatePath("/admin/media")
   revalidatePath("/gallery")
@@ -207,7 +236,7 @@ export async function updateGalleryCategory(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const parsed = galleryCategorySchema.safeParse({
     name: formData.get("name"),
     sortOrder: formData.get("sortOrder") || "0",
@@ -223,7 +252,15 @@ export async function updateGalleryCategory(
     return { status: "error", message: "A category with this name already exists." }
   }
 
+  const before = await prisma.galleryCategory.findUnique({ where: { id: categoryId } })
   await prisma.galleryCategory.update({ where: { id: categoryId }, data: parsed.data })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_GALLERY_CATEGORY",
+    entity: "GalleryCategory",
+    entityId: categoryId,
+    meta: before && before.name !== parsed.data.name ? `${before.name} → ${parsed.data.name}` : parsed.data.name,
+  })
 
   revalidatePath("/admin/media")
   revalidatePath("/gallery")
@@ -234,8 +271,15 @@ export async function updateGalleryCategory(
 // "uncategorized" (MediaItem.galleryCategoryId -> SetNull), same as if the
 // admin had never assigned one.
 export async function deleteGalleryCategory(categoryId: string) {
-  await requireAdmin()
-  await prisma.galleryCategory.delete({ where: { id: categoryId } })
+  const session = await requireAdmin()
+  const category = await prisma.galleryCategory.delete({ where: { id: categoryId } })
+  await logAudit({
+    actorId: session.user.id,
+    action: "DELETE_GALLERY_CATEGORY",
+    entity: "GalleryCategory",
+    entityId: categoryId,
+    meta: category.name,
+  })
   revalidatePath("/admin/media")
   revalidatePath("/gallery")
 }

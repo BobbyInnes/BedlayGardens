@@ -6,6 +6,7 @@ import { z } from "zod"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { startOfDay } from "@/lib/dates"
+import { logAudit } from "@/lib/audit"
 
 export type AdminActionState = { status: "idle" | "error"; message?: string }
 
@@ -29,7 +30,7 @@ export async function createVanRun(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const staffIdRaw = formData.get("staffId") as string | null
   const parsed = vanRunSchema.safeParse({
     date: formData.get("date"),
@@ -42,7 +43,7 @@ export async function createVanRun(
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
   }
 
-  await prisma.vanRun.create({
+  const vanRun = await prisma.vanRun.create({
     data: {
       date: startOfDay(new Date(parsed.data.date)),
       name: parsed.data.name,
@@ -50,6 +51,13 @@ export async function createVanRun(
       maxDogs: parsed.data.maxDogs,
       staffId: parsed.data.staffId || null,
     },
+  })
+  await logAudit({
+    actorId: session.user.id,
+    action: "CREATE_VAN_RUN",
+    entity: "VanRun",
+    entityId: vanRun.id,
+    meta: `${parsed.data.name} — ${parsed.data.date} ${parsed.data.startTime}`,
   })
 
   revalidatePath("/admin/van-runs")
@@ -61,7 +69,7 @@ export async function updateVanRun(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const staffIdRaw = formData.get("staffId") as string | null
   const parsed = vanRunSchema.safeParse({
     date: formData.get("date"),
@@ -84,6 +92,13 @@ export async function updateVanRun(
       staffId: parsed.data.staffId || null,
     },
   })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_VAN_RUN",
+    entity: "VanRun",
+    entityId: vanRunId,
+    meta: `${parsed.data.name} — ${parsed.data.date} ${parsed.data.startTime}`,
+  })
 
   revalidatePath("/admin/van-runs")
   revalidatePath(`/admin/van-runs/${vanRunId}`)
@@ -91,15 +106,22 @@ export async function updateVanRun(
 }
 
 export async function deleteVanRun(vanRunId: string) {
-  await requireAdmin()
+  const session = await requireAdmin()
   const stopCount = await prisma.vanRunStop.count({ where: { vanRunId } })
   if (stopCount > 0) return
-  await prisma.vanRun.delete({ where: { id: vanRunId } })
+  const vanRun = await prisma.vanRun.delete({ where: { id: vanRunId } })
+  await logAudit({
+    actorId: session.user.id,
+    action: "DELETE_VAN_RUN",
+    entity: "VanRun",
+    entityId: vanRunId,
+    meta: vanRun.name,
+  })
   revalidatePath("/admin/van-runs")
 }
 
 export async function moveStop(vanRunId: string, stopId: string, direction: "up" | "down") {
-  await requireAdmin()
+  const session = await requireAdmin()
   const stops = await prisma.vanRunStop.findMany({
     where: { vanRunId },
     orderBy: { sortOrder: "asc" },
@@ -115,6 +137,13 @@ export async function moveStop(vanRunId: string, stopId: string, direction: "up"
     prisma.vanRunStop.update({ where: { id: a.id }, data: { sortOrder: b.sortOrder } }),
     prisma.vanRunStop.update({ where: { id: b.id }, data: { sortOrder: a.sortOrder } }),
   ])
+  await logAudit({
+    actorId: session.user.id,
+    action: "REORDER_VAN_RUN_STOP",
+    entity: "VanRun",
+    entityId: vanRunId,
+    meta: `stop ${stopId} moved ${direction}`,
+  })
 
   revalidatePath(`/admin/van-runs/${vanRunId}`)
 }
@@ -123,13 +152,20 @@ export async function updateServiceAreaPostcodes(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const postcodes = (formData.get("postcodes") as string | null) ?? ""
 
   await prisma.setting.upsert({
     where: { key: "dog_walking_service_postcodes" },
     update: { value: postcodes.trim() },
     create: { key: "dog_walking_service_postcodes", value: postcodes.trim() },
+  })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_SETTING",
+    entity: "Setting",
+    entityId: "dog_walking_service_postcodes",
+    meta: postcodes.trim() || "cleared",
   })
 
   revalidatePath("/admin/van-runs")

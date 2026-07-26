@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { savePublicUpload } from "@/lib/storage"
+import { logAudit } from "@/lib/audit"
 
 // A plain Route Handler (not a Server Action) on purpose — the admin
 // RichTextEditor inserts the uploaded image directly into its contentEditable
@@ -34,5 +35,12 @@ export async function POST(request: Request) {
 
   const buffer = Buffer.from(await file.arrayBuffer())
   const url = await savePublicUpload("content", file.name, buffer)
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPLOAD_CONTENT_IMAGE",
+    entity: "Upload",
+    entityId: url,
+    meta: `${file.name} (${Math.round(file.size / 1024)}KB) — inserted into a rich text editor`,
+  })
   return NextResponse.json({ url })
 }

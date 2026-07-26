@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { z } from "zod"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 
 export type AdminActionState = { status: "idle" | "error"; message?: string }
 
@@ -31,7 +32,7 @@ export async function updateSettings(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const parsed = settingsSchema.safeParse({
     deposit_percent: formData.get("deposit_percent"),
     balance_due_days_before_checkin: formData.get("balance_due_days_before_checkin"),
@@ -55,6 +56,15 @@ export async function updateSettings(
       })
     )
   )
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_PRICING_SETTINGS",
+    entity: "Setting",
+    entityId: "pricing_settings",
+    meta: Object.entries(parsed.data)
+      .map(([key, value]) => `${key}=${value}`)
+      .join(", "),
+  })
 
   revalidatePath("/admin/pricing")
   return { status: "idle", message: "Settings saved." }
@@ -70,7 +80,7 @@ export async function createKennelUnit(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const parsed = kennelUnitSchema.safeParse({
     name: formData.get("name"),
     size: formData.get("size"),
@@ -85,7 +95,14 @@ export async function createKennelUnit(
     return { status: "error", message: "An accommodation unit with that name already exists." }
   }
 
-  await prisma.kennelUnit.create({ data: parsed.data })
+  const unit = await prisma.kennelUnit.create({ data: parsed.data })
+  await logAudit({
+    actorId: session.user.id,
+    action: "CREATE_KENNEL_UNIT",
+    entity: "KennelUnit",
+    entityId: unit.id,
+    meta: `${parsed.data.name} (${parsed.data.size}, capacity ${parsed.data.dogCapacity})`,
+  })
   revalidatePath("/admin/pricing")
   return { status: "idle" }
 }
@@ -95,7 +112,7 @@ export async function updateKennelUnit(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const parsed = kennelUnitSchema.safeParse({
     name: formData.get("name"),
     size: formData.get("size"),
@@ -106,23 +123,52 @@ export async function updateKennelUnit(
   }
 
   await prisma.kennelUnit.update({ where: { id: unitId }, data: parsed.data })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_KENNEL_UNIT",
+    entity: "KennelUnit",
+    entityId: unitId,
+    meta: `${parsed.data.name} (${parsed.data.size}, capacity ${parsed.data.dogCapacity})`,
+  })
   revalidatePath("/admin/pricing")
   redirect("/admin/pricing")
 }
 
 export async function toggleKennelUnitActive(unitId: string, active: boolean) {
-  await requireAdmin()
+  const session = await requireAdmin()
   await prisma.kennelUnit.update({ where: { id: unitId }, data: { active } })
+  await logAudit({
+    actorId: session.user.id,
+    action: "TOGGLE_KENNEL_UNIT_ACTIVE",
+    entity: "KennelUnit",
+    entityId: unitId,
+    meta: active ? "activated" : "deactivated",
+  })
   revalidatePath("/admin/pricing")
 }
 
 export async function deleteKennelUnit(unitId: string) {
-  await requireAdmin()
+  const session = await requireAdmin()
+  const unit = await prisma.kennelUnit.findUnique({ where: { id: unitId } })
   const bookingCount = await prisma.booking.count({ where: { kennelUnitId: unitId } })
   if (bookingCount > 0) {
     await prisma.kennelUnit.update({ where: { id: unitId }, data: { active: false } })
+    await logAudit({
+      actorId: session.user.id,
+      action: "DEACTIVATE_KENNEL_UNIT",
+      entity: "KennelUnit",
+      entityId: unitId,
+      meta: `${unit?.name ?? unitId} — deactivated instead of deleted (${bookingCount} existing bookings)`,
+    })
   } else {
     await prisma.kennelUnit.delete({ where: { id: unitId } })
+    await logAudit({
+      actorId: session.user.id,
+      action: "DELETE_KENNEL_UNIT",
+      entity: "KennelUnit",
+      entityId: unitId,
+      meta: unit?.name ?? unitId,
+    })
   }
   revalidatePath("/admin/pricing")
 }
@@ -137,7 +183,7 @@ export async function createBlockedDate(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const parsed = blockedDateSchema.safeParse({
     date: formData.get("date"),
     kennelUnitId: formData.get("kennelUnitId") || undefined,
@@ -147,22 +193,34 @@ export async function createBlockedDate(
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
   }
 
-  await prisma.blockedDate.create({
+  const isSiteWide = !parsed.data.kennelUnitId || parsed.data.kennelUnitId === "site-wide"
+  const blockedDate = await prisma.blockedDate.create({
     data: {
       date: new Date(parsed.data.date),
-      kennelUnitId:
-        parsed.data.kennelUnitId && parsed.data.kennelUnitId !== "site-wide"
-          ? parsed.data.kennelUnitId
-          : null,
+      kennelUnitId: isSiteWide ? null : parsed.data.kennelUnitId,
       reason: parsed.data.reason || null,
     },
+  })
+  await logAudit({
+    actorId: session.user.id,
+    action: "CREATE_BLOCKED_DATE",
+    entity: "BlockedDate",
+    entityId: blockedDate.id,
+    meta: `${parsed.data.date} (${isSiteWide ? "site-wide" : "one unit"})${parsed.data.reason ? ` — ${parsed.data.reason}` : ""}`,
   })
   revalidatePath("/admin/pricing")
   return { status: "idle" }
 }
 
 export async function deleteBlockedDate(id: string) {
-  await requireAdmin()
-  await prisma.blockedDate.delete({ where: { id } })
+  const session = await requireAdmin()
+  const blockedDate = await prisma.blockedDate.delete({ where: { id } })
+  await logAudit({
+    actorId: session.user.id,
+    action: "DELETE_BLOCKED_DATE",
+    entity: "BlockedDate",
+    entityId: id,
+    meta: blockedDate.date.toISOString().slice(0, 10),
+  })
   revalidatePath("/admin/pricing")
 }

@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma"
 import { savePublicUpload, deletePublicUpload } from "@/lib/storage"
 import { sanitizeRichText } from "@/lib/sanitize-html"
 import { canManageAdmins, superAdminSlotAvailable, MAX_SUPER_ADMINS } from "@/lib/admin-permissions"
+import { logAudit } from "@/lib/audit"
 
 export type AdminActionState = {
   status: "idle" | "error"
@@ -135,7 +136,7 @@ export async function createStaff(
   }
 
   const passwordHash = await bcrypt.hash(password, 10)
-  await prisma.user.create({
+  const newStaff = await prisma.user.create({
     data: {
       name: parsed.data.name,
       email: parsed.data.email,
@@ -148,6 +149,13 @@ export async function createStaff(
       passwordHash,
       emailVerified: new Date(),
     },
+  })
+  await logAudit({
+    actorId: session.user.id,
+    action: "CREATE_STAFF",
+    entity: "User",
+    entityId: newStaff.id,
+    meta: `${parsed.data.name} <${parsed.data.email}> — ${parsed.data.role}${wantsSuperAdmin ? " (super admin)" : ""}`,
   })
 
   revalidateStaffPaths()
@@ -257,6 +265,15 @@ export async function updateStaff(
       isSuperAdmin: wantsSuperAdmin,
     },
   })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_STAFF",
+    entity: "User",
+    entityId: staffId,
+    meta: `${parsed.data.name} <${parsed.data.email}> — ${parsed.data.role}${wantsSuperAdmin ? " (super admin)" : ""}${
+      wantsSuperAdmin !== staff.isSuperAdmin ? ` [super admin status ${wantsSuperAdmin ? "granted" : "removed"}]` : ""
+    }`,
+  })
 
   revalidateStaffPaths()
   redirect("/admin/staff")
@@ -273,6 +290,13 @@ export async function toggleStaffActive(staffId: string, active: boolean) {
     throw new Error("You can't deactivate the only remaining super admin.")
   }
   await prisma.user.update({ where: { id: staffId }, data: { active } })
+  await logAudit({
+    actorId: session.user.id,
+    action: "TOGGLE_STAFF_ACTIVE",
+    entity: "User",
+    entityId: staffId,
+    meta: `${staff.name} — ${active ? "activated" : "deactivated"}`,
+  })
   revalidateStaffPaths()
 }
 
@@ -297,6 +321,14 @@ export async function resetStaffPassword(
 
   const passwordHash = await bcrypt.hash(newPassword, 10)
   await prisma.user.update({ where: { id: staffId }, data: { passwordHash } })
+  // Never log the password itself, only that a reset happened.
+  await logAudit({
+    actorId: session.user.id,
+    action: "RESET_STAFF_PASSWORD",
+    entity: "User",
+    entityId: staffId,
+    meta: staff.name,
+  })
 
   return { status: "idle", message: "Password reset." }
 }
