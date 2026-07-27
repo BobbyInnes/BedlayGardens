@@ -249,6 +249,7 @@ export async function createManualBooking(
       skipVaccinationGate: true,
       overrideCompatibilityFlags,
       overriddenByUserId: overrideCompatibilityFlags ? session.user.id : undefined,
+      actorId: session.user.id,
     }
   )
   if (result.status === "error") return result

@@ -92,6 +92,7 @@ export async function resolveBookingCreation(
     skipVaccinationGate?: boolean
     overrideCompatibilityFlags?: boolean
     overriddenByUserId?: string
+    actorId?: string
   }
 ): Promise<BookingCreationResult> {
   const skipVaccinationGate = options?.skipVaccinationGate ?? false
@@ -597,6 +598,14 @@ export async function resolveBookingCreation(
       console.error("[booking] failed to send invoice-after confirmation email", error)
     }
   }
+
+  await logAudit({
+    actorId: options?.actorId ?? customerId,
+    action: "CREATE_BOOKING",
+    entity: "Booking",
+    entityId: bookingId!,
+    meta: `${service.name} — ${dogs.map((dog) => dog.name).join(", ")}`,
+  })
 
   return { status: "idle", bookingId: bookingId! }
 }
