@@ -179,7 +179,13 @@ export async function redeemCreditForPayment(
   const becameConfirmed = type === "DEPOSIT" && booking.status === "PENDING_PAYMENT"
   await prisma.$transaction([
     prisma.payment.create({
-      data: { bookingId: booking.id, type, amountPence: result.appliedPence, status: "SUCCEEDED" },
+      data: {
+        bookingId: booking.id,
+        type,
+        amountPence: result.appliedPence,
+        status: "SUCCEEDED",
+        succeededAt: new Date(),
+      },
     }),
     ...(becameConfirmed ? [prisma.booking.update({ where: { id: booking.id }, data: { status: "CONFIRMED" } })] : []),
   ])

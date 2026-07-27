@@ -19,6 +19,7 @@ import { FaqListItem } from "@/components/admin/faq-list-item"
 import { TestimonialCreateForm } from "@/components/admin/testimonial-create-form"
 import { TestimonialListItem } from "@/components/admin/testimonial-list-item"
 import { GoogleReviewUrlForm } from "@/components/admin/google-review-url-form"
+import { VatSettingsForm } from "@/components/admin/vat-settings-form"
 
 export const metadata: Metadata = {
   title: "Content | Admin",
@@ -173,6 +174,20 @@ export default async function AdminContentPage() {
         ) : (
           <p className="text-sm text-muted-foreground">No testimonials yet.</p>
         )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">VAT details</h2>
+        <p className="text-sm text-muted-foreground">
+          Used by the Accounting page to split each transaction into net/VAT/gross and to work out
+          VAT period boundaries. The VAT-enabled toggle itself is on Pricing &amp; Capacity.
+        </p>
+        <VatSettingsForm
+          vatNumber={settings.vat_number ?? ""}
+          ratePercent={settings.vat_rate_percent ?? "20"}
+          periodStartMonth={settings.vat_period_start_month ?? "1"}
+          periodLength={settings.vat_period_length ?? "QUARTERLY"}
+        />
       </section>
 
       <section className="space-y-3">

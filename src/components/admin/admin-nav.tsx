@@ -21,6 +21,7 @@ import {
   ArrowLeftRight,
   Home,
   ShieldCheck,
+  Receipt,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -40,6 +41,7 @@ const navItems = [
   { href: "/admin/customers", label: "Customers", icon: UserCircle },
   { href: "/admin/reviews", label: "Reviews", icon: Star },
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
+  { href: "/admin/accounting", label: "Accounting", icon: Receipt },
 ]
 
 export function AdminNav({ isSuperAdmin = false }: { isSuperAdmin?: boolean }) {

@@ -14,7 +14,10 @@ export async function markPaymentSucceededAndNotify(stripePaymentIntentId: strin
   const payment = await prisma.payment.findUnique({ where: { stripePaymentIntentId } })
   if (!payment || payment.status === "SUCCEEDED") return // already processed or unknown
 
-  await prisma.payment.update({ where: { id: payment.id }, data: { status: "SUCCEEDED" } })
+  await prisma.payment.update({
+    where: { id: payment.id },
+    data: { status: "SUCCEEDED", succeededAt: new Date() },
+  })
 
   let becameConfirmed = false
   if (payment.type === "DEPOSIT") {

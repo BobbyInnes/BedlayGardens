@@ -84,6 +84,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
     where: { id: payment.id },
     data: {
       status: "SUCCEEDED",
+      succeededAt: new Date(),
       ...(paymentIntentId ? { stripePaymentIntentId: paymentIntentId } : {}),
     },
   })

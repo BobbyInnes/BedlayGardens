@@ -488,3 +488,46 @@ export async function updateGoogleReviewUrl(
   revalidatePath("/admin/content")
   return { status: "idle", message: "Google review link updated." }
 }
+
+const vatSettingsSchema = z.object({
+  vat_number: z.string().trim().max(50),
+  vat_rate_percent: z.coerce.number().min(0).max(100),
+  vat_period_start_month: z.coerce.number().int().min(1).max(12),
+  vat_period_length: z.enum(["MONTHLY", "QUARTERLY", "ANNUALLY"]),
+})
+
+export async function updateVatSettings(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  const session = await requireAdmin()
+  const parsed = vatSettingsSchema.safeParse({
+    vat_number: formData.get("vat_number"),
+    vat_rate_percent: formData.get("vat_rate_percent"),
+    vat_period_start_month: formData.get("vat_period_start_month"),
+    vat_period_length: formData.get("vat_period_length"),
+  })
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid submission." }
+  }
+
+  const entries = Object.entries(parsed.data) as [string, string | number][]
+  for (const [key, value] of entries) {
+    await prisma.setting.upsert({
+      where: { key },
+      update: { value: String(value) },
+      create: { key, value: String(value) },
+    })
+  }
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_SETTING",
+    entity: "Setting",
+    entityId: "vat_details",
+    meta: `${parsed.data.vat_number || "no VAT number"} — ${parsed.data.vat_rate_percent}% — ${parsed.data.vat_period_length} from month ${parsed.data.vat_period_start_month}`,
+  })
+
+  revalidatePath("/admin/content")
+  revalidatePath("/admin/accounting")
+  return { status: "idle", message: "VAT details updated." }
+}

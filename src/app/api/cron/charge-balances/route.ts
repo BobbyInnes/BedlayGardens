@@ -43,6 +43,7 @@ async function chargeBookingBalance(booking: {
         type: "BALANCE",
         amountPence: balancePence,
         status: succeeded ? "SUCCEEDED" : "PENDING",
+        succeededAt: succeeded ? new Date() : null,
       },
     })
     if (succeeded) {

@@ -411,6 +411,7 @@ model Payment {
   amountPence           Int
   status                PaymentStatus @default(PENDING)
   createdAt             DateTime      @default(now())
+  succeededAt           DateTime?
 
   @@index([bookingId])
 }
