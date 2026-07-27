@@ -184,6 +184,14 @@ export async function redeemCreditForPayment(
     ...(becameConfirmed ? [prisma.booking.update({ where: { id: booking.id }, data: { status: "CONFIRMED" } })] : []),
   ])
 
+  await logAudit({
+    actorId: session.user.id,
+    action: "PAYMENT_SUCCEEDED",
+    entity: "Booking",
+    entityId: booking.id,
+    meta: `${type} — ${formatPence(result.appliedPence)} (credit/voucher)`,
+  })
+
   const settings = await getSettings()
   const bookingSummary = {
     serviceName: booking.service.name,

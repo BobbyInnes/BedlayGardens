@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { stripe } from "@/lib/stripe"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
+import { formatPence } from "@/lib/format"
 
 async function chargeBookingBalance(booking: {
   id: string
@@ -33,15 +35,25 @@ async function chargeBookingBalance(booking: {
       metadata: { bookingId: booking.id, type: "BALANCE" },
     })
 
+    const succeeded = intent.status === "succeeded"
     await prisma.payment.create({
       data: {
         bookingId: booking.id,
         stripePaymentIntentId: intent.id,
         type: "BALANCE",
         amountPence: balancePence,
-        status: intent.status === "succeeded" ? "SUCCEEDED" : "PENDING",
+        status: succeeded ? "SUCCEEDED" : "PENDING",
       },
     })
+    if (succeeded) {
+      await logAudit({
+        actorId: booking.customer.id,
+        action: "PAYMENT_SUCCEEDED",
+        entity: "Booking",
+        entityId: booking.id,
+        meta: `BALANCE — ${formatPence(balancePence)} (auto-charged)`,
+      })
+    }
     return { bookingId: booking.id, outcome: "charged" as const }
   } catch (error) {
     console.error(`[charge-balances] failed to charge booking ${booking.id}`, error)

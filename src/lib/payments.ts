@@ -1,7 +1,9 @@
 import { stripe } from "@/lib/stripe"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 import { sendEmail } from "@/lib/email"
 import { getSettings } from "@/lib/settings"
+import { formatPence } from "@/lib/format"
 import { bookingConfirmationEmail, paymentReceiptEmail } from "@/lib/email-templates"
 
 // Marks a Payment as SUCCEEDED (if not already), confirms the booking when a
@@ -28,6 +30,14 @@ export async function markPaymentSucceededAndNotify(stripePaymentIntentId: strin
     include: { service: true, customer: true },
   })
   if (!booking) return
+
+  await logAudit({
+    actorId: booking.customer.id,
+    action: "PAYMENT_SUCCEEDED",
+    entity: "Booking",
+    entityId: booking.id,
+    meta: `${payment.type} — ${formatPence(payment.amountPence)}`,
+  })
 
   const settings = await getSettings()
   const bookingSummary = {
