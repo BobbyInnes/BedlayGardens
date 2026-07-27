@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { z } from "zod"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 import { saveUpload, deleteUpload } from "@/lib/storage"
 
 const manualSchema = z.object({
@@ -25,7 +26,7 @@ async function requireDogOwnership(dogId: string) {
   if (!session?.user) throw new Error("Unauthorized")
   const dog = await prisma.dog.findUnique({ where: { id: dogId } })
   if (!dog || dog.ownerId !== session.user.id) throw new Error("Dog not found")
-  return dog
+  return { session, dog }
 }
 
 export async function createVaccinationManual(
@@ -48,7 +49,7 @@ export async function createVaccinationManual(
   }
 
   const { dogId, type, dateGiven, expiryDate } = parsed.data
-  await requireDogOwnership(dogId)
+  const { session, dog } = await requireDogOwnership(dogId)
 
   let documentUrl: string | null = null
   const certificate = formData.get("certificate")
@@ -57,7 +58,7 @@ export async function createVaccinationManual(
     documentUrl = await saveUpload(`vaccinations/${dogId}`, certificate.name, buffer)
   }
 
-  await prisma.vaccinationRecord.create({
+  const record = await prisma.vaccinationRecord.create({
     data: {
       dogId,
       type,
@@ -66,6 +67,14 @@ export async function createVaccinationManual(
       documentUrl,
       status: "UNVERIFIED",
     },
+  })
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "CREATE_VACCINATION_RECORD",
+    entity: "VaccinationRecord",
+    entityId: record.id,
+    meta: `${type} for ${dog.name} — entered manually`,
   })
 
   revalidatePath("/portal/vaccinations")

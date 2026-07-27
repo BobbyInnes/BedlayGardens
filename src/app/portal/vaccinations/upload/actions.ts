@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 
 const entrySchema = z.object({
   type: z.string().trim().min(1).max(100),
@@ -36,7 +37,7 @@ export async function saveExtractedVaccinations(
     return { status: "error", message: "Dog not found." }
   }
 
-  await prisma.vaccinationRecord.createMany({
+  const created = await prisma.vaccinationRecord.createManyAndReturn({
     data: entries.map((entry) => ({
       dogId,
       type: entry.type,
@@ -46,6 +47,16 @@ export async function saveExtractedVaccinations(
       status: "UNVERIFIED" as const,
     })),
   })
+
+  for (const record of created) {
+    await logAudit({
+      actorId: session.user.id,
+      action: "CREATE_VACCINATION_RECORD",
+      entity: "VaccinationRecord",
+      entityId: record.id,
+      meta: `${record.type} for ${dog.name} — from uploaded certificate`,
+    })
+  }
 
   revalidatePath("/portal/vaccinations")
   return { status: "success" }
