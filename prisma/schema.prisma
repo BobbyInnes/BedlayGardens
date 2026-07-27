@@ -343,6 +343,7 @@ model Booking {
   depositPence       Int
   balanceDueDate     DateTime?
   cancellationReason String?
+  cancelledAt        DateTime?
   createdAt          DateTime            @default(now())
   // Only set for daycare bookings.
   daycareDuration    DaycareDuration?

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 import { getSetting, getSettings } from "@/lib/settings"
 import { stripe } from "@/lib/stripe"
 import { formatPence } from "@/lib/format"
@@ -44,7 +45,7 @@ async function refundPayment(
   }
 }
 
-export async function cancelBooking(bookingId: string): Promise<CancelBookingResult> {
+export async function cancelBooking(bookingId: string, reason?: string): Promise<CancelBookingResult> {
   const session = await auth()
   if (!session?.user) return { status: "error", message: "Unauthorized" }
 
@@ -101,16 +102,31 @@ export async function cancelBooking(bookingId: string): Promise<CancelBookingRes
     policyNote = "Cancelled — per our policy no refund applies this close to the stay."
   }
 
+  const cancelledAt = new Date()
+  const trimmedReason = reason?.trim() || null
+
   await prisma.$transaction([
     prisma.booking.update({
       where: { id: bookingId },
-      data: { status: "CANCELLED_BY_CUSTOMER", cancellationReason: "Cancelled by customer" },
+      data: {
+        status: "CANCELLED_BY_CUSTOMER",
+        cancellationReason: trimmedReason,
+        cancelledAt,
+      },
     }),
     prisma.kennelOccupancy.deleteMany({ where: { bookingId } }),
     prisma.walkBooking.deleteMany({ where: { bookingId } }),
     prisma.vanRunStop.deleteMany({ where: { bookingId } }),
   ])
   await offerNextInLine(booking.serviceId, booking.startDate)
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "CANCEL_BOOKING",
+    entity: "Booking",
+    entityId: bookingId,
+    meta: trimmedReason ?? "No reason given",
+  })
 
   const settings = await getSettings()
   const email = cancellationConfirmationEmail(

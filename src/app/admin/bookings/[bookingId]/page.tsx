@@ -123,6 +123,20 @@ export default async function AdminBookingDetailPage({
               <dd>{booking.customer.phone}</dd>
             </div>
           )}
+          {booking.cancelledAt && (
+            <div>
+              <dt className="text-muted-foreground">Cancelled</dt>
+              <dd>
+                {booking.cancelledAt.toLocaleString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </dd>
+            </div>
+          )}
           {booking.cancellationReason && (
             <div>
               <dt className="text-muted-foreground">Cancellation reason</dt>

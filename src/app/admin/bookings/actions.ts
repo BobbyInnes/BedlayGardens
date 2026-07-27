@@ -501,7 +501,7 @@ export async function cancelBookingAdmin(
   bookingId: string,
   reason: string
 ): Promise<CancelBookingAdminResult> {
-  await requireAdmin()
+  const session = await requireAdmin()
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
@@ -520,12 +520,15 @@ export async function cancelBookingAdmin(
     if (await refundPayment(booking.id, payment)) refundedPence += payment.amountPence
   }
 
+  const trimmedReason = reason.trim() || "Cancelled by admin"
+
   await prisma.$transaction([
     prisma.booking.update({
       where: { id: bookingId },
       data: {
         status: "CANCELLED_BY_ADMIN",
-        cancellationReason: reason.trim() || "Cancelled by admin",
+        cancellationReason: trimmedReason,
+        cancelledAt: new Date(),
       },
     }),
     prisma.kennelOccupancy.deleteMany({ where: { bookingId } }),
@@ -533,6 +536,14 @@ export async function cancelBookingAdmin(
     prisma.vanRunStop.deleteMany({ where: { bookingId } }),
   ])
   await offerNextInLine(booking.serviceId, booking.startDate)
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "CANCEL_BOOKING",
+    entity: "Booking",
+    entityId: bookingId,
+    meta: trimmedReason,
+  })
 
   const settings = await getSettings()
   const policyNote =
