@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { z } from "zod"
+import { Prisma } from "@/generated/prisma/client"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { logAudit } from "@/lib/audit"
@@ -212,16 +213,36 @@ export async function updateDog(
   redirect("/portal/dogs")
 }
 
-export async function deleteDog(dogId: string) {
+export type DeleteDogState = { status: "idle" | "error"; message?: string }
+
+export async function deleteDog(
+  dogId: string,
+  _prevState: DeleteDogState,
+  _formData: FormData
+): Promise<DeleteDogState> {
   const session = await requireOwnerSession()
   const dog = await prisma.dog.findUnique({ where: { id: dogId } })
   if (!dog || dog.ownerId !== session.user.id) {
-    throw new Error("Dog not found")
+    return { status: "error", message: "Dog not found." }
   }
+
+  try {
+    await prisma.dog.delete({ where: { id: dogId } })
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+      return {
+        status: "error",
+        message:
+          "This dog can't be deleted because it has booking history — contact us if you need it removed.",
+      }
+    }
+    throw error
+  }
+
   if (dog.photoUrl) {
     await deleteUpload(dog.photoUrl).catch(() => {})
   }
-  await prisma.dog.delete({ where: { id: dogId } })
+
   revalidatePath("/portal/dogs")
   redirect("/portal/dogs")
 }

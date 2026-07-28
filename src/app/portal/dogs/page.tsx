@@ -1,10 +1,10 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { Pencil, Trash2 } from "lucide-react"
+import { Pencil } from "lucide-react"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
-import { deleteDog } from "@/app/portal/dogs/actions"
+import { DeleteDogButton } from "@/components/portal/delete-dog-button"
 
 export const metadata: Metadata = {
   title: "My Dogs",
@@ -55,16 +55,7 @@ export default async function DogsPage() {
                     <Pencil className="size-4" />
                   </Link>
                 </Button>
-                <form action={deleteDog.bind(null, dog.id)}>
-                  <Button
-                    type="submit"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Delete ${dog.name}`}
-                  >
-                    <Trash2 className="size-4 text-destructive" />
-                  </Button>
-                </form>
+                <DeleteDogButton dogId={dog.id} dogName={dog.name} />
               </div>
             </li>
           ))}
