@@ -45,9 +45,9 @@ export default async function AdminAuditLogPage({
   searchParams: Promise<AuditLogSearchParams>
 }) {
   const session = await auth()
-  // Super-admin only — everyone else (including regular admins) gets a 404
-  // rather than a page that reveals this exists but says "not allowed".
-  if (!session?.user?.isSuperAdmin) {
+  // Admins only — the /admin layout already enforces role === "ADMIN", so
+  // this is just a defensive re-check rather than the primary gate.
+  if (!session?.user || session.user.role !== "ADMIN") {
     notFound()
   }
 
@@ -74,7 +74,7 @@ export default async function AdminAuditLogPage({
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Audit Log</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Every change made in the system — who, what, and when. Visible to super admins
+          Every change made in the system — who, what, and when. Visible to admins
           only. Showing the most recent {logs.length === 200 ? "200" : logs.length}
           {logs.length === 200 ? " (of possibly more) " : " "}
           entries matching the filters below.

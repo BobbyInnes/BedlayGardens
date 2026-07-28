@@ -12,8 +12,8 @@ const MAX_EXPORT_ROWS = 5000
 
 export async function GET(request: Request) {
   const session = await auth()
-  // Matches the audit-log page: hide that this even exists from non-super-admins.
-  if (!session?.user?.isSuperAdmin) {
+  // Matches the audit-log page: hide that this even exists from non-admins.
+  if (!session?.user || session.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 

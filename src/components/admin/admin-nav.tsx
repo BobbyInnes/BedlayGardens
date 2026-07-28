@@ -42,17 +42,15 @@ const navItems = [
   { href: "/admin/reviews", label: "Reviews", icon: Star },
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
   { href: "/admin/accounting", label: "Accounting", icon: Receipt },
+  { href: "/admin/audit-log", label: "Audit Log", icon: ShieldCheck },
 ]
 
-export function AdminNav({ isSuperAdmin = false }: { isSuperAdmin?: boolean }) {
+export function AdminNav() {
   const pathname = usePathname()
-  const items = isSuperAdmin
-    ? [...navItems, { href: "/admin/audit-log", label: "Audit Log", icon: ShieldCheck }]
-    : navItems
 
   return (
     <nav className="flex gap-1 overflow-x-auto border-b border-border px-4 sm:px-6 md:w-56 md:shrink-0 md:flex-col md:overflow-visible md:border-b-0 md:border-r md:px-3 md:py-6">
-      {items.map((item) => {
+      {navItems.map((item) => {
         const isActive =
           item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href)
         const Icon = item.icon
