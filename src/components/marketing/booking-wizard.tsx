@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { formatPence } from "@/lib/format"
+import { isWeekend } from "@/lib/dates"
 import { cn } from "@/lib/utils"
 import { createBooking, type BookingActionState } from "@/app/(marketing)/book/actions"
 import { joinWaitlist } from "@/app/portal/waitlist/actions"
@@ -39,6 +40,21 @@ function nightsBetween(start: string, end: string): number {
   if (!start || !end) return 0
   const diff = new Date(end).getTime() - new Date(start).getTime()
   return Math.max(0, Math.round(diff / (1000 * 60 * 60 * 24)))
+}
+
+// Day care and meet & greets are weekday-only (matches the server-side check
+// in src/lib/availability.ts) — validated here too so the picker rejects an
+// invalid date before the customer ever hits "Check availability".
+function dateBasedDateError(value: string): string | null {
+  if (!value) return null
+  const selected = new Date(`${value}T00:00:00`)
+  if (selected < new Date(`${todayISO()}T00:00:00`)) {
+    return "Select a date in the future."
+  }
+  if (isWeekend(selected)) {
+    return "This service isn't available on Saturdays or Sundays — please pick a weekday."
+  }
+  return null
 }
 
 export function BookingWizard({
@@ -80,6 +96,8 @@ export function BookingWizard({
   const [pickupAddress, setPickupAddress] = React.useState("")
   const [postcode, setPostcode] = React.useState("")
   const [accessNotes, setAccessNotes] = React.useState("")
+
+  const dateError = isDateBased ? dateBasedDateError(date) : null
 
   const [availabilityChecked, setAvailabilityChecked] = React.useState(false)
   const [available, setAvailable] = React.useState<boolean | null>(null)
@@ -336,11 +354,13 @@ export function BookingWizard({
                 type="date"
                 min={todayISO()}
                 value={date}
+                aria-invalid={!!dateError}
                 onChange={(e) => {
                   setDate(e.target.value)
                   setAvailabilityChecked(false)
                 }}
               />
+              {dateError && <p className="text-sm text-destructive">{dateError}</p>}
             </div>
           )}
 
@@ -474,7 +494,11 @@ export function BookingWizard({
               <Button
                 variant="outline"
                 onClick={checkAvailability}
-                disabled={checkingAvailability || (isBoarding && (!startDate || !endDate))}
+                disabled={
+                  checkingAvailability ||
+                  (isBoarding && (!startDate || !endDate)) ||
+                  (isDateBased && (!date || !!dateError))
+                }
               >
                 {checkingAvailability ? "Checking…" : "Check availability"}
               </Button>
