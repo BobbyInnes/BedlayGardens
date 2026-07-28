@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
+import { logAudit } from "@/lib/audit"
 import type { TrialOutcome } from "@/generated/prisma/client"
 
 export type StaffActionState = { status: "idle" | "error"; message?: string }
@@ -20,14 +21,25 @@ export async function setTrialOutcome(
   outcome: TrialOutcome,
   notes: string
 ): Promise<StaffActionState> {
-  await requireStaff()
+  const session = await requireStaff()
 
-  const trialVisit = await prisma.trialVisit.findUnique({ where: { id: trialVisitId } })
+  const trialVisit = await prisma.trialVisit.findUnique({
+    where: { id: trialVisitId },
+    include: { dog: true },
+  })
   if (!trialVisit) return { status: "error", message: "Trial visit not found." }
 
   await prisma.trialVisit.update({
     where: { id: trialVisitId },
     data: { outcome, notes: notes.trim() || null, completedAt: new Date() },
+  })
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "SET_MEET_GREET_OUTCOME",
+    entity: "TrialVisit",
+    entityId: trialVisitId,
+    meta: `${trialVisit.dog.name} — ${outcome}`,
   })
 
   revalidatePath("/staff/trials")
