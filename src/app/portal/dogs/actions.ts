@@ -8,14 +8,36 @@ import { prisma } from "@/lib/prisma"
 import { logAudit } from "@/lib/audit"
 import { saveUpload, deleteUpload } from "@/lib/storage"
 
+const MAX_DOG_AGE_YEARS = 18
+const MAX_DOG_WEIGHT_KG = 200
+
 const dogSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
   breed: z.string().trim().min(1, "Breed is required").max(200),
-  dob: z.string().optional(),
+  dob: z
+    .string()
+    .optional()
+    .refine((value) => !value || new Date(value).getTime() <= Date.now(), {
+      message: "Date of birth cannot be in the future",
+    })
+    .refine(
+      (value) => {
+        if (!value) return true
+        const minDate = new Date()
+        minDate.setFullYear(minDate.getFullYear() - MAX_DOG_AGE_YEARS)
+        return new Date(value).getTime() >= minDate.getTime()
+      },
+      { message: `Date of birth cannot be more than ${MAX_DOG_AGE_YEARS} years ago` }
+    ),
   sex: z.enum(["male", "female", ""]).optional(),
   size: z.enum(["MINIATURE", "SMALL", "MEDIUM", "LARGE", "GIANT", ""]).optional(),
   neutered: z.coerce.boolean().optional(),
-  weightKg: z.coerce.number().positive().optional().or(z.literal("")),
+  weightKg: z.coerce
+    .number()
+    .positive()
+    .max(MAX_DOG_WEIGHT_KG, `Weight cannot exceed ${MAX_DOG_WEIGHT_KG}kg`)
+    .optional()
+    .or(z.literal("")),
   feedingNotes: z.string().trim().max(2000).optional(),
   medicationNotes: z.string().trim().max(2000).optional(),
   behaviourNotes: z.string().trim().max(2000).optional(),

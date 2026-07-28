@@ -34,6 +34,9 @@ export function DogForm({
 }) {
   const [state, formAction, pending] = useActionState(action, initialState)
 
+  const today = new Date()
+  const minDob = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
+
   return (
     <form action={formAction} className="max-w-2xl space-y-6">
       <div className="grid gap-5 sm:grid-cols-2">
@@ -56,7 +59,17 @@ export function DogForm({
       <div className="grid gap-5 sm:grid-cols-3">
         <div className="space-y-2">
           <Label htmlFor="dob">Date of birth</Label>
-          <Input id="dob" name="dob" type="date" defaultValue={toDateInputValue(dog?.dob)} />
+          <Input
+            id="dob"
+            name="dob"
+            type="date"
+            min={toDateInputValue(minDob)}
+            max={toDateInputValue(today)}
+            defaultValue={toDateInputValue(dog?.dob)}
+          />
+          {state.fieldErrors?.dob && (
+            <p className="text-sm text-destructive">{state.fieldErrors.dob}</p>
+          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="sex">Sex</Label>
@@ -78,8 +91,12 @@ export function DogForm({
             type="number"
             step="0.1"
             min="0"
+            max="200"
             defaultValue={dog?.weightKg ?? ""}
           />
+          {state.fieldErrors?.weightKg && (
+            <p className="text-sm text-destructive">{state.fieldErrors.weightKg}</p>
+          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="size">Pet size</Label>
