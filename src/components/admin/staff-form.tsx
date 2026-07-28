@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
 import { Label } from "@/components/ui/label"
 import { RichTextEditor } from "@/components/admin/rich-text-editor"
 import {
@@ -63,7 +64,7 @@ export function StaffForm({
       </div>
       <div className="space-y-2">
         <Label htmlFor="phone">Phone</Label>
-        <Input id="phone" name="phone" type="tel" defaultValue={values?.phone ?? staff?.phone ?? ""} />
+        <PhoneInput id="phone" name="phone" defaultValue={values?.phone ?? staff?.phone ?? ""} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="jobTitle">Job title</Label>

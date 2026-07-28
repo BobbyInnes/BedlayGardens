@@ -3,6 +3,7 @@
 import { useActionState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
 import { Label } from "@/components/ui/label"
 import { updateProfile, type ActionState } from "@/app/portal/account/actions"
 
@@ -36,11 +37,11 @@ export function ProfileForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="phone">Telephone number</Label>
-          <Input id="phone" name="phone" type="tel" defaultValue={phone} />
+          <PhoneInput id="phone" name="phone" defaultValue={phone} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="workPhone">Work phone number</Label>
-          <Input id="workPhone" name="workPhone" type="tel" defaultValue={workPhone} />
+          <PhoneInput id="workPhone" name="workPhone" defaultValue={workPhone} />
         </div>
       </div>
       <p className="text-xs text-muted-foreground">Enter at least one phone number.</p>

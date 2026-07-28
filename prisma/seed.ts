@@ -135,7 +135,7 @@ async function main() {
     { key: "business_name", value: "Bedlay Gardens Kennels" },
     { key: "business_tagline", value: "Professional dog boarding you can trust" },
     { key: "business_phone", value: "07956 301170" },
-    { key: "business_email", value: "bedlaygardensdogforest@gmail.com" },
+    { key: "business_email", value: "bedlaygardensdogdaycare@gmail.com" },
     { key: "business_address_line1", value: "Bedlay Gardens" },
     { key: "business_address_line2", value: "Cumbernauld Road, Chryston, Glasgow" },
     { key: "business_postcode", value: "G69 9HP" },

@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { submitContactForm, type ContactFormState } from "@/app/(marketing)/contact/actions"
@@ -39,7 +40,7 @@ export function ContactForm() {
         </div>
         <div className="space-y-2">
           <Label htmlFor="phone">Phone (optional)</Label>
-          <Input id="phone" name="phone" type="tel" autoComplete="tel" />
+          <PhoneInput id="phone" name="phone" autoComplete="tel" />
         </div>
       </div>
 

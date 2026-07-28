@@ -3,6 +3,7 @@
 import { useActionState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -130,7 +131,7 @@ export function DogForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="vetPhone">Vet phone</Label>
-          <Input id="vetPhone" name="vetPhone" type="tel" defaultValue={dog?.vetPhone ?? ""} />
+          <PhoneInput id="vetPhone" name="vetPhone" defaultValue={dog?.vetPhone ?? ""} />
         </div>
       </div>
 

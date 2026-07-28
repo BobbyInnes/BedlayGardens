@@ -3,6 +3,7 @@
 import { useActionState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { PhoneInput } from "@/components/ui/phone-input"
 import { Label } from "@/components/ui/label"
 import { registerAction, type RegisterState } from "@/app/(marketing)/register/actions"
 
@@ -47,11 +48,11 @@ export function RegisterForm() {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="phone">Telephone number</Label>
-          <Input id="phone" name="phone" type="tel" autoComplete="tel" />
+          <PhoneInput id="phone" name="phone" autoComplete="tel" />
         </div>
         <div className="space-y-2">
           <Label htmlFor="workPhone">Work phone number</Label>
-          <Input id="workPhone" name="workPhone" type="tel" />
+          <PhoneInput id="workPhone" name="workPhone" />
         </div>
       </div>
       {state.fieldErrors?.phone && (
