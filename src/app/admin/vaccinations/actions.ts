@@ -19,7 +19,7 @@ export async function verifyVaccinationRecord(
 ) {
   const session = await requireAdmin()
 
-  await prisma.vaccinationRecord.update({
+  const record = await prisma.vaccinationRecord.update({
     where: { id: recordId },
     data: { status, verifiedById: session.user.id, verifiedAt: new Date() },
   })
@@ -28,7 +28,7 @@ export async function verifyVaccinationRecord(
     action: "VERIFY_VACCINATION_RECORD",
     entity: "VaccinationRecord",
     entityId: recordId,
-    meta: status,
+    meta: `${record.type} — ${status}`,
   })
 
   revalidatePath("/admin/vaccinations")
