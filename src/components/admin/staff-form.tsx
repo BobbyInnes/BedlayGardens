@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select"
 import type { User } from "@/generated/prisma/client"
 import type { AdminActionState } from "@/app/admin/staff/actions"
+import { compressImage } from "@/lib/compress-image"
 
 const initialState: AdminActionState = { status: "idle" }
 
@@ -41,6 +42,24 @@ export function StaffForm({
   // these `defaultValue`s actually take effect on the next render.
   const values = state.status === "error" ? state.values : undefined
   const [role, setRole] = useState(values?.role ?? staff?.role ?? "STAFF")
+  const [compressingPhoto, setCompressingPhoto] = useState(false)
+
+  async function handlePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget
+    const file = input.files?.[0]
+    if (!file) return
+    setCompressingPhoto(true)
+    try {
+      const compressed = await compressImage(file)
+      if (compressed !== file) {
+        const dataTransfer = new DataTransfer()
+        dataTransfer.items.add(compressed)
+        input.files = dataTransfer.files
+      }
+    } finally {
+      setCompressingPhoto(false)
+    }
+  }
 
   return (
     <form
@@ -88,7 +107,10 @@ export function StaffForm({
             className="mb-2 size-24 rounded-lg object-cover"
           />
         )}
-        <Input id="photo" name="photo" type="file" accept="image/*" />
+        <Input id="photo" name="photo" type="file" accept="image/*" onChange={handlePhotoChange} />
+        {compressingPhoto && (
+          <p className="text-xs text-muted-foreground">Compressing photo…</p>
+        )}
         <p className="text-xs text-muted-foreground">
           Also shown on the About page, so use a clear, friendly photo.
         </p>
@@ -157,7 +179,7 @@ export function StaffForm({
           <Input id="password" name="password" type="password" minLength={8} required />
         </div>
       )}
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending || compressingPhoto}>
         {pending ? "Saving…" : submitLabel}
       </Button>
       {state.status === "error" && (

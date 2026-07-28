@@ -16,6 +16,7 @@ import {
 import type { Dog } from "@/generated/prisma/client"
 import type { DogFormState } from "@/app/portal/dogs/actions"
 import { DOG_BREEDS, OTHER_BREED_VALUE } from "@/lib/dog-breeds"
+import { compressImage } from "@/lib/compress-image"
 
 const initialState: DogFormState = { status: "idle" }
 
@@ -42,6 +43,25 @@ export function DogForm({
   const [breedChoice, setBreedChoice] = useState<string>(
     dog?.breed ? (knownBreed ? dog.breed : OTHER_BREED_VALUE) : ""
   )
+
+  const [compressingPhoto, setCompressingPhoto] = useState(false)
+
+  async function handlePhotoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget
+    const file = input.files?.[0]
+    if (!file) return
+    setCompressingPhoto(true)
+    try {
+      const compressed = await compressImage(file)
+      if (compressed !== file) {
+        const dataTransfer = new DataTransfer()
+        dataTransfer.items.add(compressed)
+        input.files = dataTransfer.files
+      }
+    } finally {
+      setCompressingPhoto(false)
+    }
+  }
 
   return (
     <form action={formAction} className="max-w-2xl space-y-6">
@@ -169,7 +189,10 @@ export function DogForm({
             className="mb-2 size-24 rounded-lg object-cover"
           />
         )}
-        <Input id="photo" name="photo" type="file" accept="image/*" />
+        <Input id="photo" name="photo" type="file" accept="image/*" onChange={handlePhotoChange} />
+        {compressingPhoto && (
+          <p className="text-xs text-muted-foreground">Compressing photo…</p>
+        )}
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
@@ -218,7 +241,7 @@ export function DogForm({
         />
       </div>
 
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending || compressingPhoto}>
         {pending ? "Saving…" : submitLabel}
       </Button>
 
