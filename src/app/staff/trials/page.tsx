@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { TrialOutcomeForm } from "@/components/staff/trial-outcome-form"
 
 export const metadata: Metadata = {
-  title: "Meet & Greet Trials | Staff",
+  title: "Meet & Greet Review | Staff",
 }
 
 const OUTCOME_LABELS = {
@@ -31,7 +31,7 @@ export default async function StaffTrialsPage() {
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Meet & Greet Trials</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Meet & Greet Review</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Mark the outcome after a trial visit — first-time boarders can&rsquo;t book overnight
           boarding until their trial is passed.

@@ -11,7 +11,7 @@ const navItems = [
   { href: "/staff/walk-roster", label: "Walk Roster", icon: TreePine },
   { href: "/staff/van-runs", label: "Van Runs", icon: Truck },
   { href: "/staff/pupdates", label: "Pupdates", icon: Camera },
-  { href: "/staff/trials", label: "Trials", icon: HeartHandshake },
+  { href: "/staff/trials", label: "Meet & Greet Review", icon: HeartHandshake },
   { href: "/staff/vaccinations", label: "Vaccinations", icon: Syringe },
   { href: "/staff/incidents", label: "Incidents", icon: AlertTriangle },
 ]
