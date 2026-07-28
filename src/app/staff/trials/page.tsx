@@ -2,6 +2,10 @@ import type { Metadata } from "next"
 import { prisma } from "@/lib/prisma"
 import { Badge } from "@/components/ui/badge"
 import { TrialOutcomeForm } from "@/components/staff/trial-outcome-form"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import type { Prisma } from "@/generated/prisma/client"
 
 export const metadata: Metadata = {
   title: "Meet & Greet Review | Staff",
@@ -13,15 +17,39 @@ const OUTCOME_LABELS = {
   NOT_SUITABLE: "Not suitable",
 } as const
 
-export default async function StaffTrialsPage() {
+export default async function StaffTrialsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ dog?: string; owner?: string }>
+}) {
+  const { dog = "", owner = "" } = await searchParams
+
+  const filters: Prisma.TrialVisitWhereInput[] = [
+    ...(dog.trim() ? [{ dog: { name: { contains: dog.trim(), mode: "insensitive" as const } } }] : []),
+    ...(owner.trim()
+      ? [
+          {
+            booking: {
+              customer: {
+                OR: [
+                  { name: { contains: owner.trim(), mode: "insensitive" as const } },
+                  { email: { contains: owner.trim(), mode: "insensitive" as const } },
+                ],
+              },
+            },
+          },
+        ]
+      : []),
+  ]
+
   const [pending, recent] = await Promise.all([
     prisma.trialVisit.findMany({
-      where: { outcome: null },
+      where: { outcome: null, AND: filters },
       include: { dog: true, booking: { include: { customer: true } } },
       orderBy: { booking: { startDate: "asc" } },
     }),
     prisma.trialVisit.findMany({
-      where: { outcome: { not: null } },
+      where: { outcome: { not: null }, AND: filters },
       include: { dog: true, booking: { include: { customer: true } } },
       orderBy: { completedAt: "desc" },
       take: 20,
@@ -37,6 +65,20 @@ export default async function StaffTrialsPage() {
           boarding until their trial is passed.
         </p>
       </div>
+
+      <form className="flex flex-wrap items-end gap-3">
+        <div className="space-y-2">
+          <Label htmlFor="dog">Dog name</Label>
+          <Input id="dog" name="dog" defaultValue={dog} className="w-48" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="owner">Owner name or email</Label>
+          <Input id="owner" name="owner" defaultValue={owner} className="w-64" />
+        </div>
+        <Button type="submit" variant="outline">
+          Filter
+        </Button>
+      </form>
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Awaiting outcome</h2>
