@@ -562,7 +562,7 @@ export async function cancelBookingAdmin(
     action: "CANCEL_BOOKING",
     entity: "Booking",
     entityId: bookingId,
-    meta: trimmedReason,
+    meta: `${booking.service.name} — ${trimmedReason}`,
   })
 
   const settings = await getSettings()

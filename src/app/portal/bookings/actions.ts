@@ -125,7 +125,7 @@ export async function cancelBooking(bookingId: string, reason?: string): Promise
     action: "CANCEL_BOOKING",
     entity: "Booking",
     entityId: bookingId,
-    meta: trimmedReason ?? "No reason given",
+    meta: `${booking.service.name} — ${trimmedReason ?? "No reason given"}`,
   })
 
   const settings = await getSettings()
