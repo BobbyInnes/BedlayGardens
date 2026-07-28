@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PhoneInput } from "@/components/ui/phone-input"
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select"
 import type { Dog } from "@/generated/prisma/client"
 import type { DogFormState } from "@/app/portal/dogs/actions"
+import { DOG_BREEDS, OTHER_BREED_VALUE } from "@/lib/dog-breeds"
 
 const initialState: DogFormState = { status: "idle" }
 
@@ -37,6 +38,11 @@ export function DogForm({
   const today = new Date()
   const minDob = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
 
+  const knownBreed = dog?.breed && (DOG_BREEDS as readonly string[]).includes(dog.breed)
+  const [breedChoice, setBreedChoice] = useState<string>(
+    dog?.breed ? (knownBreed ? dog.breed : OTHER_BREED_VALUE) : ""
+  )
+
   return (
     <form action={formAction} className="max-w-2xl space-y-6">
       <div className="grid gap-5 sm:grid-cols-2">
@@ -49,7 +55,32 @@ export function DogForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="breed">Breed</Label>
-          <Input id="breed" name="breed" defaultValue={dog?.breed} required />
+          <Select
+            value={breedChoice}
+            onValueChange={setBreedChoice}
+            name={breedChoice === OTHER_BREED_VALUE ? undefined : "breed"}
+          >
+            <SelectTrigger id="breed" className="w-full">
+              <SelectValue placeholder="Select a breed" />
+            </SelectTrigger>
+            <SelectContent>
+              {DOG_BREEDS.map((breed) => (
+                <SelectItem key={breed} value={breed}>
+                  {breed}
+                </SelectItem>
+              ))}
+              <SelectItem value={OTHER_BREED_VALUE}>Other</SelectItem>
+            </SelectContent>
+          </Select>
+          {breedChoice === OTHER_BREED_VALUE && (
+            <Input
+              name="breed"
+              placeholder="Enter breed"
+              defaultValue={!knownBreed ? (dog?.breed ?? "") : ""}
+              required
+              className="mt-2"
+            />
+          )}
           {state.fieldErrors?.breed && (
             <p className="text-sm text-destructive">{state.fieldErrors.breed}</p>
           )}

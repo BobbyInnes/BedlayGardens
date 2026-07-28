@@ -7,6 +7,9 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { logAudit } from "@/lib/audit"
 import { saveUpload, deleteUpload } from "@/lib/storage"
+import { sendEmail } from "@/lib/email"
+import { getSettings } from "@/lib/settings"
+import { dogAddedEmail, dogUpdatedEmail } from "@/lib/email-templates"
 
 const MAX_DOG_AGE_YEARS = 18
 const MAX_DOG_WEIGHT_KG = 200
@@ -127,6 +130,17 @@ export async function createDog(
     meta: `${dog.name} (${dog.breed})`,
   })
 
+  // A failed notification email must not fail the dog creation itself.
+  try {
+    if (session.user.email) {
+      const settings = await getSettings()
+      const email = dogAddedEmail(settings, dog)
+      await sendEmail({ to: session.user.email, subject: email.subject, html: email.html })
+    }
+  } catch (error) {
+    console.error("[dogs] failed to send dog-added email", error)
+  }
+
   revalidatePath("/portal/dogs")
   redirect("/portal/dogs")
 }
@@ -162,7 +176,7 @@ export async function updateDog(
     photoUrl = await saveUpload(`dogs/${dog.id}`, photo.name, buffer)
   }
 
-  await prisma.dog.update({
+  const updatedDog = await prisma.dog.update({
     where: { id: dogId },
     data: {
       name: data.name,
@@ -181,6 +195,17 @@ export async function updateDog(
       photoUrl,
     },
   })
+
+  // A failed notification email must not fail the dog update itself.
+  try {
+    if (session.user.email) {
+      const settings = await getSettings()
+      const email = dogUpdatedEmail(settings, updatedDog)
+      await sendEmail({ to: session.user.email, subject: email.subject, html: email.html })
+    }
+  } catch (error) {
+    console.error("[dogs] failed to send dog-updated email", error)
+  }
 
   revalidatePath("/portal/dogs")
   revalidatePath(`/portal/dogs/${dogId}`)

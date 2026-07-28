@@ -76,6 +76,103 @@ export function welcomeEmail(
   }
 }
 
+type NewDogDetails = {
+  name: string
+  breed: string
+  dob: Date | null
+  sex: string | null
+  weightKg: number | null
+  size: string | null
+  neutered: boolean
+  vetName: string | null
+  vetPhone: string | null
+  emergencyContact: string | null
+  feedingNotes: string | null
+  medicationNotes: string | null
+  behaviourNotes: string | null
+}
+
+function titleCase(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
+}
+
+function dogDetailRows(dog: NewDogDetails): [string, string][] {
+  return [
+    ["Breed", dog.breed],
+    ...(dog.dob
+      ? ([
+          [
+            "Date of birth",
+            dog.dob.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }),
+          ],
+        ] as [string, string][])
+      : []),
+    ...(dog.sex ? ([["Sex", titleCase(dog.sex)]] as [string, string][]) : []),
+    ...(dog.weightKg ? ([["Weight", `${dog.weightKg}kg`]] as [string, string][]) : []),
+    ...(dog.size ? ([["Size", titleCase(dog.size)]] as [string, string][]) : []),
+    ["Neutered / spayed", dog.neutered ? "Yes" : "No"],
+    ...(dog.vetName ? ([["Vet name", dog.vetName]] as [string, string][]) : []),
+    ...(dog.vetPhone ? ([["Vet phone", dog.vetPhone]] as [string, string][]) : []),
+    ...(dog.emergencyContact ? ([["Emergency contact", dog.emergencyContact]] as [string, string][]) : []),
+    ...(dog.feedingNotes ? ([["Feeding instructions", dog.feedingNotes]] as [string, string][]) : []),
+    ...(dog.medicationNotes ? ([["Medication", dog.medicationNotes]] as [string, string][]) : []),
+    ...(dog.behaviourNotes ? ([["Behavioural notes", dog.behaviourNotes]] as [string, string][]) : []),
+  ]
+}
+
+function dogDetailsTable(rows: [string, string][]): string {
+  return `
+    <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+      ${rows
+        .map(
+          ([label, value]) => `
+        <tr>
+          <td style="padding: 6px 12px 6px 0; color: #666; vertical-align: top; white-space: nowrap;">${label}</td>
+          <td style="padding: 6px 0;">${value}</td>
+        </tr>
+      `
+        )
+        .join("")}
+    </table>
+  `
+}
+
+export function dogAddedEmail(
+  branding: EmailBranding,
+  dog: NewDogDetails
+): { subject: string; html: string } {
+  return {
+    subject: `${dog.name} has been added to your account`,
+    html: layout(
+      branding,
+      `${dog.name} has been added`,
+      `
+        <p>Here's a summary of the details you entered for ${dog.name}:</p>
+        ${dogDetailsTable(dogDetailRows(dog))}
+        <p>If any of this looks wrong, you can update it any time from your account.</p>
+      `
+    ),
+  }
+}
+
+export function dogUpdatedEmail(
+  branding: EmailBranding,
+  dog: NewDogDetails
+): { subject: string; html: string } {
+  return {
+    subject: `${dog.name}'s details have been updated`,
+    html: layout(
+      branding,
+      `${dog.name}'s details have been updated`,
+      `
+        <p>Here's a summary of ${dog.name}'s current details on your account:</p>
+        ${dogDetailsTable(dogDetailRows(dog))}
+        <p>If any of this looks wrong, you can update it any time from your account.</p>
+      `
+    ),
+  }
+}
+
 export function bookingConfirmationEmail(
   branding: EmailBranding,
   booking: BookingSummary
