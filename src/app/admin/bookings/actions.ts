@@ -274,7 +274,7 @@ export async function modifyBookingDates(
   _prevState: ModifyDatesState,
   formData: FormData
 ): Promise<ModifyDatesState> {
-  await requireAdmin()
+  const session = await requireAdmin()
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
@@ -286,6 +286,7 @@ export async function modifyBookingDates(
   }
 
   const dogCount = booking.bookingDogs.length
+  let dateSummary = ""
 
   if (booking.service.slug === "overnight-boarding") {
     const startDateRaw = formData.get("startDate") as string | null
@@ -393,6 +394,7 @@ export async function modifyBookingDates(
       await restoreOldOccupancy()
       return { status: "error", message: "Those dates just became fully booked. Please try again." }
     }
+    dateSummary = `${startDate.toDateString()} – ${endDate.toDateString()}`
   } else if (booking.service.slug === "daycare") {
     const dateRaw = formData.get("date") as string | null
     if (!dateRaw) return { status: "error", message: "Select a date." }
@@ -407,9 +409,18 @@ export async function modifyBookingDates(
       where: { id: bookingId },
       data: { startDate: date, endDate: date },
     })
+    dateSummary = date.toDateString()
   } else {
     return { status: "error", message: "Dates for this service are changed by reassigning the slot or run." }
   }
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "MODIFY_BOOKING_DATES",
+    entity: "Booking",
+    entityId: bookingId,
+    meta: dateSummary,
+  })
 
   revalidatePath(`/admin/bookings/${bookingId}`)
   revalidatePath("/admin/bookings")
@@ -422,7 +433,7 @@ export async function reassignKennel(
   bookingId: string,
   newKennelUnitId: string
 ): Promise<ReassignKennelResult> {
-  await requireAdmin()
+  const session = await requireAdmin()
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
@@ -469,6 +480,14 @@ export async function reassignKennel(
     }
     throw error
   }
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "REASSIGN_KENNEL",
+    entity: "Booking",
+    entityId: bookingId,
+    meta: `Moved to ${newKennel.name}`,
+  })
 
   revalidatePath(`/admin/bookings/${bookingId}`)
   revalidatePath("/admin/bookings")

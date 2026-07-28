@@ -197,6 +197,14 @@ export async function updateDog(
     },
   })
 
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_DOG",
+    entity: "Dog",
+    entityId: updatedDog.id,
+    meta: `${updatedDog.name} (${updatedDog.breed})`,
+  })
+
   // A failed notification email must not fail the dog update itself.
   try {
     if (session.user.email) {
@@ -238,6 +246,14 @@ export async function deleteDog(
     }
     throw error
   }
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "DELETE_DOG",
+    entity: "Dog",
+    entityId: dogId,
+    meta: `${dog.name} (${dog.breed})`,
+  })
 
   if (dog.photoUrl) {
     await deleteUpload(dog.photoUrl).catch(() => {})

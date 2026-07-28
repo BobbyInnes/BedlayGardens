@@ -27,6 +27,17 @@ const registerSchema = z
     path: ["phone"],
   })
 
+type RegisterFieldValues = {
+  name: string
+  email: string
+  phone: string
+  workPhone: string
+  addressLine1: string
+  addressLine2: string
+  addressCity: string
+  addressPostcode: string
+}
+
 export type RegisterState = {
   status: "idle" | "error"
   message?: string
@@ -44,22 +55,29 @@ export type RegisterState = {
       string
     >
   >
+  // Echoed back on error (password excluded) so the customer never has to
+  // retype the whole form to fix one field, e.g. a duplicate email address.
+  values?: RegisterFieldValues
 }
 
 export async function registerAction(
   _prevState: RegisterState,
   formData: FormData
 ): Promise<RegisterState> {
+  const values: RegisterFieldValues = {
+    name: String(formData.get("name") ?? ""),
+    email: String(formData.get("email") ?? ""),
+    phone: String(formData.get("phone") ?? ""),
+    workPhone: String(formData.get("workPhone") ?? ""),
+    addressLine1: String(formData.get("addressLine1") ?? ""),
+    addressLine2: String(formData.get("addressLine2") ?? ""),
+    addressCity: String(formData.get("addressCity") ?? ""),
+    addressPostcode: String(formData.get("addressPostcode") ?? ""),
+  }
+
   const parsed = registerSchema.safeParse({
-    name: formData.get("name"),
-    email: formData.get("email"),
+    ...values,
     password: formData.get("password"),
-    phone: formData.get("phone"),
-    workPhone: formData.get("workPhone"),
-    addressLine1: formData.get("addressLine1"),
-    addressLine2: formData.get("addressLine2"),
-    addressCity: formData.get("addressCity"),
-    addressPostcode: formData.get("addressPostcode"),
   })
 
   if (!parsed.success) {
@@ -68,7 +86,7 @@ export async function registerAction(
       const key = issue.path[0] as keyof NonNullable<RegisterState["fieldErrors"]>
       fieldErrors[key] = issue.message
     }
-    return { status: "error", fieldErrors, message: "Please fix the errors below." }
+    return { status: "error", fieldErrors, message: "Please fix the errors below.", values }
   }
 
   const { name, email, password, phone, workPhone, addressLine1, addressLine2, addressCity, addressPostcode } =
@@ -79,6 +97,7 @@ export async function registerAction(
     return {
       status: "error",
       fieldErrors: { email: "An account with this email already exists." },
+      values,
     }
   }
 

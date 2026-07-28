@@ -11,12 +11,16 @@ const initialState: RegisterState = { status: "idle" }
 
 export function RegisterForm() {
   const [state, formAction, pending] = useActionState(registerAction, initialState)
+  // On error, the action echoes back whatever was submitted (password
+  // excluded) so a failed submission refills the form instead of blanking
+  // it — remount (via `key` below) so these `defaultValue`s take effect.
+  const values = state.status === "error" ? state.values : undefined
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form key={values ? JSON.stringify(values) : "initial"} action={formAction} className="space-y-5">
       <div className="space-y-2">
         <Label htmlFor="name">Name</Label>
-        <Input id="name" name="name" required autoComplete="name" />
+        <Input id="name" name="name" defaultValue={values?.name} required autoComplete="name" />
         {state.fieldErrors?.name && (
           <p className="text-sm text-destructive">{state.fieldErrors.name}</p>
         )}
@@ -24,7 +28,16 @@ export function RegisterForm() {
 
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" name="email" type="email" required autoComplete="email" />
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          defaultValue={values?.email}
+          required
+          autoComplete="email"
+          aria-invalid={!!state.fieldErrors?.email}
+          autoFocus={!!state.fieldErrors?.email}
+        />
         {state.fieldErrors?.email && (
           <p className="text-sm text-destructive">{state.fieldErrors.email}</p>
         )}
@@ -48,11 +61,11 @@ export function RegisterForm() {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="phone">Telephone number</Label>
-          <PhoneInput id="phone" name="phone" autoComplete="tel" />
+          <PhoneInput id="phone" name="phone" defaultValue={values?.phone} autoComplete="tel" />
         </div>
         <div className="space-y-2">
           <Label htmlFor="workPhone">Work phone number</Label>
-          <PhoneInput id="workPhone" name="workPhone" />
+          <PhoneInput id="workPhone" name="workPhone" defaultValue={values?.workPhone} />
         </div>
       </div>
       {state.fieldErrors?.phone && (
@@ -62,23 +75,44 @@ export function RegisterForm() {
 
       <div className="space-y-2">
         <Label htmlFor="addressLine1">Address line 1</Label>
-        <Input id="addressLine1" name="addressLine1" required autoComplete="address-line1" />
+        <Input
+          id="addressLine1"
+          name="addressLine1"
+          defaultValue={values?.addressLine1}
+          required
+          autoComplete="address-line1"
+        />
         {state.fieldErrors?.addressLine1 && (
           <p className="text-sm text-destructive">{state.fieldErrors.addressLine1}</p>
         )}
       </div>
       <div className="space-y-2">
         <Label htmlFor="addressLine2">Address line 2 (optional)</Label>
-        <Input id="addressLine2" name="addressLine2" autoComplete="address-line2" />
+        <Input
+          id="addressLine2"
+          name="addressLine2"
+          defaultValue={values?.addressLine2}
+          autoComplete="address-line2"
+        />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="addressCity">Town / city</Label>
-          <Input id="addressCity" name="addressCity" autoComplete="address-level2" />
+          <Input
+            id="addressCity"
+            name="addressCity"
+            defaultValue={values?.addressCity}
+            autoComplete="address-level2"
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="addressPostcode">Postcode</Label>
-          <Input id="addressPostcode" name="addressPostcode" autoComplete="postal-code" />
+          <Input
+            id="addressPostcode"
+            name="addressPostcode"
+            defaultValue={values?.addressPostcode}
+            autoComplete="postal-code"
+          />
         </div>
       </div>
 
