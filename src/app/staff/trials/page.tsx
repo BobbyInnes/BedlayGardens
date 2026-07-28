@@ -97,7 +97,13 @@ export default async function StaffTrialsPage({
                     {trial.booking.startDate.toLocaleDateString("en-GB")}
                   </span>
                 </div>
-                <TrialOutcomeForm trialVisitId={trial.id} />
+                {trial.booking.startDate > new Date() ? (
+                  <p className="text-sm text-muted-foreground">
+                    Outcome can be set once the Meet & Greet date has passed.
+                  </p>
+                ) : (
+                  <TrialOutcomeForm trialVisitId={trial.id} />
+                )}
               </li>
             ))}
           </ul>

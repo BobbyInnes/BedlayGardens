@@ -25,9 +25,12 @@ export async function setTrialOutcome(
 
   const trialVisit = await prisma.trialVisit.findUnique({
     where: { id: trialVisitId },
-    include: { dog: true },
+    include: { dog: true, booking: true },
   })
   if (!trialVisit) return { status: "error", message: "Trial visit not found." }
+  if (trialVisit.booking.startDate > new Date()) {
+    return { status: "error", message: "Can't set an outcome before the Meet & Greet date." }
+  }
 
   await prisma.trialVisit.update({
     where: { id: trialVisitId },
