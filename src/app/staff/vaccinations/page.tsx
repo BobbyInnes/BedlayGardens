@@ -3,6 +3,9 @@ import Link from "next/link"
 import { FileText } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 import { VaccinationVerifyButtons } from "@/components/staff/vaccination-verify-buttons"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 
 export const metadata: Metadata = {
   title: "Vaccinations | Staff",
@@ -14,9 +17,30 @@ function isImage(key: string): boolean {
   return IMAGE_EXTENSIONS.some((ext) => key.toLowerCase().endsWith(ext))
 }
 
-export default async function StaffVaccinationsPage() {
+export default async function StaffVaccinationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ dog?: string; owner?: string }>
+}) {
+  const { dog = "", owner = "" } = await searchParams
+
   const records = await prisma.vaccinationRecord.findMany({
-    where: { status: "UNVERIFIED" },
+    where: {
+      status: "UNVERIFIED",
+      ...(dog.trim() ? { dog: { name: { contains: dog.trim(), mode: "insensitive" } } } : {}),
+      ...(owner.trim()
+        ? {
+            dog: {
+              owner: {
+                OR: [
+                  { name: { contains: owner.trim(), mode: "insensitive" } },
+                  { email: { contains: owner.trim(), mode: "insensitive" } },
+                ],
+              },
+            },
+          }
+        : {}),
+    },
     include: { dog: { include: { owner: true } } },
     orderBy: { dateGiven: "desc" },
   })
@@ -29,6 +53,20 @@ export default async function StaffVaccinationsPage() {
           Unverified records awaiting review ({records.length})
         </p>
       </div>
+
+      <form className="flex flex-wrap items-end gap-3">
+        <div className="space-y-2">
+          <Label htmlFor="dog">Dog name</Label>
+          <Input id="dog" name="dog" defaultValue={dog} className="w-48" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="owner">Owner name or email</Label>
+          <Input id="owner" name="owner" defaultValue={owner} className="w-64" />
+        </div>
+        <Button type="submit" variant="outline">
+          Filter
+        </Button>
+      </form>
 
       {records.length > 0 ? (
         <ul className="divide-y divide-border rounded-lg border border-border">
