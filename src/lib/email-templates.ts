@@ -1,4 +1,5 @@
 import { formatPence } from "@/lib/format"
+import { getSiteUrl } from "@/lib/stripe"
 
 export type EmailBranding = {
   business_name?: string
@@ -22,6 +23,7 @@ function layout(branding: EmailBranding, title: string, bodyHtml: string): strin
   return `
     <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto; color: #2b2b25;">
       <div style="padding: 24px 0; border-bottom: 2px solid #3f5a3a;">
+        <img src="${getSiteUrl()}/images/logo.png" alt="${businessName}" style="height: 40px; margin-bottom: 8px;" />
         <h1 style="margin: 0; font-size: 20px; color: #3f5a3a;">${businessName}</h1>
       </div>
       <div style="padding: 24px 0;">
