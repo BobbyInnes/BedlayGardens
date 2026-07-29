@@ -4,7 +4,9 @@ import { Pencil } from "lucide-react"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { DeleteDogButton } from "@/components/portal/delete-dog-button"
+import { TRIAL_OUTCOME_LABELS } from "@/lib/trial-outcome"
 
 export const metadata: Metadata = {
   title: "My Dogs",
@@ -17,6 +19,15 @@ export default async function DogsPage() {
     orderBy: { name: "asc" },
   })
 
+  const trialVisits = await prisma.trialVisit.findMany({
+    where: { dogId: { in: dogs.map((dog) => dog.id) }, outcome: { not: null } },
+    orderBy: { completedAt: "desc" },
+  })
+  const latestOutcomeByDogId = new Map<string, (typeof trialVisits)[number]>()
+  for (const tv of trialVisits) {
+    if (!latestOutcomeByDogId.has(tv.dogId)) latestOutcomeByDogId.set(tv.dogId, tv)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -28,37 +39,45 @@ export default async function DogsPage() {
 
       {dogs.length > 0 ? (
         <ul className="grid gap-4 sm:grid-cols-2">
-          {dogs.map((dog) => (
-            <li
-              key={dog.id}
-              className="flex items-center gap-4 rounded-lg border border-border p-4"
-            >
-              {dog.photoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={`/api/files/${dog.photoUrl}`}
-                  alt={dog.name}
-                  className="size-16 shrink-0 rounded-lg object-cover"
-                />
-              ) : (
-                <div className="flex size-16 shrink-0 items-center justify-center rounded-lg bg-muted text-xs text-muted-foreground">
-                  No photo
+          {dogs.map((dog) => {
+            const latestOutcome = latestOutcomeByDogId.get(dog.id)
+            return (
+              <li
+                key={dog.id}
+                className="flex items-center gap-4 rounded-lg border border-border p-4"
+              >
+                {dog.photoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={`/api/files/${dog.photoUrl}`}
+                    alt={dog.name}
+                    className="size-16 shrink-0 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="flex size-16 shrink-0 items-center justify-center rounded-lg bg-muted text-xs text-muted-foreground">
+                    No photo
+                  </div>
+                )}
+                <div className="flex-1 space-y-1">
+                  <p className="font-medium">{dog.name}</p>
+                  <p className="text-sm text-muted-foreground">{dog.breed}</p>
+                  {latestOutcome && (
+                    <Badge variant={latestOutcome.outcome === "PASSED" ? "default" : "destructive"}>
+                      Meet &amp; Greet: {TRIAL_OUTCOME_LABELS[latestOutcome.outcome!]}
+                    </Badge>
+                  )}
                 </div>
-              )}
-              <div className="flex-1">
-                <p className="font-medium">{dog.name}</p>
-                <p className="text-sm text-muted-foreground">{dog.breed}</p>
-              </div>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon-sm" asChild>
-                  <Link href={`/portal/dogs/${dog.id}`} aria-label={`Edit ${dog.name}`}>
-                    <Pencil className="size-4" />
-                  </Link>
-                </Button>
-                <DeleteDogButton dogId={dog.id} dogName={dog.name} />
-              </div>
-            </li>
-          ))}
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon-sm" asChild>
+                    <Link href={`/portal/dogs/${dog.id}`} aria-label={`Edit ${dog.name}`}>
+                      <Pencil className="size-4" />
+                    </Link>
+                  </Button>
+                  <DeleteDogButton dogId={dog.id} dogName={dog.name} />
+                </div>
+              </li>
+            )
+          })}
         </ul>
       ) : (
         <p className="text-sm text-muted-foreground">
