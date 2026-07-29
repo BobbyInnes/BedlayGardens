@@ -33,7 +33,8 @@ test("new customer registers, adds a dog, and adds a vaccination record", async 
 
   await page.goto("/portal/dogs/new")
   await page.getByLabel("Name", { exact: true }).fill(E2E_NEW_CUSTOMER_DOG_NAME)
-  await page.getByLabel("Breed").fill("Labrador")
+  await page.locator("#breed").click()
+  await page.getByRole("option", { name: "Labrador Retriever" }).click()
   await page.locator("#size").click()
   await page.getByRole("option", { name: "Medium" }).click()
   await page.getByRole("button", { name: "Add dog" }).click()
