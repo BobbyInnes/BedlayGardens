@@ -4,6 +4,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { stripe } from "@/lib/stripe"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { formatPence } from "@/lib/format"
 import { CancelBookingButton } from "@/components/portal/cancel-booking-button"
 import { PayButton } from "@/components/marketing/pay-button"
@@ -22,12 +23,18 @@ const NON_CANCELLABLE_STATUSES = [
   "NO_SHOW",
 ]
 
+const TRIAL_OUTCOME_LABELS = {
+  PASSED: "Passed",
+  RETRY: "Needs another visit",
+  NOT_SUITABLE: "Not suitable",
+} as const
+
 export default async function PortalBookingsPage() {
   const session = await auth()
   const bookings = await prisma.booking.findMany({
     where: { customerId: session!.user.id },
     orderBy: { startDate: "desc" },
-    include: { service: true, payments: true },
+    include: { service: true, payments: true, trialVisits: { include: { dog: true } } },
   })
 
   return (
@@ -53,70 +60,90 @@ export default async function PortalBookingsPage() {
               (p) => p.type === "INVOICE" && p.status === "PENDING"
             )
 
+            const completedTrialVisits = booking.trialVisits.filter((tv) => tv.outcome)
+
             return (
-              <li key={booking.id} className="flex flex-wrap items-center justify-between gap-4 p-4 text-sm">
-                <div>
-                  <p className="font-medium">{booking.service.name}</p>
-                  <p className="text-muted-foreground">
-                    {booking.startDate.toLocaleDateString("en-GB")}
-                    {booking.endDate.getTime() !== booking.startDate.getTime()
-                      ? ` – ${booking.endDate.toLocaleDateString("en-GB")}`
-                      : ""}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className="font-medium">{formatPence(booking.totalPence)}</p>
-                    <p className="text-muted-foreground capitalize">
-                      {booking.status.toLowerCase().replace(/_/g, " ")}
+              <li key={booking.id} className="p-4 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="font-medium">{booking.service.name}</p>
+                    <p className="text-muted-foreground">
+                      {booking.startDate.toLocaleDateString("en-GB")}
+                      {booking.endDate.getTime() !== booking.startDate.getTime()
+                        ? ` – ${booking.endDate.toLocaleDateString("en-GB")}`
+                        : ""}
                     </p>
                   </div>
-                  {booking.status === "PENDING_PAYMENT" && !depositPaid && (
-                    <>
-                      {stripe && (
-                        <PayButton
-                          bookingId={booking.id}
-                          type="DEPOSIT"
-                          label={
-                            booking.service.paymentTiming === "FULL_UPFRONT"
-                              ? "Pay now"
-                              : "Pay deposit"
-                          }
-                          size="sm"
-                          fullWidth={false}
-                        />
-                      )}
-                      <RedeemCreditForm bookingId={booking.id} type="DEPOSIT" />
-                    </>
-                  )}
-                  {booking.status === "CONFIRMED" &&
-                    booking.service.paymentTiming !== "INVOICE_AFTER" &&
-                    !balancePaid &&
-                    balancePence > 0 && (
-                    <>
-                      {stripe && (
-                        <PayButton
-                          bookingId={booking.id}
-                          type="BALANCE"
-                          label="Pay balance"
-                          size="sm"
-                          fullWidth={false}
-                        />
-                      )}
-                      <RedeemCreditForm bookingId={booking.id} type="BALANCE" />
-                    </>
-                  )}
-                  {pendingInvoice?.hostedInvoiceUrl && (
-                    <Button size="sm" asChild>
-                      <a href={pendingInvoice.hostedInvoiceUrl} target="_blank" rel="noopener noreferrer">
-                        Pay invoice — {formatPence(pendingInvoice.amountPence)}
-                      </a>
-                    </Button>
-                  )}
-                  {!NON_CANCELLABLE_STATUSES.includes(booking.status) && (
-                    <CancelBookingButton bookingId={booking.id} />
-                  )}
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="font-medium">{formatPence(booking.totalPence)}</p>
+                      <p className="text-muted-foreground capitalize">
+                        {booking.status.toLowerCase().replace(/_/g, " ")}
+                      </p>
+                    </div>
+                    {booking.status === "PENDING_PAYMENT" && !depositPaid && (
+                      <>
+                        {stripe && (
+                          <PayButton
+                            bookingId={booking.id}
+                            type="DEPOSIT"
+                            label={
+                              booking.service.paymentTiming === "FULL_UPFRONT"
+                                ? "Pay now"
+                                : "Pay deposit"
+                            }
+                            size="sm"
+                            fullWidth={false}
+                          />
+                        )}
+                        <RedeemCreditForm bookingId={booking.id} type="DEPOSIT" />
+                      </>
+                    )}
+                    {booking.status === "CONFIRMED" &&
+                      booking.service.paymentTiming !== "INVOICE_AFTER" &&
+                      !balancePaid &&
+                      balancePence > 0 && (
+                      <>
+                        {stripe && (
+                          <PayButton
+                            bookingId={booking.id}
+                            type="BALANCE"
+                            label="Pay balance"
+                            size="sm"
+                            fullWidth={false}
+                          />
+                        )}
+                        <RedeemCreditForm bookingId={booking.id} type="BALANCE" />
+                      </>
+                    )}
+                    {pendingInvoice?.hostedInvoiceUrl && (
+                      <Button size="sm" asChild>
+                        <a href={pendingInvoice.hostedInvoiceUrl} target="_blank" rel="noopener noreferrer">
+                          Pay invoice — {formatPence(pendingInvoice.amountPence)}
+                        </a>
+                      </Button>
+                    )}
+                    {!NON_CANCELLABLE_STATUSES.includes(booking.status) && (
+                      <CancelBookingButton bookingId={booking.id} />
+                    )}
+                  </div>
                 </div>
+
+                {completedTrialVisits.length > 0 && (
+                  <div className="mt-3 space-y-2 border-t border-border pt-3">
+                    {completedTrialVisits.map((tv) => (
+                      <div key={tv.id} className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="font-medium">{tv.dog.name}</p>
+                          {tv.notes && <p className="text-muted-foreground">{tv.notes}</p>}
+                        </div>
+                        <Badge variant={tv.outcome === "PASSED" ? "default" : "destructive"}>
+                          {TRIAL_OUTCOME_LABELS[tv.outcome!]}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </li>
             )
           })}
