@@ -70,6 +70,7 @@ const adminRoutes = present([
   "/admin/content",
   "/admin/customers",
   `/admin/customers/${ids.customerId}`,
+  "/admin/dogs",
   "/admin/media",
   ids.mediaId ? `/admin/media/${ids.mediaId}` : null,
   "/admin/occupancy",
