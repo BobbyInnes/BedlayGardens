@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma"
-import { isWeekend, nightsBetween, startOfDay } from "@/lib/dates"
+import { addDays, isWeekend, nightsBetween, startOfDay, toDateInputValue } from "@/lib/dates"
 
 async function isSiteWideBlocked(dates: Date[]): Promise<boolean> {
   const count = await prisma.blockedDate.count({
@@ -77,10 +77,103 @@ export async function isDaycareAvailable(
   return isSlottedServiceAvailable(date, "daycare", "daycare_max_capacity")
 }
 
+/**
+ * Only one Meet & Greet appointment can run per day, regardless of how many
+ * dogs are in that family's booking — unlike daycare, this counts existing
+ * bookings for the day, not dogs.
+ */
 export async function isMeetGreetAvailable(
   date: Date
 ): Promise<{ available: boolean; remaining: number; reason?: string }> {
-  return isSlottedServiceAvailable(date, "meet-greet", "meet_greet_max_capacity")
+  const day = startOfDay(date)
+
+  if (isWeekend(day)) {
+    return { available: false, remaining: 0, reason: "This service isn't available on Saturdays or Sundays." }
+  }
+
+  const [blocked, existingBookingCount] = await Promise.all([
+    prisma.blockedDate.count({ where: { kennelUnitId: null, date: day } }),
+    prisma.booking.count({
+      where: {
+        startDate: day,
+        service: { slug: "meet-greet" },
+        status: { notIn: ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] },
+      },
+    }),
+  ])
+
+  if (blocked > 0) return { available: false, remaining: 0 }
+  if (existingBookingCount > 0) {
+    return {
+      available: false,
+      remaining: 0,
+      reason: "There's already a Meet & Greet booked for this day — please choose another weekday.",
+    }
+  }
+  return { available: true, remaining: 1 }
+}
+
+/**
+ * Batched version of isDaycareAvailable/isMeetGreetAvailable for an entire
+ * date range — a handful of queries instead of one round trip per candidate
+ * day, so the booking calendar can highlight every available weekday in a
+ * month at once.
+ */
+export async function listAvailableDays(
+  serviceSlug: "daycare" | "meet-greet",
+  rangeStart: Date,
+  rangeEnd: Date
+): Promise<string[]> {
+  const today = startOfDay(new Date())
+  const candidates: Date[] = []
+  for (let d = startOfDay(rangeStart); d <= rangeEnd; d = addDays(d, 1)) {
+    if (d >= today && !isWeekend(d)) candidates.push(d)
+  }
+  if (candidates.length === 0) return []
+
+  const blocked = await prisma.blockedDate.findMany({
+    where: { kennelUnitId: null, date: { in: candidates } },
+    select: { date: true },
+  })
+  const blockedSet = new Set(blocked.map((b) => toDateInputValue(b.date)))
+
+  if (serviceSlug === "meet-greet") {
+    const bookings = await prisma.booking.findMany({
+      where: {
+        service: { slug: "meet-greet" },
+        startDate: { in: candidates },
+        status: { notIn: ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] },
+      },
+      select: { startDate: true },
+    })
+    const bookedSet = new Set(bookings.map((b) => toDateInputValue(b.startDate)))
+    return candidates
+      .map(toDateInputValue)
+      .filter((d) => !blockedSet.has(d) && !bookedSet.has(d))
+  }
+
+  const [capacitySetting, bookingDogs] = await Promise.all([
+    prisma.setting.findUnique({ where: { key: "daycare_max_capacity" } }),
+    prisma.bookingDog.findMany({
+      where: {
+        booking: {
+          service: { slug: "daycare" },
+          startDate: { in: candidates },
+          status: { notIn: ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] },
+        },
+      },
+      select: { booking: { select: { startDate: true } } },
+    }),
+  ])
+  const capacity = Number(capacitySetting?.value ?? 0)
+  const countByDay = new Map<string, number>()
+  for (const bd of bookingDogs) {
+    const d = toDateInputValue(bd.booking.startDate)
+    countByDay.set(d, (countByDay.get(d) ?? 0) + 1)
+  }
+  return candidates
+    .map(toDateInputValue)
+    .filter((d) => !blockedSet.has(d) && (countByDay.get(d) ?? 0) < capacity)
 }
 
 export async function listAvailableWalkSlots(fromDate: Date) {

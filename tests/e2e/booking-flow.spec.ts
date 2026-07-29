@@ -12,6 +12,14 @@ function nextWeekday(daysAhead: number): Date {
   return date
 }
 
+function monthsBetween(from: Date, to: Date): number {
+  return (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth())
+}
+
+function isoDate(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+}
+
 test("customer can book daycare end to end", async ({ page }) => {
   await page.goto("/login")
   await page.getByRole("textbox", { name: "Email", exact: true }).fill(E2E_CUSTOMER_EMAIL)
@@ -21,10 +29,13 @@ test("customer can book daycare end to end", async ({ page }) => {
 
   await page.goto("/book/daycare")
 
-  const dateInput = page.locator('input[type="date"]')
-  await dateInput.first().waitFor({ state: "visible" })
-  const futureDate = nextWeekday(30)
-  await dateInput.first().fill(futureDate.toISOString().slice(0, 10))
+  const today = new Date()
+  const futureDate = nextWeekday(5)
+  await page.getByRole("button", { name: "Select a date" }).click()
+  for (let i = 0; i < monthsBetween(today, futureDate); i++) {
+    await page.getByRole("button", { name: "Go to the Next Month" }).click()
+  }
+  await page.locator(`[data-day="${isoDate(futureDate)}"] button`).click()
 
   await page.getByRole("button", { name: "Check availability" }).click()
   await expect(page.getByText("Available!")).toBeVisible({ timeout: 10_000 })

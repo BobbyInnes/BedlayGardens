@@ -12,6 +12,7 @@ import { isWeekend } from "@/lib/dates"
 import { cn } from "@/lib/utils"
 import { createBooking, type BookingActionState } from "@/app/(marketing)/book/actions"
 import { joinWaitlist } from "@/app/portal/waitlist/actions"
+import { AvailabilityDatePicker } from "@/components/marketing/availability-date-picker"
 
 type PricingModel = "PER_NIGHT" | "PER_DAY" | "PER_SESSION"
 type PaymentTiming = "FULL_UPFRONT" | "DEPOSIT_THEN_BALANCE" | "INVOICE_AFTER"
@@ -348,15 +349,12 @@ export function BookingWizard({
 
           {isDateBased && (
             <div className="space-y-2">
-              <Label htmlFor="date">Date : Select a weekday by clicking on the calendar icon</Label>
-              <Input
-                id="date"
-                type="date"
-                min={todayISO()}
+              <Label htmlFor="date">Date</Label>
+              <AvailabilityDatePicker
+                serviceSlug={isDaycare ? "daycare" : "meet-greet"}
                 value={date}
-                aria-invalid={!!dateError}
-                onChange={(e) => {
-                  setDate(e.target.value)
+                onChange={(value) => {
+                  setDate(value)
                   setAvailabilityChecked(false)
                 }}
               />

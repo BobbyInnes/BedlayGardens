@@ -142,7 +142,6 @@ async function main() {
     { key: "business_lat", value: "55.9106" },
     { key: "business_lng", value: "-4.0800" },
     { key: "daycare_max_capacity", value: "10" },
-    { key: "meet_greet_max_capacity", value: "4" },
     { key: "required_vaccine_types", value: "DHPP,Leptospirosis,Kennel Cough" },
     { key: "dog_walking_service_postcodes", value: "G69,G66,G64,G33,G68,G21" },
     { key: "second_dog_discount_percent", value: "20" },

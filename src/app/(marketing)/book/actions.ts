@@ -519,8 +519,11 @@ export async function resolveBookingCreation(
     const date = startOfDay(new Date(data.date))
 
     const availability = await isMeetGreetAvailable(date)
-    if (availability.remaining < dogs.length) {
-      return { status: "error", message: availability.reason ?? "Not enough meet & greet capacity on that date." }
+    if (!availability.available) {
+      return {
+        status: "error",
+        message: availability.reason ?? "There's already a Meet & Greet booked for this day.",
+      }
     }
 
     const pricing = await computeBookingPrice({
@@ -533,17 +536,14 @@ export async function resolveBookingCreation(
     })
 
     const booking = await runCapacityCheckedTransaction(async (tx) => {
-      const recheckCount = await tx.bookingDog.count({
+      const recheckCount = await tx.booking.count({
         where: {
-          booking: {
-            startDate: date,
-            service: { slug: "meet-greet" },
-            status: { notIn: ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] },
-          },
+          startDate: date,
+          service: { slug: "meet-greet" },
+          status: { notIn: ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] },
         },
       })
-      const capacity = Number(await getSetting("meet_greet_max_capacity", "0"))
-      if (recheckCount + dogs.length > capacity) {
+      if (recheckCount > 0) {
         throw new Error("MEET_GREET_FULL")
       }
       const created = await tx.booking.create({
