@@ -28,7 +28,7 @@ export async function setTrialOutcome(
     include: { dog: true, booking: { include: { customer: true } } },
   })
   if (!trialVisit) return { status: "error", message: "Trial visit not found." }
-  if (trialVisit.booking.startDate > new Date()) {
+  if (!session.user.isSuperAdmin && trialVisit.booking.startDate > new Date()) {
     return { status: "error", message: "Can't set an outcome before the Meet & Greet date." }
   }
 

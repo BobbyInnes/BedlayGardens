@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Badge } from "@/components/ui/badge"
 import { TrialOutcomeForm } from "@/components/staff/trial-outcome-form"
@@ -18,6 +19,8 @@ export default async function StaffTrialsPage({
   searchParams: Promise<{ dog?: string; owner?: string }>
 }) {
   const { dog = "", owner = "" } = await searchParams
+  const session = await auth()
+  const isSuperAdmin = session?.user.isSuperAdmin ?? false
 
   const filters: Prisma.TrialVisitWhereInput[] = [
     ...(dog.trim() ? [{ dog: { name: { contains: dog.trim(), mode: "insensitive" as const } } }] : []),
@@ -92,7 +95,7 @@ export default async function StaffTrialsPage({
                     {trial.booking.startDate.toLocaleDateString("en-GB")}
                   </span>
                 </div>
-                {trial.booking.startDate > new Date() ? (
+                {trial.booking.startDate > new Date() && !isSuperAdmin ? (
                   <p className="text-sm text-muted-foreground">
                     Outcome can be set once the Meet & Greet date has passed.
                   </p>
