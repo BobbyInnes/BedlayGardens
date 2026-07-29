@@ -86,7 +86,7 @@ export function BookingWizard({
   // Dates / slot selection state
   const [startDate, setStartDate] = React.useState(todayISO())
   const [endDate, setEndDate] = React.useState("")
-  const [date, setDate] = React.useState(todayISO())
+  const [date, setDate] = React.useState("")
   const [daycareDuration, setDaycareDuration] = React.useState<"FULL_DAY" | "HALF_DAY">("FULL_DAY")
   const [daycareHalfDaySlot, setDaycareHalfDaySlot] = React.useState<"AM" | "PM" | "">("")
   const [walkSlots, setWalkSlots] = React.useState<WalkSlotOption[]>([])
@@ -348,7 +348,7 @@ export function BookingWizard({
 
           {isDateBased && (
             <div className="space-y-2">
-              <Label htmlFor="date">Date</Label>
+              <Label htmlFor="date">Date : Select a weekday by clicking on the calendar icon</Label>
               <Input
                 id="date"
                 type="date"
