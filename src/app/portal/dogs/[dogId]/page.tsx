@@ -36,7 +36,7 @@ export default async function EditDogPage({
       <h1 className="text-2xl font-semibold tracking-tight">Edit {dog.name}</h1>
 
       {trialVisits.length > 0 && (
-        <div className="max-w-2xl space-y-2 rounded-lg border border-border p-4">
+        <div className="max-w-2xl space-y-2 rounded-lg border border-border bg-muted p-4">
           <h2 className="text-sm font-semibold">Meet &amp; Greet outcome</h2>
           {trialVisits.map((tv) => (
             <div key={tv.id} className="flex flex-wrap items-start justify-between gap-2 text-sm">
