@@ -599,12 +599,16 @@ export async function resolveBookingCreation(
     }
   }
 
+  const owner = await prisma.user.findUnique({
+    where: { id: customerId },
+    select: { name: true, email: true },
+  })
   await logAudit({
     actorId: options?.actorId ?? customerId,
     action: "CREATE_BOOKING",
     entity: "Booking",
     entityId: bookingId!,
-    meta: `${service.name} — ${dogs.map((dog) => dog.name).join(", ")}`,
+    meta: `${service.name} — ${dogs.map((dog) => dog.name).join(", ")} — owner ${owner?.name} <${owner?.email}>`,
   })
 
   return { status: "idle", bookingId: bookingId! }

@@ -278,7 +278,7 @@ export async function modifyBookingDates(
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { service: true, bookingDogs: true },
+    include: { service: true, bookingDogs: true, customer: true },
   })
   if (!booking) return { status: "error", message: "Booking not found." }
   if (NON_MODIFIABLE_STATUSES.includes(booking.status)) {
@@ -419,7 +419,7 @@ export async function modifyBookingDates(
     action: "MODIFY_BOOKING_DATES",
     entity: "Booking",
     entityId: bookingId,
-    meta: dateSummary,
+    meta: `${dateSummary} — owner ${booking.customer.name} <${booking.customer.email}>`,
   })
 
   revalidatePath(`/admin/bookings/${bookingId}`)
@@ -437,7 +437,7 @@ export async function reassignKennel(
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { service: true, bookingDogs: true },
+    include: { service: true, bookingDogs: true, customer: true },
   })
   if (!booking || booking.service.slug !== "overnight-boarding" || !booking.kennelUnitId) {
     return { status: "error", message: "This booking isn't an accommodation stay." }
@@ -486,7 +486,7 @@ export async function reassignKennel(
     action: "REASSIGN_KENNEL",
     entity: "Booking",
     entityId: bookingId,
-    meta: `Moved to ${newKennel.name}`,
+    meta: `Moved to ${newKennel.name} — owner ${booking.customer.name} <${booking.customer.email}>`,
   })
 
   revalidatePath(`/admin/bookings/${bookingId}`)
@@ -562,7 +562,7 @@ export async function cancelBookingAdmin(
     action: "CANCEL_BOOKING",
     entity: "Booking",
     entityId: bookingId,
-    meta: `${booking.service.name} — ${trimmedReason}`,
+    meta: `${booking.service.name} — ${trimmedReason} — owner ${booking.customer.name} <${booking.customer.email}>`,
   })
 
   const settings = await getSettings()
@@ -762,7 +762,7 @@ export async function recordManualPayment(
       action: "RECORD_MANUAL_PAYMENT",
       entity: "Booking",
       entityId: booking.id,
-      meta: `INVOICE ${invoicePayment.amountPence}p — ${reason.trim()}`,
+      meta: `INVOICE ${invoicePayment.amountPence}p — ${reason.trim()} — owner ${booking.customer.name} <${booking.customer.email}>`,
     })
 
     const settings = await getSettings()
@@ -804,7 +804,7 @@ export async function recordManualPayment(
     action: "RECORD_MANUAL_PAYMENT",
     entity: "Booking",
     entityId: booking.id,
-    meta: `${type} ${amountPence}p — ${reason.trim()}`,
+    meta: `${type} ${amountPence}p — ${reason.trim()} — owner ${booking.customer.name} <${booking.customer.email}>`,
   })
 
   const settings = await getSettings()

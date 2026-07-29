@@ -25,7 +25,7 @@ export async function setTrialOutcome(
 
   const trialVisit = await prisma.trialVisit.findUnique({
     where: { id: trialVisitId },
-    include: { dog: true, booking: true },
+    include: { dog: true, booking: { include: { customer: true } } },
   })
   if (!trialVisit) return { status: "error", message: "Trial visit not found." }
   if (trialVisit.booking.startDate > new Date()) {
@@ -42,7 +42,7 @@ export async function setTrialOutcome(
     action: "SET_MEET_GREET_OUTCOME",
     entity: "TrialVisit",
     entityId: trialVisitId,
-    meta: `${trialVisit.dog.name} — ${outcome}`,
+    meta: `${trialVisit.dog.name} — ${outcome} — owner ${trialVisit.booking.customer.name} <${trialVisit.booking.customer.email}>`,
   })
 
   revalidatePath("/staff/trials")

@@ -22,13 +22,14 @@ export async function verifyVaccinationRecord(
   const record = await prisma.vaccinationRecord.update({
     where: { id: recordId },
     data: { status, verifiedById: session.user.id, verifiedAt: new Date() },
+    include: { dog: { include: { owner: true } } },
   })
   await logAudit({
     actorId: session.user.id,
     action: "VERIFY_VACCINATION_RECORD",
     entity: "VaccinationRecord",
     entityId: recordId,
-    meta: `${record.type} — ${status}`,
+    meta: `${record.type} — ${status} — ${record.dog.name}, owner ${record.dog.owner.name} <${record.dog.owner.email}>`,
   })
 
   revalidatePath("/staff/vaccinations")
