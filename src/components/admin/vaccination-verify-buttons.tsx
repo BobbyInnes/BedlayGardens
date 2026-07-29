@@ -2,9 +2,16 @@
 
 import * as React from "react"
 import { Button } from "@/components/ui/button"
-import { verifyVaccinationRecord } from "@/app/admin/vaccinations/actions"
+import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
+import { verifyVaccinationRecord, deleteVaccinationRecord } from "@/app/admin/vaccinations/actions"
 
-export function VaccinationVerifyButtons({ recordId }: { recordId: string }) {
+export function VaccinationVerifyButtons({
+  recordId,
+  canDelete = false,
+}: {
+  recordId: string
+  canDelete?: boolean
+}) {
   const [pending, setPending] = React.useState<"VERIFIED" | "EXPIRED" | null>(null)
 
   async function handle(status: "VERIFIED" | "EXPIRED") {
@@ -32,6 +39,14 @@ export function VaccinationVerifyButtons({ recordId }: { recordId: string }) {
       >
         {pending === "EXPIRED" ? "Saving…" : "Mark expired"}
       </Button>
+      {canDelete && (
+        <ConfirmDeleteButton
+          label="Delete"
+          title="Delete this vaccination record?"
+          description="This permanently deletes the record and its certificate. This cannot be undone."
+          onConfirm={deleteVaccinationRecord.bind(null, recordId)}
+        />
+      )}
     </div>
   )
 }

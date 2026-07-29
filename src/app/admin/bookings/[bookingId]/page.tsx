@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Badge } from "@/components/ui/badge"
 import { formatPence } from "@/lib/format"
@@ -10,6 +11,8 @@ import { CancelBookingAdminButton } from "@/components/admin/cancel-booking-admi
 import { ReassignKennelForm } from "@/components/admin/reassign-kennel-form"
 import { RecordManualPaymentForm } from "@/components/admin/record-manual-payment-form"
 import { SendInvoiceButton } from "@/components/admin/send-invoice-button"
+import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
+import { deleteBookingAdmin } from "@/app/admin/bookings/actions"
 
 export const metadata: Metadata = {
   title: "Booking | Admin",
@@ -30,17 +33,20 @@ export default async function AdminBookingDetailPage({
   params: Promise<{ bookingId: string }>
 }) {
   const { bookingId } = await params
-  const booking = await prisma.booking.findUnique({
-    where: { id: bookingId },
-    include: {
-      customer: true,
-      service: true,
-      kennelUnit: true,
-      bookingDogs: { include: { dog: true } },
-      bookingAddons: { include: { addon: true } },
-      payments: { orderBy: { createdAt: "asc" } },
-    },
-  })
+  const [session, booking] = await Promise.all([
+    auth(),
+    prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        customer: true,
+        service: true,
+        kennelUnit: true,
+        bookingDogs: { include: { dog: true } },
+        bookingAddons: { include: { addon: true } },
+        payments: { orderBy: { createdAt: "asc" } },
+      },
+    }),
+  ])
   if (!booking) notFound()
 
   const modifiable = !NON_MODIFIABLE_STATUSES.includes(booking.status)
@@ -246,6 +252,21 @@ export default async function AdminBookingDetailPage({
         <section className="space-y-3 rounded-lg border border-destructive/30 p-4">
           <h2 className="text-sm font-semibold">Cancel booking</h2>
           <CancelBookingAdminButton bookingId={booking.id} />
+        </section>
+      )}
+
+      {session?.user.isSuperAdmin && (
+        <section className="space-y-3 rounded-lg border border-destructive/50 p-4">
+          <h2 className="text-sm font-semibold text-destructive">Danger zone</h2>
+          <p className="text-sm text-muted-foreground">
+            Permanently deletes this booking. This cannot be undone.
+          </p>
+          <ConfirmDeleteButton
+            label="Delete booking"
+            title="Delete this booking?"
+            description={`This will permanently delete the ${booking.service.name} booking for ${booking.customer.name}. This cannot be undone.`}
+            onConfirm={deleteBookingAdmin.bind(null, booking.id)}
+          />
         </section>
       )}
 

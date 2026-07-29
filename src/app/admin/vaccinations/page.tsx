@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { FileText } from "lucide-react"
+import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { VaccinationVerifyButtons } from "@/components/admin/vaccination-verify-buttons"
 
@@ -15,11 +16,15 @@ function isImage(key: string): boolean {
 }
 
 export default async function AdminVaccinationsPage() {
-  const records = await prisma.vaccinationRecord.findMany({
-    where: { status: "UNVERIFIED" },
-    include: { dog: { include: { owner: true } } },
-    orderBy: { dateGiven: "desc" },
-  })
+  const [session, records] = await Promise.all([
+    auth(),
+    prisma.vaccinationRecord.findMany({
+      where: { status: "UNVERIFIED" },
+      include: { dog: { include: { owner: true } } },
+      orderBy: { dateGiven: "desc" },
+    }),
+  ])
+  const canDelete = session?.user?.isSuperAdmin ?? false
 
   return (
     <div className="space-y-6">
@@ -72,7 +77,7 @@ export default async function AdminVaccinationsPage() {
                   </p>
                 </div>
               </div>
-              <VaccinationVerifyButtons recordId={record.id} />
+              <VaccinationVerifyButtons recordId={record.id} canDelete={canDelete} />
             </li>
           ))}
         </ul>

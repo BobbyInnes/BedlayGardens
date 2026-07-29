@@ -34,3 +34,34 @@ export async function verifyVaccinationRecord(
   revalidatePath("/admin/vaccinations")
   revalidatePath("/portal/vaccinations")
 }
+
+// Irreversible. Restricted to super admins, consistent with customer/booking
+// deletion elsewhere in admin — regular admins/staff can only verify or mark
+// records expired, not erase them.
+export async function deleteVaccinationRecord(recordId: string) {
+  const session = await requireAdmin()
+  if (!session.user.isSuperAdmin) {
+    throw new Error("Only a super admin can delete a vaccination record.")
+  }
+
+  const record = await prisma.vaccinationRecord.findUnique({
+    where: { id: recordId },
+    include: { dog: true },
+  })
+  if (!record) {
+    throw new Error("Vaccination record not found.")
+  }
+
+  await prisma.vaccinationRecord.delete({ where: { id: recordId } })
+  await logAudit({
+    actorId: session.user.id,
+    action: "DELETE_VACCINATION_RECORD",
+    entity: "VaccinationRecord",
+    entityId: recordId,
+    meta: `${record.dog.name} — ${record.type}`,
+  })
+
+  revalidatePath("/admin/vaccinations")
+  revalidatePath("/staff/vaccinations")
+  revalidatePath("/portal/vaccinations")
+}

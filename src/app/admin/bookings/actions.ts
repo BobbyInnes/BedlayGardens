@@ -595,6 +595,46 @@ export async function cancelBookingAdmin(
   }
 }
 
+// Irreversible — permanently erases the booking itself, not just its status.
+// Restricted to super admins, consistent with customer deletion. Unlike
+// cancelBookingAdmin, this has no status restriction: it's a data-cleanup
+// override, not a normal day-to-day cancellation, so it can remove a booking
+// in any state (including checked-in/completed).
+export async function deleteBookingAdmin(bookingId: string) {
+  const session = await requireAdmin()
+  if (!session.user.isSuperAdmin) {
+    throw new Error("Only a super admin can delete a booking.")
+  }
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { service: true, customer: true },
+  })
+  if (!booking) {
+    throw new Error("Booking not found.")
+  }
+
+  await prisma.$transaction([
+    prisma.walkBooking.deleteMany({ where: { bookingId } }),
+    prisma.vanRunStop.deleteMany({ where: { bookingId } }),
+    prisma.trialVisit.deleteMany({ where: { bookingId } }),
+    prisma.review.deleteMany({ where: { bookingId } }),
+    prisma.booking.delete({ where: { id: bookingId } }),
+  ])
+  await offerNextInLine(booking.serviceId, booking.startDate)
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "DELETE_BOOKING",
+    entity: "Booking",
+    entityId: bookingId,
+    meta: `${booking.service.name} — ${booking.customer.name} <${booking.customer.email}>`,
+  })
+
+  revalidatePath("/admin/bookings")
+  redirect("/admin/bookings")
+}
+
 export type SendInvoiceResult = { status: "idle" | "error"; message?: string }
 
 /**
