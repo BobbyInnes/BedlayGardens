@@ -74,7 +74,7 @@ export async function createVaccinationManual(
     action: "CREATE_VACCINATION_RECORD",
     entity: "VaccinationRecord",
     entityId: record.id,
-    meta: `${type} for ${dog.name}, owner ${session.user.name} <${session.user.email}> — entered manually`,
+    meta: `${type} for ${dog.name}, owner ${session.user.name} <${session.user.email}> — ${record.dateGiven.toLocaleDateString("en-GB")} to ${record.expiryDate.toLocaleDateString("en-GB")} — entered manually`,
   })
 
   revalidatePath("/portal/vaccinations")

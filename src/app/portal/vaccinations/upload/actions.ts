@@ -54,7 +54,7 @@ export async function saveExtractedVaccinations(
       action: "CREATE_VACCINATION_RECORD",
       entity: "VaccinationRecord",
       entityId: record.id,
-      meta: `${record.type} for ${dog.name}, owner ${session.user.name} <${session.user.email}> — from uploaded certificate`,
+      meta: `${record.type} for ${dog.name}, owner ${session.user.name} <${session.user.email}> — ${record.dateGiven.toLocaleDateString("en-GB")} to ${record.expiryDate.toLocaleDateString("en-GB")} — from uploaded certificate`,
     })
   }
 

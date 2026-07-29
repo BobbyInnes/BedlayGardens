@@ -29,7 +29,7 @@ export async function verifyVaccinationRecord(
     action: "VERIFY_VACCINATION_RECORD",
     entity: "VaccinationRecord",
     entityId: recordId,
-    meta: `${record.type} — ${status} — ${record.dog.name}, owner ${record.dog.owner.name} <${record.dog.owner.email}>`,
+    meta: `${record.type} — ${status} — ${record.dateGiven.toLocaleDateString("en-GB")} to ${record.expiryDate.toLocaleDateString("en-GB")} — ${record.dog.name}, owner ${record.dog.owner.name} <${record.dog.owner.email}>`,
   })
 
   revalidatePath("/staff/vaccinations")
