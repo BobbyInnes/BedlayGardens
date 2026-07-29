@@ -5,7 +5,8 @@ import { prisma } from "@/lib/prisma"
 import { canManageAdmins, superAdminSlotAvailable } from "@/lib/admin-permissions"
 import { StaffForm } from "@/components/admin/staff-form"
 import { ResetPasswordForm } from "@/components/admin/reset-password-form"
-import { updateStaff } from "@/app/admin/staff/actions"
+import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
+import { updateStaff, deleteStaff } from "@/app/admin/staff/actions"
 
 export const metadata: Metadata = {
   title: "Edit Staff | Admin",
@@ -56,6 +57,22 @@ export default async function EditStaffPage({
         <h2 className="text-lg font-semibold">Reset password</h2>
         <ResetPasswordForm staffId={staff.id} />
       </section>
+
+      {session?.user.isSuperAdmin && session.user.id !== staff.id && (
+        <section className="space-y-3 rounded-lg border border-destructive/50 p-4">
+          <h2 className="text-sm font-semibold text-destructive">Danger zone</h2>
+          <p className="text-sm text-muted-foreground">
+            Permanently deletes this account, their audit log entries, and any incident reports
+            they filed. This cannot be undone.
+          </p>
+          <ConfirmDeleteButton
+            label="Delete staff account"
+            title={`Delete ${staff.name}?`}
+            description={`This will permanently delete ${staff.name}'s account, their audit log entries, and any incident reports they filed. This cannot be undone.`}
+            onConfirm={deleteStaff.bind(null, staff.id)}
+          />
+        </section>
+      )}
     </div>
   )
 }

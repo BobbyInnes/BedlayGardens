@@ -10,6 +10,7 @@ import { savePublicUpload, deletePublicUpload } from "@/lib/storage"
 import { sanitizeRichText } from "@/lib/sanitize-html"
 import { canManageAdmins, superAdminSlotAvailable, MAX_SUPER_ADMINS } from "@/lib/admin-permissions"
 import { logAudit } from "@/lib/audit"
+import { deleteStaffAndAllData } from "@/lib/delete-staff"
 
 export type AdminActionState = {
   status: "idle" | "error"
@@ -331,4 +332,38 @@ export async function resetStaffPassword(
   })
 
   return { status: "idle", message: "Password reset." }
+}
+
+// Irreversible — deletes the staff account and their audit log entries and
+// incident reports. Restricted to super admins, same as customer deletion.
+export async function deleteStaff(staffId: string) {
+  const session = await requireAdmin()
+  if (!session.user.isSuperAdmin) {
+    throw new Error("Only a super admin can delete a staff account.")
+  }
+  if (session.user.id === staffId) {
+    throw new Error("You can't delete your own account.")
+  }
+
+  const staff = await prisma.user.findFirst({
+    where: { id: staffId, role: { in: ["STAFF", "ADMIN"] } },
+  })
+  if (!staff) {
+    throw new Error("Staff member not found.")
+  }
+  if (await wouldRemoveLastSuperAdmin(staffId, false)) {
+    throw new Error("You can't delete the only remaining super admin.")
+  }
+
+  await prisma.$transaction((tx) => deleteStaffAndAllData(tx, staffId))
+  await logAudit({
+    actorId: session.user.id,
+    action: "DELETE_STAFF",
+    entity: "User",
+    entityId: staffId,
+    meta: `${staff.name} <${staff.email}> — ${staff.role}`,
+  })
+
+  revalidateStaffPaths()
+  redirect("/admin/staff")
 }
