@@ -9,6 +9,7 @@ import { formatPence } from "@/lib/format"
 import { CancelBookingButton } from "@/components/portal/cancel-booking-button"
 import { PayButton } from "@/components/marketing/pay-button"
 import { RedeemCreditForm } from "@/components/portal/redeem-credit-form"
+import { TRIAL_OUTCOME_LABELS } from "@/lib/trial-outcome"
 
 export const metadata: Metadata = {
   title: "Bookings",
@@ -22,12 +23,6 @@ const NON_CANCELLABLE_STATUSES = [
   "CANCELLED_BY_ADMIN",
   "NO_SHOW",
 ]
-
-const TRIAL_OUTCOME_LABELS = {
-  PASSED: "Passed",
-  RETRY: "Needs another visit",
-  NOT_SUITABLE: "Not suitable",
-} as const
 
 export default async function PortalBookingsPage() {
   const session = await auth()

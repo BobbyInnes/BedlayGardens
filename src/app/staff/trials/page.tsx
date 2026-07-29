@@ -6,16 +6,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import type { Prisma } from "@/generated/prisma/client"
+import { TRIAL_OUTCOME_LABELS } from "@/lib/trial-outcome"
 
 export const metadata: Metadata = {
   title: "Meet & Greet Review | Staff",
 }
-
-const OUTCOME_LABELS = {
-  PASSED: "Passed",
-  RETRY: "Needs another visit",
-  NOT_SUITABLE: "Not suitable",
-} as const
 
 export default async function StaffTrialsPage({
   searchParams,
@@ -126,7 +121,7 @@ export default async function StaffTrialsPage({
                     </span>
                   </p>
                   <Badge variant={trial.outcome === "PASSED" ? "default" : "destructive"}>
-                    {trial.outcome ? OUTCOME_LABELS[trial.outcome] : ""}
+                    {trial.outcome ? TRIAL_OUTCOME_LABELS[trial.outcome] : ""}
                   </Badge>
                 </div>
                 {trial.notes && <p className="text-muted-foreground">{trial.notes}</p>}

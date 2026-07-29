@@ -12,12 +12,7 @@ import {
 } from "@/components/ui/select"
 import { setTrialOutcome } from "@/app/staff/trials/actions"
 import type { TrialOutcome } from "@/generated/prisma/client"
-
-const OUTCOME_LABELS: Record<TrialOutcome, string> = {
-  PASSED: "Passed",
-  RETRY: "Needs another visit",
-  NOT_SUITABLE: "Not suitable",
-}
+import { TRIAL_OUTCOME_LABELS } from "@/lib/trial-outcome"
 
 export function TrialOutcomeForm({ trialVisitId }: { trialVisitId: string }) {
   const [outcome, setOutcome] = React.useState<TrialOutcome>("PASSED")
@@ -41,9 +36,9 @@ export function TrialOutcomeForm({ trialVisitId }: { trialVisitId: string }) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {(Object.keys(OUTCOME_LABELS) as TrialOutcome[]).map((value) => (
+            {(Object.keys(TRIAL_OUTCOME_LABELS) as TrialOutcome[]).map((value) => (
               <SelectItem key={value} value={value}>
-                {OUTCOME_LABELS[value]}
+                {TRIAL_OUTCOME_LABELS[value]}
               </SelectItem>
             ))}
           </SelectContent>
