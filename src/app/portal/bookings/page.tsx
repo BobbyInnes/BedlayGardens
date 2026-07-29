@@ -35,7 +35,7 @@ export default async function PortalBookingsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Bookings</h1>
         <Button size="sm" asChild>
-          <Link href="/book">Book a stay</Link>
+          <Link href="/book">Book a service</Link>
         </Button>
       </div>
 
@@ -125,7 +125,7 @@ export default async function PortalBookingsPage() {
         <p className="text-sm text-muted-foreground">
           You don&rsquo;t have any bookings yet.{" "}
           <Link href="/book" className="font-medium text-primary hover:underline">
-            Book a stay
+            Book a service
           </Link>
           .
         </p>

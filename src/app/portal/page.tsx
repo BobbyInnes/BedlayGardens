@@ -157,7 +157,7 @@ export default async function PortalDashboardPage() {
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">No upcoming bookings yet.</p>
                 <Button size="sm" asChild>
-                  <Link href="/book">Book a stay</Link>
+                  <Link href="/book">Book a service</Link>
                 </Button>
               </div>
             )}
