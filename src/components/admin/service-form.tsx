@@ -58,7 +58,6 @@ export function ServiceForm({
       {isDaycare ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <input type="hidden" name="pricingModel" value={service.pricingModel} />
-          <input type="hidden" name="sortOrder" value={service.sortOrder} />
           <div className="space-y-2">
             <Label htmlFor="basePricePence">Full day price (pence)</Label>
             <Input
@@ -88,6 +87,10 @@ export function ServiceForm({
           <p className="text-xs text-muted-foreground sm:col-span-2">
             Charged when a customer selects Full Day or Half Day when booking Day Care.
           </p>
+          <div className="space-y-2">
+            <Label htmlFor="sortOrder">Sort order</Label>
+            <Input id="sortOrder" name="sortOrder" type="number" defaultValue={service?.sortOrder ?? 0} />
+          </div>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-3">
