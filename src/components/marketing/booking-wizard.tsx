@@ -10,7 +10,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { formatPence } from "@/lib/format"
 import { isWeekend } from "@/lib/dates"
 import { cn } from "@/lib/utils"
-import { createBooking, type BookingActionState } from "@/app/(marketing)/book/actions"
+import {
+  createBooking,
+  createDaycareBookings,
+  type BookingActionState,
+} from "@/app/(marketing)/book/actions"
 import { joinWaitlist } from "@/app/portal/waitlist/actions"
 import { AvailabilityDatePicker } from "@/components/marketing/availability-date-picker"
 
@@ -88,6 +92,7 @@ export function BookingWizard({
   const [startDate, setStartDate] = React.useState(todayISO())
   const [endDate, setEndDate] = React.useState("")
   const [date, setDate] = React.useState("")
+  const [daycareDates, setDaycareDates] = React.useState<string[]>([])
   const [daycareDuration, setDaycareDuration] = React.useState<"FULL_DAY" | "HALF_DAY">("FULL_DAY")
   const [daycareHalfDaySlot, setDaycareHalfDaySlot] = React.useState<"AM" | "PM" | "">("")
   const [walkSlots, setWalkSlots] = React.useState<WalkSlotOption[]>([])
@@ -98,7 +103,7 @@ export function BookingWizard({
   const [postcode, setPostcode] = React.useState("")
   const [accessNotes, setAccessNotes] = React.useState("")
 
-  const dateError = isDateBased ? dateBasedDateError(date) : null
+  const dateError = isMeetGreet ? dateBasedDateError(date) : null
 
   const [availabilityChecked, setAvailabilityChecked] = React.useState(false)
   const [available, setAvailable] = React.useState<boolean | null>(null)
@@ -157,7 +162,23 @@ export function BookingWizard({
         const data = await res.json()
         setAvailable(!!data.available)
         setAvailabilityReason(null)
-      } else if (isDateBased) {
+      } else if (isDaycare) {
+        const results = await Promise.all(
+          daycareDates.map(async (d) => {
+            const params = new URLSearchParams({ serviceSlug: service.slug, date: d })
+            const res = await fetch(`/api/book/availability?${params}`)
+            const data = await res.json()
+            return { date: d, available: !!data.available }
+          })
+        )
+        const failed = results.filter((r) => !r.available).map((r) => r.date)
+        setAvailable(daycareDates.length > 0 && failed.length === 0)
+        setAvailabilityReason(
+          failed.length > 0
+            ? `Not available: ${failed.map((d) => new Date(`${d}T00:00:00`).toLocaleDateString("en-GB")).join(", ")}`
+            : null
+        )
+      } else if (isMeetGreet) {
         const params = new URLSearchParams({ serviceSlug: service.slug, date })
         const res = await fetch(`/api/book/availability?${params}`)
         const data = await res.json()
@@ -214,7 +235,7 @@ export function BookingWizard({
     const throughDate = isBoarding
       ? endDate
       : isDaycare
-        ? date
+        ? [...daycareDates].sort().at(-1)
         : isMeetGreet
           ? undefined
           : isForestWalk
@@ -244,7 +265,7 @@ export function BookingWizard({
 
   // Client-side price preview mirroring the server's boarding discount logic.
   const nights = isBoarding ? nightsBetween(startDate, endDate) : 1
-  const units = isBoarding ? nights : 1
+  const units = isBoarding ? nights : isDaycare ? Math.max(1, daycareDates.length) : 1
   const unitPricePence =
     isDaycare && daycareDuration === "HALF_DAY" && service.halfDayPricePence != null
       ? service.halfDayPricePence
@@ -274,22 +295,26 @@ export function BookingWizard({
     setSubmitError(null)
     setRequiresTrialVisit(false)
     try {
-      const result: BookingActionState = await createBooking({
-        serviceSlug: service.slug,
-        dogIds: selectedDogIds,
-        addons: selectedAddonIds.map((addonId) => ({ addonId, quantity: 1 })),
-        startDate: isBoarding ? startDate : undefined,
-        endDate: isBoarding ? endDate : undefined,
-        date: isDateBased ? date : undefined,
-        daycareDuration: isDaycare ? daycareDuration : undefined,
-        daycareHalfDaySlot:
-          isDaycare && daycareDuration === "HALF_DAY" && daycareHalfDaySlot ? daycareHalfDaySlot : undefined,
-        walkSlotId: isForestWalk ? selectedSlotId : undefined,
-        vanRunId: isDogWalking ? selectedRunId : undefined,
-        pickupAddress: isDogWalking ? pickupAddress : undefined,
-        accessNotes: isDogWalking ? accessNotes : undefined,
-        postcode: isDogWalking ? postcode : undefined,
-      })
+      const result: BookingActionState = isDaycare
+        ? await createDaycareBookings(daycareDates, {
+            dogIds: selectedDogIds,
+            addons: selectedAddonIds.map((addonId) => ({ addonId, quantity: 1 })),
+            daycareDuration,
+            daycareHalfDaySlot: daycareDuration === "HALF_DAY" && daycareHalfDaySlot ? daycareHalfDaySlot : undefined,
+          })
+        : await createBooking({
+            serviceSlug: service.slug,
+            dogIds: selectedDogIds,
+            addons: selectedAddonIds.map((addonId) => ({ addonId, quantity: 1 })),
+            startDate: isBoarding ? startDate : undefined,
+            endDate: isBoarding ? endDate : undefined,
+            date: isMeetGreet ? date : undefined,
+            walkSlotId: isForestWalk ? selectedSlotId : undefined,
+            vanRunId: isDogWalking ? selectedRunId : undefined,
+            pickupAddress: isDogWalking ? pickupAddress : undefined,
+            accessNotes: isDogWalking ? accessNotes : undefined,
+            postcode: isDogWalking ? postcode : undefined,
+          })
       if (result?.status === "error") {
         setSubmitError(result.message ?? "Something went wrong.")
         if (result.missingVaccinations) setVaccinationWarning(result.missingVaccinations)
@@ -347,11 +372,29 @@ export function BookingWizard({
             </div>
           )}
 
-          {isDateBased && (
+          {isDaycare && (
+            <div className="space-y-2">
+              <Label htmlFor="date">Dates</Label>
+              <AvailabilityDatePicker
+                mode="multiple"
+                serviceSlug="daycare"
+                value={daycareDates}
+                onChange={(value) => {
+                  setDaycareDates(value)
+                  setAvailabilityChecked(false)
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Pick as many days as you&rsquo;d like — each is booked and paid for separately.
+              </p>
+            </div>
+          )}
+
+          {isMeetGreet && (
             <div className="space-y-2">
               <Label htmlFor="date">Date</Label>
               <AvailabilityDatePicker
-                serviceSlug={isDaycare ? "daycare" : "meet-greet"}
+                serviceSlug="meet-greet"
                 value={date}
                 onChange={(value) => {
                   setDate(value)
@@ -495,7 +538,8 @@ export function BookingWizard({
                 disabled={
                   checkingAvailability ||
                   (isBoarding && (!startDate || !endDate)) ||
-                  (isDateBased && (!date || !!dateError))
+                  (isDaycare && daycareDates.length === 0) ||
+                  (isMeetGreet && (!date || !!dateError))
                 }
               >
                 {checkingAvailability ? "Checking…" : "Check availability"}
@@ -507,7 +551,7 @@ export function BookingWizard({
                     : (availabilityReason ?? "Sorry, not available for these dates.")}
                 </p>
               )}
-              {availabilityChecked && !available && isDateBased && !availabilityReason && (
+              {availabilityChecked && !available && isMeetGreet && !availabilityReason && (
                 <div className="space-y-2 rounded-md border border-border p-3">
                   <p className="text-sm text-muted-foreground">
                     Join the waitlist and we&rsquo;ll email you the moment a space opens up.
@@ -695,9 +739,15 @@ export function BookingWizard({
                   : ""}{" "}
                 × {dogCount} dog{dogCount > 1 ? "s" : ""}
                 {isBoarding ? ` × ${nights} night${nights === 1 ? "" : "s"}` : ""}
+                {isDaycare ? ` × ${daycareDates.length} date${daycareDates.length === 1 ? "" : "s"}` : ""}
               </span>
               <span>{formatPence(basePreviewPence)}</span>
             </div>
+            {isDaycare && (
+              <p className="text-xs text-muted-foreground">
+                {daycareDates.map((d) => new Date(`${d}T00:00:00`).toLocaleDateString("en-GB")).join(", ")}
+              </p>
+            )}
             {selectedAddonIds.map((id) => {
               const addon = addons.find((a) => a.id === id)
               if (!addon) return null
@@ -742,6 +792,13 @@ export function BookingWizard({
             Prices shown are our standard rates — peak-season pricing, if it applies to these dates,
             is calculated when you confirm and shown on your booking confirmation.
           </p>
+
+          {isDaycare && daycareDates.length > 1 && (
+            <p className="text-xs text-muted-foreground">
+              Each date above becomes its own booking with its own payment — if one date turns out to
+              be unavailable when you confirm, the rest still go ahead.
+            </p>
+          )}
 
           <p className="text-xs text-muted-foreground">
             {service.paymentTiming === "FULL_UPFRONT"

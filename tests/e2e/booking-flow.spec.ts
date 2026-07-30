@@ -20,7 +20,7 @@ function isoDate(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
 }
 
-test("customer can book daycare end to end", async ({ page }) => {
+test("customer can book daycare for multiple dates end to end", async ({ page }) => {
   await page.goto("/login")
   await page.getByRole("textbox", { name: "Email", exact: true }).fill(E2E_CUSTOMER_EMAIL)
   await page.getByRole("textbox", { name: "Password", exact: true }).fill(E2E_CUSTOMER_PASSWORD)
@@ -30,12 +30,19 @@ test("customer can book daycare end to end", async ({ page }) => {
   await page.goto("/book/daycare")
 
   const today = new Date()
-  const futureDate = nextWeekday(5)
-  await page.getByRole("button", { name: "Select a date" }).click()
-  for (let i = 0; i < monthsBetween(today, futureDate); i++) {
+  // Two distinct weekdays, a few days apart so they can't land on the same day.
+  const firstDate = nextWeekday(5)
+  const secondDate = nextWeekday(9)
+  await page.getByRole("button", { name: "Select dates" }).click()
+  for (let i = 0; i < monthsBetween(today, firstDate); i++) {
     await page.getByRole("button", { name: "Go to the Next Month" }).click()
   }
-  await page.locator(`[data-day="${isoDate(futureDate)}"] button`).click()
+  await page.locator(`[data-day="${isoDate(firstDate)}"] button`).click()
+  for (let i = 0; i < monthsBetween(firstDate, secondDate); i++) {
+    await page.getByRole("button", { name: "Go to the Next Month" }).click()
+  }
+  await page.locator(`[data-day="${isoDate(secondDate)}"] button`).click()
+  await page.getByRole("button", { name: "Done" }).click()
 
   await page.getByRole("button", { name: "Check availability" }).click()
   await expect(page.getByText("Available!")).toBeVisible({ timeout: 10_000 })
@@ -50,8 +57,8 @@ test("customer can book daycare end to end", async ({ page }) => {
   await page.getByRole("checkbox", { name: /Terms & Conditions/ }).click()
   await page.getByRole("button", { name: "Confirm booking" }).click()
 
-  await page.waitForURL("**/book/confirmation/**", { timeout: 10_000 })
-  await expect(page.getByRole("heading", { name: "Booking reserved" })).toBeVisible()
+  await page.waitForURL("**/book/confirmation/multi**", { timeout: 10_000 })
+  await expect(page.getByRole("heading", { name: /2 .* bookings reserved/i })).toBeVisible()
   // Match the daycare service however it's named/renamed (e.g. "Day Care : (Half Day)").
   await expect(page.getByText(/day\s*care/i).first()).toBeVisible()
 })

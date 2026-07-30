@@ -599,16 +599,25 @@ export async function resolveBookingCreation(
     }
   }
 
-  const owner = await prisma.user.findUnique({
-    where: { id: customerId },
-    select: { name: true, email: true },
+  const createdBooking = await prisma.booking.findUnique({
+    where: { id: bookingId! },
+    select: {
+      startDate: true,
+      endDate: true,
+      customer: { select: { name: true, email: true } },
+    },
   })
+  const dateSummary = createdBooking
+    ? createdBooking.startDate.getTime() === createdBooking.endDate.getTime()
+      ? createdBooking.startDate.toLocaleDateString("en-GB")
+      : `${createdBooking.startDate.toLocaleDateString("en-GB")} – ${createdBooking.endDate.toLocaleDateString("en-GB")}`
+    : ""
   await logAudit({
     actorId: options?.actorId ?? customerId,
     action: "CREATE_BOOKING",
     entity: "Booking",
     entityId: bookingId!,
-    meta: `${service.name} — ${dogs.map((dog) => dog.name).join(", ")} — owner ${owner?.name} <${owner?.email}>`,
+    meta: `${service.name} — ${dateSummary} — ${dogs.map((dog) => dog.name).join(", ")} — owner ${createdBooking?.customer.name} <${createdBooking?.customer.email}>`,
   })
 
   return { status: "idle", bookingId: bookingId! }
@@ -625,4 +634,52 @@ export async function createBooking(
 
   revalidatePath("/portal/bookings")
   redirect(`/book/confirmation/${result.bookingId}`)
+}
+
+export type MultiBookingActionState = BookingActionState & { failedDates?: string[] }
+
+/**
+ * Day care only, for booking several dates in one pass. Each date becomes
+ * its own booking — same creation path as a single-date booking, just
+ * looped — so one date failing (no capacity, missing vaccinations, etc.)
+ * doesn't stop the others from going through.
+ */
+export async function createDaycareBookings(
+  dates: string[],
+  input: Omit<z.infer<typeof baseSchema>, "date" | "serviceSlug">
+): Promise<MultiBookingActionState> {
+  const session = await auth()
+  if (!session?.user) return { status: "error", message: "Please log in to book." }
+  if (dates.length === 0) return { status: "error", message: "Select at least one date." }
+
+  const bookingIds: string[] = []
+  const failedDates: string[] = []
+  let lastError: BookingCreationResult | null = null
+
+  for (const date of dates) {
+    const result = await resolveBookingCreation(session.user.id, {
+      ...input,
+      serviceSlug: "daycare",
+      date,
+    })
+    if (result.status === "error") {
+      failedDates.push(date)
+      lastError = result
+    } else if (result.bookingId) {
+      bookingIds.push(result.bookingId)
+    }
+  }
+
+  if (bookingIds.length === 0) {
+    return {
+      status: "error",
+      message: lastError?.message ?? "Could not create any bookings.",
+      missingVaccinations: lastError?.missingVaccinations,
+      requiresTrialVisit: lastError?.requiresTrialVisit,
+      failedDates,
+    }
+  }
+
+  revalidatePath("/portal/bookings")
+  redirect(`/book/confirmation/multi?ids=${bookingIds.join(",")}${failedDates.length > 0 ? `&failed=${failedDates.length}` : ""}`)
 }
