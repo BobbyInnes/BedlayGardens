@@ -43,12 +43,21 @@ export async function markPaymentSucceededAndNotify(stripePaymentIntentId: strin
   })
 
   const settings = await getSettings()
+  const otherDaycareDates = booking.batchId
+    ? (
+        await prisma.booking.findMany({
+          where: { batchId: booking.batchId, id: { not: booking.id } },
+          select: { startDate: true },
+        })
+      ).map((b) => b.startDate)
+    : []
   const bookingSummary = {
     serviceName: booking.service.name,
     startDate: booking.startDate,
     endDate: booking.endDate,
     totalPence: booking.totalPence,
     depositPence: booking.depositPence,
+    otherDaycareDates,
   }
 
   const receipt = paymentReceiptEmail(

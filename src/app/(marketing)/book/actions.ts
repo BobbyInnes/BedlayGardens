@@ -1,5 +1,6 @@
 "use server"
 
+import { randomUUID } from "node:crypto"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
@@ -93,6 +94,12 @@ export async function resolveBookingCreation(
     overrideCompatibilityFlags?: boolean
     overriddenByUserId?: string
     actorId?: string
+    // Day care multi-date booking only — links this booking to the others
+    // created in the same batch, and (since siblings may not exist in the DB
+    // yet while the batch is still being created) the other requested dates
+    // so an immediate confirmation email can mention them right away.
+    batchId?: string
+    otherDaycareDates?: string[]
   }
 ): Promise<BookingCreationResult> {
   const skipVaccinationGate = options?.skipVaccinationGate ?? false
@@ -352,6 +359,7 @@ export async function resolveBookingCreation(
           endDate: date,
           daycareDuration,
           daycareHalfDaySlot: daycareDuration === "HALF_DAY" ? data.daycareHalfDaySlot : null,
+          batchId: options?.batchId,
           ...paymentFieldsFor(service.paymentTiming, pricing),
           totalPence: pricing.totalPence,
         },
@@ -592,6 +600,7 @@ export async function resolveBookingCreation(
         endDate: booking.endDate,
         totalPence: booking.totalPence,
         depositPence: booking.depositPence,
+        otherDaycareDates: (options?.otherDaycareDates ?? []).map((d) => startOfDay(new Date(d))),
       })
       await sendEmail({ to: customer.email, subject: confirmation.subject, html: confirmation.html })
     } catch (error) {
@@ -655,13 +664,14 @@ export async function createDaycareBookings(
   const bookingIds: string[] = []
   const failedDates: string[] = []
   let lastError: BookingCreationResult | null = null
+  const batchId = dates.length > 1 ? randomUUID() : undefined
 
   for (const date of dates) {
-    const result = await resolveBookingCreation(session.user.id, {
-      ...input,
-      serviceSlug: "daycare",
-      date,
-    })
+    const result = await resolveBookingCreation(
+      session.user.id,
+      { ...input, serviceSlug: "daycare", date },
+      { batchId, otherDaycareDates: dates.filter((d) => d !== date) }
+    )
     if (result.status === "error") {
       failedDates.push(date)
       lastError = result

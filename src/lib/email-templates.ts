@@ -46,6 +46,9 @@ type BookingSummary = {
   endDate: Date
   totalPence: number
   depositPence: number
+  // Day care multi-date booking only — the other dates booked in the same
+  // batch, so an email about one date can mention the rest.
+  otherDaycareDates?: Date[]
 }
 
 function dateRange(startDate: Date, endDate: Date): string {
@@ -53,6 +56,15 @@ function dateRange(startDate: Date, endDate: Date): string {
   if (endDate.getTime() === startDate.getTime()) return start
   const end = endDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
   return `${start} – ${end}`
+}
+
+function otherDaycareDatesLine(dates: Date[] | undefined): string {
+  if (!dates || dates.length === 0) return ""
+  const formatted = [...dates]
+    .sort((a, b) => a.getTime() - b.getTime())
+    .map((d) => d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }))
+    .join(", ")
+  return `<p>You also booked day care for: ${formatted}.</p>`
 }
 
 export function welcomeEmail(
@@ -185,6 +197,7 @@ export function bookingConfirmationEmail(
       "Your booking is confirmed",
       `
         <p>Thanks — your ${booking.serviceName} booking for ${dateRange(booking.startDate, booking.endDate)} is confirmed.</p>
+        ${otherDaycareDatesLine(booking.otherDaycareDates)}
         <p style="margin: 16px 0;">
           Total: <strong>${formatPence(booking.totalPence)}</strong><br />
           Deposit paid: ${formatPence(booking.depositPence)}<br />
@@ -211,6 +224,7 @@ export function paymentReceiptEmail(
       "Payment received",
       `
         <p>We've received your ${label} payment of <strong>${formatPence(amountPence)}</strong> for your ${booking.serviceName} booking (${dateRange(booking.startDate, booking.endDate)}).</p>
+        ${otherDaycareDatesLine(booking.otherDaycareDates)}
         ${
           paymentType === "DEPOSIT" && booking.totalPence - booking.depositPence > 0
             ? `<p>Balance of ${formatPence(booking.totalPence - booking.depositPence)} is due before your stay.</p>`

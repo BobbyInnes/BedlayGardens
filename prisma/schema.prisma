@@ -349,6 +349,10 @@ model Booking {
   // Only set for daycare bookings.
   daycareDuration    DaycareDuration?
   daycareHalfDaySlot DaycareHalfDaySlot?
+  // Shared by every booking created together when a customer books several
+  // Day Care dates in one pass — each date is still its own Booking row, this
+  // just lets emails/UI find the sibling dates. Null for everything else.
+  batchId            String?
 
   bookingDogs       BookingDog[]
   bookingAddons     BookingAddon[]
@@ -366,6 +370,7 @@ model Booking {
   @@index([serviceId])
   @@index([status])
   @@index([kennelUnitId, startDate, endDate])
+  @@index([batchId])
 }
 
 model BookingDog {
