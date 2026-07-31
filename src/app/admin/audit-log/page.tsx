@@ -164,7 +164,7 @@ export default async function AdminAuditLogPage({
                     </Badge>
                     <p className="text-xs text-muted-foreground">{log.entity}</p>
                   </td>
-                  <td className="p-3 text-muted-foreground">{log.meta ?? "—"}</td>
+                  <td className="max-w-md p-3 whitespace-pre-wrap text-muted-foreground">{log.meta ?? "—"}</td>
                 </tr>
               ))}
             </tbody>

@@ -1,13 +1,14 @@
 import type { Prisma } from "@/generated/prisma/client"
 import { startOfDay, addDays } from "@/lib/dates"
 
-export type AuditLogCategory = "LOGIN" | "DOG" | "BOOKING" | "CUSTOMER"
+export type AuditLogCategory = "LOGIN" | "DOG" | "BOOKING" | "CUSTOMER" | "ADHOC_FIX"
 
 export const AUDIT_LOG_CATEGORIES: { value: AuditLogCategory; label: string }[] = [
   { value: "LOGIN", label: "Logins" },
   { value: "DOG", label: "Dogs" },
   { value: "BOOKING", label: "Bookings" },
   { value: "CUSTOMER", label: "Customers" },
+  { value: "ADHOC_FIX", label: "Ad-hoc fixes" },
 ]
 
 // entity "User" is shared by customer actions and staff-management actions
@@ -30,6 +31,8 @@ function categoryWhere(category: string | undefined): Prisma.AuditLogWhereInput 
       return { entity: "Booking" }
     case "CUSTOMER":
       return { entity: "User", action: { in: CUSTOMER_ACTIONS } }
+    case "ADHOC_FIX":
+      return { action: "ADHOC_FIX" }
     default:
       return undefined
   }

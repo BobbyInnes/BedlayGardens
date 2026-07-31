@@ -36,6 +36,10 @@ export default async function AdminOccupancyPage({
   const prevMonth = new Date(year, monthIndex - 1, 1)
   const nextMonth = new Date(year, monthIndex + 1, 1)
 
+  function weekdayLabel(day: number): string {
+    return new Date(year, monthIndex, day).toLocaleDateString("en-GB", { weekday: "short" })
+  }
+
   const [kennelUnits, occupancies, blockedDates, daycareBookings] = await Promise.all([
     prisma.kennelUnit.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
     prisma.kennelOccupancy.findMany({
@@ -206,7 +210,7 @@ export default async function AdminOccupancyPage({
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full border-collapse text-xs">
-            <thead>
+            <thead className="text-[0.9rem]">
               <tr>
                 <th className="sticky left-0 z-10 border-b border-r border-border bg-background p-2 text-left font-medium">
                   Crate
@@ -216,8 +220,11 @@ export default async function AdminOccupancyPage({
                     key={day}
                     className="min-w-14 border-b border-border p-1 text-center font-medium text-muted-foreground"
                   >
+                    <div className="text-[0.675rem] font-normal uppercase tracking-wide">
+                      {weekdayLabel(day)}
+                    </div>
                     <div>{day}</div>
-                    <div className="text-[9px] font-normal">{petsByDay.get(day)?.size ?? 0} pets</div>
+                    <div className="text-[0.675rem] font-normal">{petsByDay.get(day)?.size ?? 0} pets</div>
                   </th>
                 ))}
               </tr>
