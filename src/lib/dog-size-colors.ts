@@ -11,11 +11,11 @@ export const DOG_SIZE_LABELS: Record<DogSize, string> = {
 }
 
 export const DOG_SIZE_COLORS: Record<DogSize, string> = {
-  MINIATURE: "bg-cyan-500",
-  SMALL: "bg-emerald-500",
-  MEDIUM: "bg-blue-500",
-  LARGE: "bg-amber-500",
-  GIANT: "bg-rose-500",
+  MINIATURE: "bg-pink-500",
+  SMALL: "bg-purple-500",
+  MEDIUM: "bg-red-500",
+  LARGE: "bg-blue-500",
+  GIANT: "bg-green-500",
 }
 
 export const UNKNOWN_SIZE_COLOR = "bg-gray-400"
