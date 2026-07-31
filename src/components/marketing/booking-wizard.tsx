@@ -118,6 +118,9 @@ export function BookingWizard({
   const [vaccinationWarning, setVaccinationWarning] = React.useState<
     { dogName: string; missingTypes: string[] }[] | null
   >(null)
+  const [duplicateServiceWarning, setDuplicateServiceWarning] = React.useState<
+    { dogName: string; existingServiceName: string; existingDateRange: string }[] | null
+  >(null)
   const [checkingVaccinations, setCheckingVaccinations] = React.useState(false)
   const [trialWarning, setTrialWarning] = React.useState<string[] | null>(null)
   const [checkingTrial, setCheckingTrial] = React.useState(false)
@@ -294,6 +297,7 @@ export function BookingWizard({
     setSubmitting(true)
     setSubmitError(null)
     setRequiresTrialVisit(false)
+    setDuplicateServiceWarning(null)
     try {
       const result: BookingActionState = isDaycare
         ? await createDaycareBookings(daycareDates, {
@@ -319,6 +323,7 @@ export function BookingWizard({
         setSubmitError(result.message ?? "Something went wrong.")
         if (result.missingVaccinations) setVaccinationWarning(result.missingVaccinations)
         if (result.requiresTrialVisit) setRequiresTrialVisit(true)
+        if (result.duplicateServiceBooking) setDuplicateServiceWarning(result.duplicateServiceBooking)
       }
     } finally {
       setSubmitting(false)
@@ -646,6 +651,27 @@ export function BookingWizard({
                 </Link>
                 .
               </p>
+            </div>
+          )}
+
+          {duplicateServiceWarning && duplicateServiceWarning.length > 0 && (
+            <div className="flex items-start gap-3 rounded-lg border border-destructive bg-destructive/10 p-4 text-sm">
+              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden="true" />
+              <div>
+                <p className="font-bold text-destructive">Can&apos;t double-book this dog</p>
+                <ul className="mt-1 list-disc pl-5">
+                  {duplicateServiceWarning.map((entry, i) => (
+                    <li key={`${entry.dogName}-${i}`}>
+                      <span className="font-medium">{entry.dogName}</span> already has a{" "}
+                      {entry.existingServiceName} booking for {entry.existingDateRange}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-muted-foreground">
+                  A dog can only be booked into one service at a time. Choose different dates, remove this
+                  dog, or cancel the existing booking first.
+                </p>
+              </div>
             </div>
           )}
 

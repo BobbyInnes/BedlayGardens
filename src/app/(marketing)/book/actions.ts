@@ -20,6 +20,12 @@ import { GROUP_BLOCKING_FLAGS, SHARED_KENNEL_BLOCKING_FLAGS, DOG_FLAG_LABELS } f
 import { hasCurrentSignedAgreement } from "@/lib/agreement"
 import { checkTrialGate } from "@/lib/trial"
 import { getApplicablePriceRules, minNightsRequired } from "@/lib/price-rules"
+import {
+  findDogBookingConflicts,
+  formatDogBookingConflictMessage,
+  formatDogBookingConflicts,
+  type DogBookingConflictEntry,
+} from "@/lib/booking-conflicts"
 
 const addonInputSchema = z.object({ addonId: z.string(), quantity: z.number().int().min(1).max(20) })
 
@@ -46,6 +52,7 @@ export type BookingActionState = {
   compatibilityBlocked?: boolean
   requiresAgreement?: boolean
   requiresTrialVisit?: boolean
+  duplicateServiceBooking?: DogBookingConflictEntry[]
 }
 
 function isUniqueConstraintError(error: unknown): boolean {
@@ -85,6 +92,20 @@ async function runCapacityCheckedTransaction<T>(
 }
 
 export type BookingCreationResult = BookingActionState & { bookingId?: string }
+
+async function checkForDuplicateServiceBooking(
+  dogIds: string[],
+  startDate: Date,
+  endDate: Date
+): Promise<BookingActionState | null> {
+  const conflicts = await findDogBookingConflicts(dogIds, startDate, endDate)
+  if (conflicts.length === 0) return null
+  return {
+    status: "error",
+    message: formatDogBookingConflictMessage(conflicts),
+    duplicateServiceBooking: formatDogBookingConflicts(conflicts),
+  }
+}
 
 export async function resolveBookingCreation(
   customerId: string,
@@ -208,6 +229,9 @@ export async function resolveBookingCreation(
       return { status: "error", message: "Stays longer than 60 nights aren't supported — check the dates." }
     }
 
+    const duplicateConflict = await checkForDuplicateServiceBooking(data.dogIds, startDate, endDate)
+    if (duplicateConflict) return duplicateConflict
+
     const gate = skipVaccinationGate ? { ok: true, perDog: [] } : await checkVaccinationGate(data.dogIds, endDate)
     if (!gate.ok) {
       return {
@@ -307,6 +331,9 @@ export async function resolveBookingCreation(
       return { status: "error", message: "Select AM or PM for a half day booking." }
     }
 
+    const duplicateConflict = await checkForDuplicateServiceBooking(data.dogIds, date, date)
+    if (duplicateConflict) return duplicateConflict
+
     const gate = skipVaccinationGate ? { ok: true, perDog: [] } : await checkVaccinationGate(data.dogIds, date)
     if (!gate.ok) {
       return {
@@ -384,6 +411,9 @@ export async function resolveBookingCreation(
       include: { walkBookings: true },
     })
     if (!slot) return { status: "error", message: "Walk slot not found." }
+
+    const duplicateConflict = await checkForDuplicateServiceBooking(data.dogIds, slot.date, slot.date)
+    if (duplicateConflict) return duplicateConflict
 
     const gate = skipVaccinationGate ? { ok: true, perDog: [] } : await checkVaccinationGate(data.dogIds, slot.date)
     if (!gate.ok) {
@@ -464,6 +494,9 @@ export async function resolveBookingCreation(
     const run = await prisma.vanRun.findUnique({ where: { id: data.vanRunId } })
     if (!run) return { status: "error", message: "Van run not found." }
 
+    const duplicateConflict = await checkForDuplicateServiceBooking(data.dogIds, run.date, run.date)
+    if (duplicateConflict) return duplicateConflict
+
     const gate = skipVaccinationGate ? { ok: true, perDog: [] } : await checkVaccinationGate(data.dogIds, run.date)
     if (!gate.ok) {
       return {
@@ -525,6 +558,9 @@ export async function resolveBookingCreation(
   } else if (service.slug === "meet-greet") {
     if (!data.date) return { status: "error", message: "Select a date." }
     const date = startOfDay(new Date(data.date))
+
+    const duplicateConflict = await checkForDuplicateServiceBooking(data.dogIds, date, date)
+    if (duplicateConflict) return duplicateConflict
 
     const availability = await isMeetGreetAvailable(date)
     if (!availability.available) {
