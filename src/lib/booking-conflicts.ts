@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma"
-import { addDays } from "@/lib/dates"
 
 const ACTIVE_STATUSES_EXCLUDED = ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] as const
 
@@ -12,19 +11,15 @@ export type DogBookingConflict = {
   existingEndDate: Date
 }
 
-// A record's real occupied interval, in half-open [start, end) form: a
-// single-day booking (day care, meet & greet, a walk, a van run — always
-// stored as startDate === endDate) occupies just that one day, i.e.
-// [day, day+1). A multi-night stay (only home boarding) stores endDate as
-// the checkout day, which isn't itself occupied — nightsBetween/
-// KennelOccupancy already treat it that way — so its interval is already
-// half-open as stored.
-function effectiveEnd(start: Date, end: Date): Date {
-  return start.getTime() === end.getTime() ? addDays(end, 1) : end
-}
-
+// Deliberately inclusive on both ends, unlike nightsBetween/KennelOccupancy
+// (which treat a stay's checkout day as free, since a different booking can
+// use the same physical kennel that day). This check isn't about kennel
+// inventory — it's "is this dog already committed to a service on this
+// date" — and the dog is still with the boarding provider on its checkout
+// day, so that day counts as occupied here even though the kennel itself
+// doesn't.
 function rangesOverlap(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
-  return aStart < effectiveEnd(bStart, bEnd) && bStart < effectiveEnd(aStart, aEnd)
+  return aStart <= bEnd && bStart <= aEnd
 }
 
 /**
