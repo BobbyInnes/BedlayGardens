@@ -33,8 +33,8 @@ export default async function PortalBookingsPage() {
   })
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="max-w-2xl space-y-6">
+      <div className="flex items-center gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Bookings</h1>
         <Button size="sm" asChild>
           <Link href="/book">Book a service</Link>
