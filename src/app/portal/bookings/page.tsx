@@ -29,7 +29,12 @@ export default async function PortalBookingsPage() {
   const bookings = await prisma.booking.findMany({
     where: { customerId: session!.user.id },
     orderBy: { startDate: "desc" },
-    include: { service: true, payments: true, trialVisits: { include: { dog: true } } },
+    include: {
+      service: true,
+      payments: true,
+      trialVisits: { include: { dog: true } },
+      bookingDogs: { include: { dog: true } },
+    },
   })
 
   return (
@@ -61,7 +66,14 @@ export default async function PortalBookingsPage() {
               <li key={booking.id} className="p-4 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <p className="font-medium">{booking.service.name}</p>
+                    <p className="font-medium">
+                      {booking.service.name}{" "}
+                      {booking.bookingDogs.length > 0 && (
+                        <span className="text-primary">
+                          ({booking.bookingDogs.map((bd) => bd.dog.name).join(", ")})
+                        </span>
+                      )}
+                    </p>
                     <p className="text-muted-foreground">
                       {booking.startDate.toLocaleDateString("en-GB")}
                       {booking.endDate.getTime() !== booking.startDate.getTime()
