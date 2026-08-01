@@ -24,8 +24,8 @@ export function BookingFilters({
 
   function navigate(nextDogId: string | undefined, nextServiceId: string | undefined) {
     const params = new URLSearchParams()
-    if (nextDogId) params.set("dogId", nextDogId)
-    if (nextServiceId) params.set("serviceId", nextServiceId)
+    if (nextDogId && nextDogId !== "all") params.set("dogId", nextDogId)
+    if (nextServiceId && nextServiceId !== "all") params.set("serviceId", nextServiceId)
     const query = params.toString()
     router.push(query ? `/portal/bookings?${query}` : "/portal/bookings")
   }
@@ -38,6 +38,7 @@ export function BookingFilters({
             <SelectValue placeholder="Select Dog" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="all">All</SelectItem>
             {dogs.map((dog) => (
               <SelectItem key={dog.id} value={dog.id}>
                 {dog.name}
@@ -56,6 +57,7 @@ export function BookingFilters({
             <SelectValue placeholder="Select Service" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="all">All</SelectItem>
             {services.map((service) => (
               <SelectItem key={service.id} value={service.id}>
                 {service.name}
