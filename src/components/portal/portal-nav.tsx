@@ -6,7 +6,8 @@ import { LayoutDashboard, PawPrint, Syringe, CalendarDays, UserCog, Camera, List
 import { cn } from "@/lib/utils"
 
 const navItems = [
-  { href: "/portal", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/portal/account", label: "My Account Details", icon: UserCog },
+  { href: "/portal", label: "Overview", icon: LayoutDashboard },
   { href: "/portal/dogs", label: "My Dogs", icon: PawPrint },
   { href: "/portal/vaccinations", label: "Vaccinations", icon: Syringe },
   { href: "/portal/bookings", label: "Bookings", icon: CalendarDays },
@@ -15,7 +16,6 @@ const navItems = [
   { href: "/portal/waitlist", label: "Waitlist", icon: ListOrdered },
   { href: "/portal/reviews", label: "Reviews", icon: Star },
   { href: "/portal/vouchers", label: "Vouchers", icon: Gift },
-  { href: "/portal/account", label: "Account", icon: UserCog },
 ]
 
 export function PortalNav() {
