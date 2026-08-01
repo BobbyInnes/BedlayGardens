@@ -29,7 +29,7 @@ export function ProfileForm({
   const [state, formAction, pending] = useActionState(updateProfile, initialState)
 
   return (
-    <form action={formAction} className="max-w-md space-y-4">
+    <form action={formAction} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="name">Name</Label>
         <Input id="name" name="name" defaultValue={name} required />
