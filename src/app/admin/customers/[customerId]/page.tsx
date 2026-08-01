@@ -14,6 +14,7 @@ import { DogFlagsManager } from "@/components/admin/dog-flags-manager"
 import { GoodwillCreditForm } from "@/components/admin/goodwill-credit-form"
 import { PromoteCustomerForm } from "@/components/admin/promote-customer-form"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
+import { bookingCardClasses } from "@/lib/booking-card-colors"
 import { toggleCustomerActive, deleteCustomer } from "@/app/admin/customers/actions"
 import { getAvailableCreditPence } from "@/lib/vouchers"
 import { canManageAdmins } from "@/lib/admin-permissions"
@@ -46,7 +47,7 @@ function BookingRow({
   }
 }) {
   return (
-    <li className="space-y-1 py-2 text-sm first:pt-0 last:pb-0">
+    <li className={`space-y-1 rounded-lg border p-3 text-sm ${bookingCardClasses(booking.service.name)}`}>
       <Link href={`/admin/bookings/${booking.id}`} className="block hover:underline">
         <p className="whitespace-nowrap font-medium">
           {booking.service.name} <BookingDogTag names={booking.bookingDogs.map((bd) => bd.dog.name)} />
@@ -355,7 +356,7 @@ export default async function AdminCustomerDetailPage({
               Next {upcomingBookings.length} booking{upcomingBookings.length === 1 ? "" : "s"}
             </h2>
             {upcomingBookings.length > 0 ? (
-              <ul className="divide-y divide-border">
+              <ul className="space-y-2">
                 {upcomingBookings.map((booking) => (
                   <BookingRow key={booking.id} booking={booking} />
                 ))}
@@ -370,7 +371,7 @@ export default async function AdminCustomerDetailPage({
               <summary className="cursor-pointer text-sm font-semibold">
                 Previous {pastBookings.length} booking{pastBookings.length === 1 ? "" : "s"}
               </summary>
-              <ul className="mt-3 divide-y divide-border">
+              <ul className="mt-3 space-y-2">
                 {pastBookings.map((booking) => (
                   <BookingRow key={booking.id} booking={booking} />
                 ))}

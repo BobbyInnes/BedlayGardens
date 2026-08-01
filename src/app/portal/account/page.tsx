@@ -11,6 +11,7 @@ import { BillingPortalButton } from "@/components/portal/billing-portal-button"
 import { NotificationPreferenceForm } from "@/components/portal/notification-preference-form"
 import { AbandonedBookingOptOut } from "@/components/portal/abandoned-booking-optout"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
+import { bookingCardClasses } from "@/lib/booking-card-colors"
 
 const OPEN_BOOKING_STATUSES = ["PENDING_PAYMENT", "CONFIRMED", "CHECKED_IN"] as const
 const CANCELLED_STATUSES = ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] as const
@@ -41,7 +42,7 @@ function BookingRow({
   }
 }) {
   return (
-    <li className="py-2 text-sm first:pt-0 last:pb-0">
+    <li className={`rounded-lg border p-3 text-sm ${bookingCardClasses(booking.service.name)}`}>
       <p className="font-medium">
         {booking.service.name} <BookingDogTag names={booking.bookingDogs.map((bd) => bd.dog.name)} />
       </p>
@@ -187,7 +188,7 @@ export default async function AccountPage() {
               </Link>
             </div>
             {upcomingBookings.length > 0 ? (
-              <ul className="divide-y divide-border">
+              <ul className="space-y-2">
                 {upcomingBookings.map((booking) => (
                   <BookingRow key={booking.id} booking={booking} />
                 ))}
@@ -202,7 +203,7 @@ export default async function AccountPage() {
               <summary className="cursor-pointer text-sm font-semibold">
                 Previous {pastBookings.length} booking{pastBookings.length === 1 ? "" : "s"}
               </summary>
-              <ul className="mt-3 divide-y divide-border">
+              <ul className="mt-3 space-y-2">
                 {pastBookings.map((booking) => (
                   <BookingRow key={booking.id} booking={booking} />
                 ))}

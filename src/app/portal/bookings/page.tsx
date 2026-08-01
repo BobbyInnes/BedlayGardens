@@ -12,6 +12,7 @@ import { RedeemCreditForm } from "@/components/portal/redeem-credit-form"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 import { BookingFilters } from "@/components/portal/booking-filters"
 import { TRIAL_OUTCOME_LABELS } from "@/lib/trial-outcome"
+import { bookingCardClasses } from "@/lib/booking-card-colors"
 
 export const metadata: Metadata = {
   title: "Bookings",
@@ -78,7 +79,7 @@ export default async function PortalBookingsPage({
       </div>
 
       {bookings.length > 0 ? (
-        <ul className="divide-y divide-border rounded-lg border border-border">
+        <ul className="space-y-3">
           {bookings.map((booking) => {
             const depositPaid = booking.payments.some(
               (p) => p.type === "DEPOSIT" && p.status === "SUCCEEDED"
@@ -94,7 +95,10 @@ export default async function PortalBookingsPage({
             const completedTrialVisits = booking.trialVisits.filter((tv) => tv.outcome)
 
             return (
-              <li key={booking.id} className="p-4 text-sm">
+              <li
+                key={booking.id}
+                className={`rounded-lg border p-4 text-sm ${bookingCardClasses(booking.service.name)}`}
+              >
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <p className="font-medium">
