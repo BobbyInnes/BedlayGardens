@@ -10,7 +10,7 @@ import { CancelBookingButton } from "@/components/portal/cancel-booking-button"
 import { PayButton } from "@/components/marketing/pay-button"
 import { RedeemCreditForm } from "@/components/portal/redeem-credit-form"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
-import { DogBookingFilter } from "@/components/portal/dog-booking-filter"
+import { BookingFilters } from "@/components/portal/booking-filters"
 import { TRIAL_OUTCOME_LABELS } from "@/lib/trial-outcome"
 
 export const metadata: Metadata = {
@@ -29,23 +29,31 @@ const NON_CANCELLABLE_STATUSES = [
 export default async function PortalBookingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ dogId?: string }>
+  searchParams: Promise<{ dogId?: string; serviceId?: string }>
 }) {
-  const { dogId } = await searchParams
+  const { dogId, serviceId } = await searchParams
   const session = await auth()
 
-  const dogs = await prisma.dog.findMany({
-    where: { ownerId: session!.user.id },
-    orderBy: { name: "asc" },
-  })
+  const [dogs, services] = await Promise.all([
+    prisma.dog.findMany({
+      where: { ownerId: session!.user.id },
+      orderBy: { name: "asc" },
+    }),
+    prisma.service.findMany({
+      where: { bookings: { some: { customerId: session!.user.id } } },
+      orderBy: { name: "asc" },
+    }),
+  ])
   const selectedDog = dogId ? dogs.find((dog) => dog.id === dogId) : undefined
+  const selectedService = serviceId ? services.find((service) => service.id === serviceId) : undefined
 
   const bookings = await prisma.booking.findMany({
     where: {
       customerId: session!.user.id,
       ...(selectedDog ? { bookingDogs: { some: { dogId: selectedDog.id } } } : {}),
+      ...(selectedService ? { serviceId: selectedService.id } : {}),
     },
-    orderBy: { startDate: selectedDog ? "asc" : "desc" },
+    orderBy: { startDate: selectedDog || selectedService ? "asc" : "desc" },
     include: {
       service: true,
       payments: true,
@@ -61,7 +69,12 @@ export default async function PortalBookingsPage({
         <Button size="sm" asChild>
           <Link href="/book">Book a service</Link>
         </Button>
-        {dogs.length > 1 && <DogBookingFilter dogs={dogs} selectedDogId={selectedDog?.id} />}
+        <BookingFilters
+          dogs={dogs}
+          services={services}
+          selectedDogId={selectedDog?.id}
+          selectedServiceId={selectedService?.id}
+        />
       </div>
 
       {bookings.length > 0 ? (
