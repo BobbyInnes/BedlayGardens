@@ -10,6 +10,7 @@ import { CancelBookingButton } from "@/components/portal/cancel-booking-button"
 import { PayButton } from "@/components/marketing/pay-button"
 import { RedeemCreditForm } from "@/components/portal/redeem-credit-form"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
+import { DogBookingFilter } from "@/components/portal/dog-booking-filter"
 import { TRIAL_OUTCOME_LABELS } from "@/lib/trial-outcome"
 
 export const metadata: Metadata = {
@@ -25,11 +26,26 @@ const NON_CANCELLABLE_STATUSES = [
   "NO_SHOW",
 ]
 
-export default async function PortalBookingsPage() {
+export default async function PortalBookingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ dogId?: string }>
+}) {
+  const { dogId } = await searchParams
   const session = await auth()
+
+  const dogs = await prisma.dog.findMany({
+    where: { ownerId: session!.user.id },
+    orderBy: { name: "asc" },
+  })
+  const selectedDog = dogId ? dogs.find((dog) => dog.id === dogId) : undefined
+
   const bookings = await prisma.booking.findMany({
-    where: { customerId: session!.user.id },
-    orderBy: { startDate: "desc" },
+    where: {
+      customerId: session!.user.id,
+      ...(selectedDog ? { bookingDogs: { some: { dogId: selectedDog.id } } } : {}),
+    },
+    orderBy: { startDate: selectedDog ? "asc" : "desc" },
     include: {
       service: true,
       payments: true,
@@ -40,11 +56,12 @@ export default async function PortalBookingsPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Bookings</h1>
         <Button size="sm" asChild>
           <Link href="/book">Book a service</Link>
         </Button>
+        {dogs.length > 1 && <DogBookingFilter dogs={dogs} selectedDogId={selectedDog?.id} />}
       </div>
 
       {bookings.length > 0 ? (
