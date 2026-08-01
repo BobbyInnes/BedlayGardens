@@ -106,7 +106,7 @@ export default async function AccountPage() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
         <div className="min-w-0 space-y-6">
-          <section className="space-y-4 rounded-lg border border-border p-4">
+          <section className="space-y-4 rounded-lg border border-gray-200 bg-gray-100 p-4">
             <h2 className="text-lg font-semibold">Contact details</h2>
             <ProfileForm
               name={user?.name ?? ""}
@@ -119,7 +119,7 @@ export default async function AccountPage() {
             />
           </section>
 
-          <section className="space-y-4 rounded-lg border border-border p-4">
+          <section className="space-y-4 rounded-lg border border-gray-200 bg-gray-100 p-4">
             <div>
               <h2 className="text-lg font-semibold">Notifications</h2>
               <p className="text-sm text-muted-foreground">
@@ -132,13 +132,13 @@ export default async function AccountPage() {
           </section>
 
           {user?.passwordHash && (
-            <section className="space-y-4 rounded-lg border border-border p-4">
+            <section className="space-y-4 rounded-lg border border-gray-200 bg-gray-100 p-4">
               <h2 className="text-lg font-semibold">Password</h2>
               <PasswordForm />
             </section>
           )}
 
-          <section className="space-y-4 rounded-lg border border-border p-4">
+          <section className="space-y-4 rounded-lg border border-gray-200 bg-gray-100 p-4">
             <div>
               <h2 className="text-lg font-semibold">Billing</h2>
               <p className="text-sm text-muted-foreground">
@@ -160,7 +160,7 @@ export default async function AccountPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="grid grid-cols-3 gap-2 rounded-lg border border-border p-4 text-center">
+          <div className="grid grid-cols-3 gap-2 rounded-lg border border-red-200 bg-red-100 p-4 text-center">
             <div>
               <p className="text-xs text-muted-foreground">Bookings</p>
               <p className="font-semibold">{bookings.length}</p>
@@ -177,7 +177,7 @@ export default async function AccountPage() {
             </div>
           </div>
 
-          <section className="space-y-2 rounded-lg border border-border p-4">
+          <section className="space-y-2 rounded-lg border border-blue-200 bg-blue-100 p-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold">
                 Next {upcomingBookings.length} booking{upcomingBookings.length === 1 ? "" : "s"}
@@ -198,7 +198,7 @@ export default async function AccountPage() {
           </section>
 
           {pastBookings.length > 0 && (
-            <details className="rounded-lg border border-border p-4">
+            <details className="rounded-lg border border-blue-200 bg-blue-100 p-4">
               <summary className="cursor-pointer text-sm font-semibold">
                 Previous {pastBookings.length} booking{pastBookings.length === 1 ? "" : "s"}
               </summary>

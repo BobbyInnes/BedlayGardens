@@ -34,7 +34,7 @@ type SessionUser = {
 function dashboardFor(user: SessionUser) {
   if (user.role === "ADMIN") return { href: "/admin", label: "Admin dashboard" }
   if (user.role === "STAFF") return { href: "/staff", label: "Staff dashboard" }
-  return { href: "/portal", label: "My portal" }
+  return { href: "/portal/account", label: "My portal" }
 }
 
 // Fetched client-side (not via `auth()` in the layout) so the marketing pages

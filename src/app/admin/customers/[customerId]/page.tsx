@@ -46,21 +46,23 @@ function BookingRow({
   }
 }) {
   return (
-    <li className="flex items-center justify-between gap-3 py-2 text-sm first:pt-0 last:pb-0">
-      <Link href={`/admin/bookings/${booking.id}`} className="hover:underline">
-        <p className="font-medium">
+    <li className="space-y-1 py-2 text-sm first:pt-0 last:pb-0">
+      <Link href={`/admin/bookings/${booking.id}`} className="block hover:underline">
+        <p className="whitespace-nowrap font-medium">
           {booking.service.name} <BookingDogTag names={booking.bookingDogs.map((bd) => bd.dog.name)} />
         </p>
-        <p className="text-muted-foreground">
+      </Link>
+      <div className="flex items-center justify-between gap-3">
+        <p className="whitespace-nowrap text-xs text-muted-foreground">
           {booking.startDate.toLocaleDateString("en-GB")}
           {booking.endDate.getTime() !== booking.startDate.getTime()
             ? ` – ${booking.endDate.toLocaleDateString("en-GB")}`
             : ""}
         </p>
-      </Link>
-      <div className="flex items-center gap-2">
-        <span>{formatPence(booking.totalPence)}</span>
-        <Badge variant="outline">{booking.status.toLowerCase().replace(/_/g, " ")}</Badge>
+        <div className="flex shrink-0 items-center gap-2">
+          <span>{formatPence(booking.totalPence)}</span>
+          <Badge variant="outline">{booking.status.toLowerCase().replace(/_/g, " ")}</Badge>
+        </div>
       </div>
     </li>
   )
@@ -131,7 +133,7 @@ export default async function AdminCustomerDetailPage({
             Customer since {customer.createdAt.toLocaleDateString("en-GB")}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-3">
           <Badge variant={customer.active ? "secondary" : "destructive"}>
             {customer.active ? "Active" : "Banned"}
           </Badge>
@@ -147,7 +149,7 @@ export default async function AdminCustomerDetailPage({
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
         <div className="min-w-0 space-y-6">
-          <section className="space-y-4 rounded-lg border border-border p-4">
+          <section className="space-y-4 rounded-lg border border-gray-200 bg-gray-100 p-4">
             <h2 className="text-sm font-semibold">Customer details</h2>
             <CustomerDetailsForm
               customerId={customer.id}
@@ -162,14 +164,14 @@ export default async function AdminCustomerDetailPage({
             />
           </section>
 
-          <section className="space-y-3 rounded-lg border border-border p-4">
+          <section className="space-y-3 rounded-lg border border-gray-200 bg-gray-100 p-4">
             <h2 className="text-sm font-semibold">
               Notes <span className="font-normal text-muted-foreground">(not visible to customer)</span>
             </h2>
             <CustomerNotesForm customerId={customer.id} notes={customer.adminNotes ?? ""} />
           </section>
 
-          <section className="space-y-3 rounded-lg border border-border p-4">
+          <section className="space-y-3 rounded-lg border border-gray-200 bg-gray-100 p-4">
             <h2 className="text-sm font-semibold">Promote to staff</h2>
             <p className="text-sm text-muted-foreground">
               Converts this customer account into a staff or admin login, keeping their existing
@@ -179,12 +181,12 @@ export default async function AdminCustomerDetailPage({
             <PromoteCustomerForm customerId={customer.id} viewerCanManageAdmins={viewerCanManageAdmins} />
           </section>
 
-          <section className="space-y-3 rounded-lg border border-border p-4">
+          <section className="space-y-3 rounded-lg border border-gray-200 bg-gray-100 p-4">
             <h2 className="text-sm font-semibold">Account credit — {formatPence(creditBalancePence)}</h2>
             <GoodwillCreditForm customerId={customer.id} />
           </section>
 
-          <section className="space-y-3 rounded-lg border border-border p-4">
+          <section className="space-y-3 rounded-lg border border-gray-200 bg-gray-100 p-4">
             <h2 className="text-sm font-semibold">Dogs ({customer.dogs.length})</h2>
             {customer.dogs.length > 0 ? (
               <ul className="divide-y divide-border text-sm">
@@ -330,8 +332,8 @@ export default async function AdminCustomerDetailPage({
           )}
         </div>
 
-        <div className="space-y-6">
-          <div className="grid grid-cols-3 gap-2 rounded-lg border border-border p-4 text-center">
+        <div className="space-y-5 rounded-lg border border-border p-4">
+          <div className="grid grid-cols-3 gap-2 text-center">
             <div>
               <p className="text-xs text-muted-foreground">Revenue</p>
               <p className="font-semibold text-primary">{formatPence(revenuePence)}</p>
@@ -348,7 +350,7 @@ export default async function AdminCustomerDetailPage({
             </div>
           </div>
 
-          <section className="space-y-2 rounded-lg border border-border p-4">
+          <section className="space-y-2 rounded-lg border border-blue-200 bg-blue-100 p-4">
             <h2 className="text-sm font-semibold">
               Next {upcomingBookings.length} booking{upcomingBookings.length === 1 ? "" : "s"}
             </h2>
@@ -364,7 +366,7 @@ export default async function AdminCustomerDetailPage({
           </section>
 
           {pastBookings.length > 0 && (
-            <details className="rounded-lg border border-border p-4">
+            <details className="rounded-lg border border-blue-200 bg-blue-100 p-4">
               <summary className="cursor-pointer text-sm font-semibold">
                 Previous {pastBookings.length} booking{pastBookings.length === 1 ? "" : "s"}
               </summary>
