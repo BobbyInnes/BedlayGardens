@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select"
 import { formatPence } from "@/lib/format"
 import { buildServiceColorMap } from "@/lib/service-colors"
+import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 import type { BookingStatus } from "@/generated/prisma/client"
 
 export const metadata: Metadata = {
@@ -61,7 +62,7 @@ export default async function AdminBookingsPage({
         ...(service ? { service: { slug: service } } : {}),
         ...(status ? { status: status as BookingStatus } : {}),
       },
-      include: { customer: true, service: true, payments: true },
+      include: { customer: true, service: true, payments: true, bookingDogs: { include: { dog: true } } },
       orderBy: { startDate: "desc" },
       take: 100,
     }),
@@ -139,7 +140,8 @@ export default async function AdminBookingsPage({
                       className={`inline-block size-2.5 shrink-0 rounded-full ${colorByServiceId.get(booking.serviceId) ?? "bg-gray-400"}`}
                       aria-hidden="true"
                     />
-                    {booking.service.name}
+                    {booking.service.name}{" "}
+                    <BookingDogTag names={booking.bookingDogs.map((bd) => bd.dog.name)} />
                   </p>
                   <p className="text-muted-foreground">
                     {booking.startDate.toLocaleDateString("en-GB")}

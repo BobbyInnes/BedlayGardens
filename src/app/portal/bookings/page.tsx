@@ -9,6 +9,7 @@ import { formatPence } from "@/lib/format"
 import { CancelBookingButton } from "@/components/portal/cancel-booking-button"
 import { PayButton } from "@/components/marketing/pay-button"
 import { RedeemCreditForm } from "@/components/portal/redeem-credit-form"
+import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 import { TRIAL_OUTCOME_LABELS } from "@/lib/trial-outcome"
 
 export const metadata: Metadata = {
@@ -68,11 +69,7 @@ export default async function PortalBookingsPage() {
                   <div>
                     <p className="font-medium">
                       {booking.service.name}{" "}
-                      {booking.bookingDogs.length > 0 && (
-                        <span className="text-primary">
-                          ({booking.bookingDogs.map((bd) => bd.dog.name).join(", ")})
-                        </span>
-                      )}
+                      <BookingDogTag names={booking.bookingDogs.map((bd) => bd.dog.name)} />
                     </p>
                     <p className="text-muted-foreground">
                       {booking.startDate.toLocaleDateString("en-GB")}

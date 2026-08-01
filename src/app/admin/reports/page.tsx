@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { prisma } from "@/lib/prisma"
 import { formatPence } from "@/lib/format"
+import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 import { startOfDay, addDays, parseMonthParam, monthParamFor } from "@/lib/dates"
 import type { BookingStatus } from "@/generated/prisma/client"
 
@@ -53,7 +54,7 @@ export default async function AdminReportsPage({
         startDate: { gte: today, lt: weekAhead },
         status: { notIn: EXCLUDED_STATUSES },
       },
-      include: { service: true, customer: true },
+      include: { service: true, customer: true, bookingDogs: { include: { dog: true } } },
       orderBy: { startDate: "asc" },
     }),
   ])
@@ -157,7 +158,9 @@ export default async function AdminReportsPage({
               <li key={booking.id} className="flex items-center justify-between p-3">
                 <span>
                   {booking.startDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}{" "}
-                  — {booking.service.name} — {booking.customer.name}
+                  — {booking.service.name}{" "}
+                  <BookingDogTag names={booking.bookingDogs.map((bd) => bd.dog.name)} /> —{" "}
+                  {booking.customer.name}
                 </span>
                 <span className="text-muted-foreground">{formatPence(booking.totalPence)}</span>
               </li>

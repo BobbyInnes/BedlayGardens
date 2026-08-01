@@ -12,6 +12,7 @@ import { ReassignKennelForm } from "@/components/admin/reassign-kennel-form"
 import { RecordManualPaymentForm } from "@/components/admin/record-manual-payment-form"
 import { SendInvoiceButton } from "@/components/admin/send-invoice-button"
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
+import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 import { deleteBookingAdmin } from "@/app/admin/bookings/actions"
 
 export const metadata: Metadata = {
@@ -75,7 +76,10 @@ export default async function AdminBookingDetailPage({
     <div className="max-w-3xl space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{booking.service.name}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {booking.service.name}{" "}
+            <BookingDogTag names={booking.bookingDogs.map((bd) => bd.dog.name)} />
+          </h1>
           <p className="text-sm text-muted-foreground">
             {booking.customer.name} ({booking.customer.email})
           </p>

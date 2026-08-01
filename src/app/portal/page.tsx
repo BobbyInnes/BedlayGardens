@@ -5,6 +5,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -27,7 +28,7 @@ export default async function PortalDashboardPage() {
         status: { in: ["PENDING_PAYMENT", "CONFIRMED", "CHECKED_IN"] },
       },
       orderBy: { startDate: "asc" },
-      include: { service: true },
+      include: { service: true, bookingDogs: { include: { dog: true } } },
     }),
   ])
 
@@ -98,7 +99,8 @@ export default async function PortalDashboardPage() {
             >
               <CalendarDays className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
               <p>
-                Balance due for your {booking.service.name} booking on{" "}
+                Balance due for your {booking.service.name}{" "}
+                <BookingDogTag names={booking.bookingDogs.map((bd) => bd.dog.name)} /> booking on{" "}
                 {booking.balanceDueDate?.toLocaleDateString("en-GB")}.{" "}
                 <Link href="/portal/bookings" className="font-medium underline">
                   View booking
@@ -146,7 +148,10 @@ export default async function PortalDashboardPage() {
               <ul className="space-y-3">
                 {bookings.map((booking) => (
                   <li key={booking.id} className="flex items-center justify-between text-sm">
-                    <span>{booking.service.name}</span>
+                    <span>
+                      {booking.service.name}{" "}
+                      <BookingDogTag names={booking.bookingDogs.map((bd) => bd.dog.name)} />
+                    </span>
                     <span className="text-muted-foreground">
                       {booking.startDate.toLocaleDateString("en-GB")}
                     </span>

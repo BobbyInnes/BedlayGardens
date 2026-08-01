@@ -13,6 +13,7 @@ import { CustomerDetailsForm } from "@/components/admin/customer-details-form"
 import { DogFlagsManager } from "@/components/admin/dog-flags-manager"
 import { GoodwillCreditForm } from "@/components/admin/goodwill-credit-form"
 import { PromoteCustomerForm } from "@/components/admin/promote-customer-form"
+import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 import { toggleCustomerActive, deleteCustomer } from "@/app/admin/customers/actions"
 import { getAvailableCreditPence } from "@/lib/vouchers"
 import { canManageAdmins } from "@/lib/admin-permissions"
@@ -41,12 +42,15 @@ function BookingRow({
     status: string
     totalPence: number
     service: { name: string }
+    bookingDogs: { dog: { name: string } }[]
   }
 }) {
   return (
     <li className="flex items-center justify-between gap-3 py-2 text-sm first:pt-0 last:pb-0">
       <Link href={`/admin/bookings/${booking.id}`} className="hover:underline">
-        <p className="font-medium">{booking.service.name}</p>
+        <p className="font-medium">
+          {booking.service.name} <BookingDogTag names={booking.bookingDogs.map((bd) => bd.dog.name)} />
+        </p>
         <p className="text-muted-foreground">
           {booking.startDate.toLocaleDateString("en-GB")}
           {booking.endDate.getTime() !== booking.startDate.getTime()
@@ -83,7 +87,7 @@ export default async function AdminCustomerDetailPage({
         },
         bookings: {
           orderBy: { startDate: "desc" },
-          include: { service: true, payments: true },
+          include: { service: true, payments: true, bookingDogs: { include: { dog: true } } },
           take: 50,
         },
       },
