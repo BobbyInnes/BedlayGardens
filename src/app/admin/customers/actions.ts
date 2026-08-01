@@ -39,6 +39,34 @@ export async function updateCustomerNotes(
   return { status: "idle", message: "Notes saved." }
 }
 
+export async function updateCustomerContactDetails(
+  customerId: string,
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  await requireAdmin()
+  const name = ((formData.get("name") as string | null) ?? "").trim()
+  if (!name) {
+    return { status: "error", message: "Name is required." }
+  }
+
+  await prisma.user.update({
+    where: { id: customerId },
+    data: {
+      name,
+      phone: ((formData.get("phone") as string | null) ?? "").trim() || null,
+      workPhone: ((formData.get("workPhone") as string | null) ?? "").trim() || null,
+      addressLine1: ((formData.get("addressLine1") as string | null) ?? "").trim() || null,
+      addressLine2: ((formData.get("addressLine2") as string | null) ?? "").trim() || null,
+      addressCity: ((formData.get("addressCity") as string | null) ?? "").trim() || null,
+      addressPostcode: ((formData.get("addressPostcode") as string | null) ?? "").trim() || null,
+    },
+  })
+
+  revalidatePath(`/admin/customers/${customerId}`)
+  return { status: "idle", message: "Details saved." }
+}
+
 export async function toggleCustomerActive(customerId: string, active: boolean) {
   await requireAdmin()
   await prisma.user.update({ where: { id: customerId }, data: { active } })
