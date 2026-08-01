@@ -12,7 +12,7 @@ const navItems = [
   { href: "/portal/vaccinations", label: "Vaccinations", icon: Syringe },
   { href: "/portal/bookings", label: "Bookings", icon: CalendarDays },
   { href: "/portal/subscriptions", label: "Subscriptions", icon: Repeat },
-  { href: "/portal/pupdates", label: "Pupdates", icon: Camera },
+  { href: "/portal/pupdates", label: "Pet Updates", icon: Camera },
   { href: "/portal/waitlist", label: "Waitlist", icon: ListOrdered },
   { href: "/portal/reviews", label: "Reviews", icon: Star },
   { href: "/portal/vouchers", label: "Vouchers", icon: Gift },
