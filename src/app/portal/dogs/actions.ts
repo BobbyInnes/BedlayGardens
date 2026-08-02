@@ -48,6 +48,11 @@ const dogSchema = z.object({
   vetName: z.string().trim().max(200).optional(),
   vetPhone: z.string().trim().max(50).optional(),
   emergencyContact: z.string().trim().max(200).optional(),
+  microchipNumber: z.string().trim().max(50).optional(),
+  color: z.string().trim().max(100).optional(),
+  runType: z.string().trim().max(100).optional(),
+  temperament: z.string().trim().max(100).optional(),
+  groupPlayApproved: z.coerce.boolean().optional(),
 })
 
 export type DogFormState = {
@@ -71,6 +76,11 @@ async function readDogFields(formData: FormData) {
     vetName: formData.get("vetName") || "",
     vetPhone: formData.get("vetPhone") || "",
     emergencyContact: formData.get("emergencyContact") || "",
+    microchipNumber: formData.get("microchipNumber") || "",
+    color: formData.get("color") || "",
+    runType: formData.get("runType") || "",
+    temperament: formData.get("temperament") || "",
+    groupPlayApproved: formData.get("groupPlayApproved") === "on",
   })
   return parsed
 }
@@ -113,6 +123,11 @@ export async function createDog(
       vetName: data.vetName || null,
       vetPhone: data.vetPhone || null,
       emergencyContact: data.emergencyContact || null,
+      microchipNumber: data.microchipNumber || null,
+      color: data.color || null,
+      runType: data.runType || null,
+      temperament: data.temperament || null,
+      groupPlayApproved: !!data.groupPlayApproved,
     },
   })
 
@@ -193,6 +208,11 @@ export async function updateDog(
       vetName: data.vetName || null,
       vetPhone: data.vetPhone || null,
       emergencyContact: data.emergencyContact || null,
+      microchipNumber: data.microchipNumber || null,
+      color: data.color || null,
+      runType: data.runType || null,
+      temperament: data.temperament || null,
+      groupPlayApproved: !!data.groupPlayApproved,
       photoUrl,
     },
   })
