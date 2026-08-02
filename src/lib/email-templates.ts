@@ -1,5 +1,6 @@
 import { formatPence } from "@/lib/format"
 import { getSiteUrl } from "@/lib/stripe"
+import { formatCustomerNumber, formatDogNumber } from "@/lib/customer-dog-numbers"
 
 export type EmailBranding = {
   business_name?: string
@@ -49,6 +50,7 @@ type BookingSummary = {
   // Day care multi-date booking only — the other dates booked in the same
   // batch, so an email about one date can mention the rest.
   otherDaycareDates?: Date[]
+  customerNumber?: number
 }
 
 function dateRange(startDate: Date, endDate: Date): string {
@@ -90,6 +92,7 @@ export function welcomeEmail(
 
 type NewDogDetails = {
   name: string
+  dogNumber: number
   breed: string
   dob: Date | null
   sex: string | null
@@ -110,6 +113,7 @@ function titleCase(value: string): string {
 
 function dogDetailRows(dog: NewDogDetails): [string, string][] {
   return [
+    ["Dog reference", formatDogNumber(dog.dogNumber)],
     ["Breed", dog.breed],
     ...(dog.dob
       ? ([
@@ -204,6 +208,7 @@ export function bookingConfirmationEmail(
           Balance due: ${formatPence(balancePence)}
         </p>
         <p>You can view or manage this booking any time from your account.</p>
+        ${booking.customerNumber ? `<p style="color: #666; font-size: 12px;">Your customer reference: ${formatCustomerNumber(booking.customerNumber)}</p>` : ""}
       `
     ),
   }
@@ -322,9 +327,11 @@ export function waitlistOfferEmail(
   branding: EmailBranding,
   serviceName: string,
   date: Date,
-  hoursWindow: number
+  hoursWindow: number,
+  endDate?: Date | null
 ): { subject: string; html: string } {
-  const dateLabel = date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+  const format = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+  const dateLabel = endDate ? `${format(date)} – ${format(endDate)}` : format(date)
   return {
     subject: `A space just opened up — ${serviceName} on ${dateLabel}`,
     html: layout(

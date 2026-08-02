@@ -44,7 +44,10 @@ export default async function PortalWaitlistPage() {
                 <p className="font-medium">
                   {entry.service.name} — {entry.dog.name}
                 </p>
-                <p className="text-muted-foreground">{entry.date.toLocaleDateString("en-GB")}</p>
+                <p className="text-muted-foreground">
+                  {entry.date.toLocaleDateString("en-GB")}
+                  {entry.endDate ? ` – ${entry.endDate.toLocaleDateString("en-GB")}` : ""}
+                </p>
               </div>
               <div className="flex items-center gap-3">
                 <Badge variant={entry.status === "OFFERED" ? "default" : "secondary"}>

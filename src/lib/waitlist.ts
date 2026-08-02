@@ -3,21 +3,29 @@ import { notifyCustomer } from "@/lib/notify"
 import { getSetting, getSettings } from "@/lib/settings"
 import { waitlistOfferEmail } from "@/lib/email-templates"
 
-/** Marks past-due OFFERED entries as EXPIRED and offers the next person in line for the same service/date. */
+/** Marks past-due OFFERED entries as EXPIRED and offers the next person in line for the same service/date(s). */
 export async function expireStaleOffers(): Promise<void> {
   const stale = await prisma.waitlistEntry.findMany({
     where: { status: "OFFERED", offerExpiresAt: { lt: new Date() } },
   })
   for (const entry of stale) {
     await prisma.waitlistEntry.update({ where: { id: entry.id }, data: { status: "EXPIRED" } })
-    await offerNextInLine(entry.serviceId, entry.date)
+    await offerNextInLine(entry.serviceId, entry.date, entry.endDate)
   }
 }
 
-/** Offers the date/service slot to the first WAITING entry in line, if any. */
-export async function offerNextInLine(serviceId: string, date: Date): Promise<void> {
+/**
+ * Offers the date/service slot to the first WAITING entry in line, if any.
+ * `endDate` distinguishes a Home Boarding date range from a single-day
+ * (Day Care / Meet & Greet) slot — pass `null`/omit for single-day services.
+ */
+export async function offerNextInLine(
+  serviceId: string,
+  date: Date,
+  endDate?: Date | null
+): Promise<void> {
   const next = await prisma.waitlistEntry.findFirst({
-    where: { serviceId, date, status: "WAITING" },
+    where: { serviceId, date, endDate: endDate ?? null, status: "WAITING" },
     orderBy: { createdAt: "asc" },
     include: { customer: true, service: true, dog: true },
   })
@@ -32,7 +40,7 @@ export async function offerNextInLine(serviceId: string, date: Date): Promise<vo
   })
 
   const settings = await getSettings()
-  const email = waitlistOfferEmail(settings, next.service.name, next.date, hours)
+  const email = waitlistOfferEmail(settings, next.service.name, next.date, hours, next.endDate)
   const dateLabel = next.date.toLocaleDateString("en-GB", { day: "numeric", month: "short" })
   await notifyCustomer(next.customerId, "WAITLIST_OFFER", {
     subject: email.subject,

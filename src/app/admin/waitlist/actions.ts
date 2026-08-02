@@ -21,7 +21,7 @@ export async function reorderWaitlistEntry(entryId: string, direction: "up" | "d
   if (!entry || entry.status !== "WAITING") return
 
   const group = await prisma.waitlistEntry.findMany({
-    where: { serviceId: entry.serviceId, date: entry.date, status: "WAITING" },
+    where: { serviceId: entry.serviceId, date: entry.date, endDate: entry.endDate, status: "WAITING" },
     orderBy: { createdAt: "asc" },
   })
   const index = group.findIndex((e) => e.id === entryId)
@@ -44,15 +44,17 @@ export async function reorderWaitlistEntry(entryId: string, direction: "up" | "d
   revalidatePath("/admin/waitlist")
 }
 
-export async function offerToNextInLine(serviceId: string, date: Date) {
+export async function offerToNextInLine(serviceId: string, date: Date, endDate?: Date | null) {
   const session = await requireAdmin()
-  await offerNextInLine(serviceId, date)
+  await offerNextInLine(serviceId, date, endDate)
   await logAudit({
     actorId: session.user.id,
     action: "OFFER_WAITLIST_SPOT",
     entity: "Service",
     entityId: serviceId,
-    meta: date.toISOString().slice(0, 10),
+    meta: endDate
+      ? `${date.toISOString().slice(0, 10)} – ${endDate.toISOString().slice(0, 10)}`
+      : date.toISOString().slice(0, 10),
   })
   revalidatePath("/admin/waitlist")
 }

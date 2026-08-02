@@ -112,6 +112,7 @@ export function BookingWizard({
   const [waitlistDogId, setWaitlistDogId] = React.useState("")
   const [waitlistMessage, setWaitlistMessage] = React.useState<string | null>(null)
   const [joiningWaitlist, setJoiningWaitlist] = React.useState(false)
+  const [failedDaycareDates, setFailedDaycareDates] = React.useState<string[]>([])
 
   // Dogs
   const [selectedDogIds, setSelectedDogIds] = React.useState<string[]>([])
@@ -175,6 +176,7 @@ export function BookingWizard({
           })
         )
         const failed = results.filter((r) => !r.available).map((r) => r.date)
+        setFailedDaycareDates(failed)
         setAvailable(daycareDates.length > 0 && failed.length === 0)
         setAvailabilityReason(
           failed.length > 0
@@ -200,8 +202,23 @@ export function BookingWizard({
     if (!dogId) return
     setJoiningWaitlist(true)
     try {
-      const result = await joinWaitlist(service.slug, dogId, date)
-      setWaitlistMessage(result.message ?? null)
+      if (isDaycare) {
+        const results = await Promise.all(
+          failedDaycareDates.map((d) => joinWaitlist(service.slug, dogId, d))
+        )
+        const failed = results.filter((r) => r.status === "error")
+        setWaitlistMessage(
+          failed.length === 0
+            ? `You're on the waitlist for ${failedDaycareDates.length} date${failedDaycareDates.length === 1 ? "" : "s"} — we'll email you if a space opens up.`
+            : (failed[0].message ?? null)
+        )
+      } else if (isBoarding) {
+        const result = await joinWaitlist(service.slug, dogId, startDate, endDate)
+        setWaitlistMessage(result.message ?? null)
+      } else {
+        const result = await joinWaitlist(service.slug, dogId, date)
+        setWaitlistMessage(result.message ?? null)
+      }
     } finally {
       setJoiningWaitlist(false)
     }
@@ -265,6 +282,13 @@ export function BookingWizard({
       setCheckingVaccinations(false)
     }
   }
+
+  const canJoinWaitlist =
+    availabilityChecked &&
+    !available &&
+    ((isMeetGreet && !availabilityReason) ||
+      (isDaycare && failedDaycareDates.length > 0) ||
+      isBoarding)
 
   // Client-side price preview mirroring the server's boarding discount logic.
   const nights = isBoarding ? nightsBetween(startDate, endDate) : 1
@@ -556,10 +580,14 @@ export function BookingWizard({
                     : (availabilityReason ?? "Sorry, not available for these dates.")}
                 </p>
               )}
-              {availabilityChecked && !available && isMeetGreet && !availabilityReason && (
+              {canJoinWaitlist && (
                 <div className="space-y-2 rounded-md border border-border p-3">
                   <p className="text-sm text-muted-foreground">
-                    Join the waitlist and we&rsquo;ll email you the moment a space opens up.
+                    {isDaycare
+                      ? `Join the waitlist for ${failedDaycareDates.length} full date${failedDaycareDates.length === 1 ? "" : "s"} and we'll email you the moment a space opens up.`
+                      : isBoarding
+                        ? "Join the waitlist for these dates and we'll email you the moment a space opens up."
+                        : "Join the waitlist and we'll email you the moment a space opens up."}
                   </p>
                   {dogs.length > 1 && (
                     <select

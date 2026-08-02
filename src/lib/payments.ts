@@ -58,6 +58,7 @@ export async function markPaymentSucceededAndNotify(stripePaymentIntentId: strin
     totalPence: booking.totalPence,
     depositPence: booking.depositPence,
     otherDaycareDates,
+    customerNumber: booking.customer.customerNumber,
   }
 
   const receipt = paymentReceiptEmail(

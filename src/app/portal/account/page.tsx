@@ -12,6 +12,7 @@ import { NotificationPreferenceForm } from "@/components/portal/notification-pre
 import { AbandonedBookingOptOut } from "@/components/portal/abandoned-booking-optout"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 import { bookingCardClasses } from "@/lib/booking-card-colors"
+import { formatCustomerNumber } from "@/lib/customer-dog-numbers"
 
 const OPEN_BOOKING_STATUSES = ["PENDING_PAYMENT", "CONFIRMED", "CHECKED_IN"] as const
 const CANCELLED_STATUSES = ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] as const
@@ -102,7 +103,10 @@ export default async function AccountPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Account</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{user?.email}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {user?.email}
+          {user ? ` · ${formatCustomerNumber(user.customerNumber)}` : ""}
+        </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px] lg:items-start">

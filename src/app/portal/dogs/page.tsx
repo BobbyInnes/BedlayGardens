@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DeleteDogButton } from "@/components/portal/delete-dog-button"
+import { formatCustomerNumber, formatDogNumber } from "@/lib/customer-dog-numbers"
 import type { Dog, VaccinationRecord } from "@/generated/prisma/client"
 
 export const metadata: Metadata = {
@@ -75,7 +76,14 @@ export default async function DogsPage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-card p-4">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Customer: {user?.name}</h1>
+          <h1 className="text-xl font-semibold tracking-tight">
+            Customer: {user?.name}{" "}
+            {user && (
+              <span className="text-sm font-normal text-muted-foreground">
+                ({formatCustomerNumber(user.customerNumber)})
+              </span>
+            )}
+          </h1>
           <p className="text-sm text-muted-foreground">
             {user?.phone ? `${user.phone} • ` : ""}
             {user?.email}
@@ -118,6 +126,7 @@ export default async function DogsPage({
                   <p className="font-medium">{dog.name}</p>
                   {isSelected && <Badge>Selected</Badge>}
                 </div>
+                <p className="text-xs text-muted-foreground">{formatDogNumber(dog.dogNumber)}</p>
                 <p className="text-muted-foreground">{dog.breed}</p>
                 <p className={`mt-2 flex items-center gap-1 text-xs ${TONE_TEXT_CLASSES[summary.tone]}`}>
                   {summary.tone === "ok" && <Check className="size-3" />}
@@ -138,6 +147,7 @@ export default async function DogsPage({
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-lg font-semibold">{selectedDog.name}</h2>
+                <Badge variant="outline">{formatDogNumber(selectedDog.dogNumber)}</Badge>
                 {selectedDog.microchipNumber && (
                   <Badge variant="outline" className="font-mono">
                     Microchip: #{selectedDog.microchipNumber}

@@ -152,6 +152,7 @@ enum NotificationChannel {
 model User {
   id               String    @id @default(cuid())
   email            String    @unique
+  customerNumber   Int       @unique @default(autoincrement())
   emailVerified    DateTime?
   passwordHash     String?
   name             String
@@ -252,6 +253,7 @@ model Service {
 
 model Dog {
   id               String    @id @default(cuid())
+  dogNumber        Int       @unique @default(autoincrement())
   ownerId          String
   owner            User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   name             String
@@ -656,6 +658,7 @@ model WaitlistEntry {
   dogId          String
   dog            Dog            @relation(fields: [dogId], references: [id])
   date           DateTime
+  endDate        DateTime?
   createdAt      DateTime       @default(now())
   status         WaitlistStatus @default(WAITING)
   offerExpiresAt DateTime?

@@ -15,6 +15,7 @@ import {
 import { formatPence } from "@/lib/format"
 import { buildServiceColorMap } from "@/lib/service-colors"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
+import { formatCustomerNumber } from "@/lib/customer-dog-numbers"
 import type { BookingStatus } from "@/generated/prisma/client"
 
 export const metadata: Metadata = {
@@ -131,7 +132,12 @@ export default async function AdminBookingsPage({
                 className="flex flex-wrap items-center justify-between gap-4 p-4 text-sm hover:bg-muted/50"
               >
                 <div>
-                  <p className="font-medium">{booking.customer.name}</p>
+                  <p className="font-medium">
+                    {booking.customer.name}{" "}
+                    <span className="font-normal text-muted-foreground">
+                      ({formatCustomerNumber(booking.customer.customerNumber)})
+                    </span>
+                  </p>
                   <p className="text-muted-foreground">{booking.customer.email}</p>
                 </div>
                 <div>

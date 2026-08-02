@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { stripe } from "@/lib/stripe"
 import { ensureStripeCustomer } from "@/lib/stripe-customer"
 import { getSetting } from "@/lib/settings"
+import { formatCustomerNumber } from "@/lib/customer-dog-numbers"
 
 export type CreateInvoiceResult =
   | { status: "created"; hostedInvoiceUrl: string | null }
@@ -23,7 +24,7 @@ export async function createBookingInvoice(bookingId: string): Promise<CreateInv
 
   const booking = await prisma.booking.findUniqueOrThrow({
     where: { id: bookingId },
-    include: { service: true, payments: true },
+    include: { service: true, payments: true, customer: true },
   })
 
   if (booking.payments.some((p) => p.type === "INVOICE" && p.status !== "FAILED")) {
@@ -54,14 +55,14 @@ export async function createBookingInvoice(bookingId: string): Promise<CreateInv
       ? { collection_method: "charge_automatically" as const, default_payment_method: savedPaymentMethod.id }
       : { collection_method: "send_invoice" as const, days_until_due: daysUntilDue }),
     auto_advance: true,
-    metadata: { bookingId: booking.id },
+    metadata: { bookingId: booking.id, customerNumber: String(booking.customer.customerNumber) },
   })
   await stripe.invoiceItems.create({
     customer: customerId,
     invoice: invoice.id,
     amount: outstandingPence,
     currency: "gbp",
-    description: `${booking.service.name} (${dateRange})`,
+    description: `${booking.service.name} (${dateRange}) — ${formatCustomerNumber(booking.customer.customerNumber)}`,
   })
   invoice = await stripe.invoices.finalizeInvoice(invoice.id!)
   if (invoice.collection_method === "send_invoice" && invoice.status === "open") {

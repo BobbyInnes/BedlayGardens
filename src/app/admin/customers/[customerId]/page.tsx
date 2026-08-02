@@ -15,6 +15,7 @@ import { GoodwillCreditForm } from "@/components/admin/goodwill-credit-form"
 import { PromoteCustomerForm } from "@/components/admin/promote-customer-form"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 import { bookingCardClasses } from "@/lib/booking-card-colors"
+import { formatCustomerNumber, formatDogNumber } from "@/lib/customer-dog-numbers"
 import { toggleCustomerActive, deleteCustomer } from "@/app/admin/customers/actions"
 import { getAvailableCreditPence } from "@/lib/vouchers"
 import { canManageAdmins } from "@/lib/admin-permissions"
@@ -129,7 +130,12 @@ export default async function AdminCustomerDetailPage({
     <div className="max-w-6xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{customer.name}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {customer.name}{" "}
+            <span className="text-base font-normal text-muted-foreground">
+              ({formatCustomerNumber(customer.customerNumber)})
+            </span>
+          </h1>
           <p className="text-sm text-muted-foreground">
             Customer since {customer.createdAt.toLocaleDateString("en-GB")}
           </p>
@@ -210,7 +216,10 @@ export default async function AdminCustomerDetailPage({
                         )}
                         <div>
                           <p className="font-medium">
-                            {dog.name} <span className="font-normal text-muted-foreground">— {dog.breed}</span>
+                            {dog.name}{" "}
+                            <span className="font-normal text-muted-foreground">
+                              ({formatDogNumber(dog.dogNumber)}) — {dog.breed}
+                            </span>
                           </p>
                           <p className="text-muted-foreground">Added {dog.createdAt.toLocaleDateString("en-GB")}</p>
                         </div>

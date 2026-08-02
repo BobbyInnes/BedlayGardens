@@ -205,6 +205,7 @@ export async function redeemCreditForPayment(
     endDate: booking.endDate,
     totalPence: booking.totalPence,
     depositPence: booking.depositPence,
+    customerNumber: booking.customer.customerNumber,
   }
   const receipt = paymentReceiptEmail(settings, bookingSummary, result.appliedPence, type)
   await sendEmail({ to: booking.customer.email, subject: receipt.subject, html: receipt.html })

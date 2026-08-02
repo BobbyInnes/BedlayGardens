@@ -20,12 +20,18 @@ export default async function AdminWaitlistPage() {
 
   const groups = new Map<
     string,
-    { serviceId: string; serviceName: string; date: Date; entries: typeof entries }
+    { serviceId: string; serviceName: string; date: Date; endDate: Date | null; entries: typeof entries }
   >()
   for (const entry of entries) {
-    const key = `${entry.serviceId}:${entry.date.toISOString()}`
+    const key = `${entry.serviceId}:${entry.date.toISOString()}:${entry.endDate?.toISOString() ?? ""}`
     if (!groups.has(key)) {
-      groups.set(key, { serviceId: entry.serviceId, serviceName: entry.service.name, date: entry.date, entries: [] })
+      groups.set(key, {
+        serviceId: entry.serviceId,
+        serviceName: entry.service.name,
+        date: entry.date,
+        endDate: entry.endDate,
+        entries: [],
+      })
     }
     groups.get(key)!.entries.push(entry)
   }
@@ -45,13 +51,17 @@ export default async function AdminWaitlistPage() {
           {[...groups.values()].map((group) => {
             const waiting = group.entries.filter((e) => e.status === "WAITING")
             return (
-              <section key={`${group.serviceId}-${group.date.toISOString()}`} className="space-y-2">
+              <section
+                key={`${group.serviceId}-${group.date.toISOString()}-${group.endDate?.toISOString() ?? ""}`}
+                className="space-y-2"
+              >
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm font-semibold">
                     {group.serviceName} — {group.date.toLocaleDateString("en-GB")}
+                    {group.endDate ? ` – ${group.endDate.toLocaleDateString("en-GB")}` : ""}
                   </h2>
                   {waiting.length > 0 && !group.entries.some((e) => e.status === "OFFERED") && (
-                    <form action={offerToNextInLine.bind(null, group.serviceId, group.date)}>
+                    <form action={offerToNextInLine.bind(null, group.serviceId, group.date, group.endDate)}>
                       <Button type="submit" size="sm" variant="outline">
                         Offer to next in line
                       </Button>

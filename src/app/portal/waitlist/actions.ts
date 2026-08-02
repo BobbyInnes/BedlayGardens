@@ -9,13 +9,21 @@ import { resolveBookingCreation } from "@/app/(marketing)/book/actions"
 
 export type WaitlistActionState = { status: "idle" | "error"; message?: string }
 
-const WAITLISTABLE_SLUGS = ["daycare", "meet-greet"]
+const WAITLISTABLE_SLUGS = ["daycare", "meet-greet", "overnight-boarding"]
 
-export async function joinWaitlist(serviceSlug: string, dogId: string, date: string): Promise<WaitlistActionState> {
+export async function joinWaitlist(
+  serviceSlug: string,
+  dogId: string,
+  date: string,
+  endDate?: string
+): Promise<WaitlistActionState> {
   const session = await auth()
   if (!session?.user) return { status: "error", message: "Please log in." }
   if (!WAITLISTABLE_SLUGS.includes(serviceSlug)) {
     return { status: "error", message: "The waitlist isn't available for this service." }
+  }
+  if (serviceSlug === "overnight-boarding" && !endDate) {
+    return { status: "error", message: "Select check-in and check-out dates." }
   }
 
   const service = await prisma.service.findUnique({ where: { slug: serviceSlug } })
@@ -25,13 +33,21 @@ export async function joinWaitlist(serviceSlug: string, dogId: string, date: str
   if (!dog || dog.ownerId !== session.user.id) return { status: "error", message: "Dog not found." }
 
   const day = startOfDay(new Date(date))
+  const endDay = endDate ? startOfDay(new Date(endDate)) : null
   const existing = await prisma.waitlistEntry.findFirst({
-    where: { customerId: session.user.id, serviceId: service.id, dogId, date: day, status: { in: ["WAITING", "OFFERED"] } },
+    where: {
+      customerId: session.user.id,
+      serviceId: service.id,
+      dogId,
+      date: day,
+      endDate: endDay,
+      status: { in: ["WAITING", "OFFERED"] },
+    },
   })
   if (existing) return { status: "error", message: "You're already on the waitlist for this date." }
 
   await prisma.waitlistEntry.create({
-    data: { customerId: session.user.id, serviceId: service.id, dogId, date: day },
+    data: { customerId: session.user.id, serviceId: service.id, dogId, date: day, endDate: endDay },
   })
 
   revalidatePath("/portal/waitlist")
@@ -60,7 +76,9 @@ export async function claimWaitlistOffer(entryId: string): Promise<WaitlistActio
     serviceSlug: entry.service.slug,
     dogIds: [entry.dogId],
     addons: [],
-    date: dateStr,
+    ...(entry.endDate
+      ? { startDate: dateStr, endDate: entry.endDate.toISOString().slice(0, 10) }
+      : { date: dateStr }),
   })
   if (result.status === "error") {
     return { status: "error", message: result.message ?? "Couldn't complete the booking." }
@@ -80,7 +98,7 @@ export async function cancelWaitlistEntry(entryId: string): Promise<void> {
   if (!entry || entry.customerId !== session.user.id) return
   await prisma.waitlistEntry.delete({ where: { id: entryId } })
   if (entry.status === "OFFERED") {
-    await offerNextInLine(entry.serviceId, entry.date)
+    await offerNextInLine(entry.serviceId, entry.date, entry.endDate)
   }
   revalidatePath("/portal/waitlist")
 }

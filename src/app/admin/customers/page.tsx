@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
+import { formatCustomerNumber } from "@/lib/customer-dog-numbers"
 
 export const metadata: Metadata = {
   title: "Customers | Admin",
@@ -57,7 +58,12 @@ export default async function AdminCustomersPage({
                 className="flex flex-wrap items-center justify-between gap-4 p-4 text-sm hover:bg-muted/50"
               >
                 <div>
-                  <p className="font-medium">{customer.name}</p>
+                  <p className="font-medium">
+                    {customer.name}{" "}
+                    <span className="font-normal text-muted-foreground">
+                      ({formatCustomerNumber(customer.customerNumber)})
+                    </span>
+                  </p>
                   <p className="text-muted-foreground">{customer.email}</p>
                 </div>
                 <div className="flex items-center gap-3">

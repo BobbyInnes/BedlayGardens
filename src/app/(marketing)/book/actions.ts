@@ -637,6 +637,7 @@ export async function resolveBookingCreation(
         totalPence: booking.totalPence,
         depositPence: booking.depositPence,
         otherDaycareDates: (options?.otherDaycareDates ?? []).map((d) => startOfDay(new Date(d))),
+        customerNumber: customer.customerNumber,
       })
       await sendEmail({ to: customer.email, subject: confirmation.subject, html: confirmation.html })
     } catch (error) {

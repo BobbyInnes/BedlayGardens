@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { TRIAL_OUTCOME_LABELS } from "@/lib/trial-outcome"
+import { formatDogNumber } from "@/lib/customer-dog-numbers"
 
 export const metadata: Metadata = {
   title: "Dogs | Admin",
@@ -90,7 +91,10 @@ export default async function AdminDogsPage({
                   )}
                   <div>
                     <p className="font-medium">
-                      {dog.name} <span className="font-normal text-muted-foreground">— {dog.breed}</span>
+                      {dog.name}{" "}
+                      <span className="font-normal text-muted-foreground">
+                        ({formatDogNumber(dog.dogNumber)}) — {dog.breed}
+                      </span>
                     </p>
                     <p className="text-muted-foreground">
                       Owner: {dog.owner.name} ({dog.owner.email})

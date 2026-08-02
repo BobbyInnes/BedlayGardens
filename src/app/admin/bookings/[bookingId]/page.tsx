@@ -13,6 +13,7 @@ import { RecordManualPaymentForm } from "@/components/admin/record-manual-paymen
 import { SendInvoiceButton } from "@/components/admin/send-invoice-button"
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
+import { formatCustomerNumber, formatDogNumber } from "@/lib/customer-dog-numbers"
 import { deleteBookingAdmin } from "@/app/admin/bookings/actions"
 
 export const metadata: Metadata = {
@@ -81,7 +82,8 @@ export default async function AdminBookingDetailPage({
             <BookingDogTag names={booking.bookingDogs.map((bd) => bd.dog.name)} />
           </h1>
           <p className="text-sm text-muted-foreground">
-            {booking.customer.name} ({booking.customer.email})
+            {booking.customer.name} ({formatCustomerNumber(booking.customer.customerNumber)} —{" "}
+            {booking.customer.email})
           </p>
         </div>
         <Badge variant="secondary">{booking.status.replace(/_/g, " ")}</Badge>
@@ -117,7 +119,11 @@ export default async function AdminBookingDetailPage({
           )}
           <div>
             <dt className="text-muted-foreground">Dogs</dt>
-            <dd>{booking.bookingDogs.map((bd) => bd.dog.name).join(", ")}</dd>
+            <dd>
+              {booking.bookingDogs
+                .map((bd) => `${bd.dog.name} (${formatDogNumber(bd.dog.dogNumber)})`)
+                .join(", ")}
+            </dd>
           </div>
           {booking.bookingAddons.length > 0 && (
             <div>
