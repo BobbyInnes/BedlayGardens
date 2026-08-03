@@ -11,6 +11,7 @@ import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
 import { CustomerNotesForm } from "@/components/admin/customer-notes-form"
 import { CustomerDetailsForm } from "@/components/admin/customer-details-form"
 import { DogFlagsManager } from "@/components/admin/dog-flags-manager"
+import { AddVaccinationForm } from "@/components/admin/add-vaccination-form"
 import { GoodwillCreditForm } from "@/components/admin/goodwill-credit-form"
 import { PromoteCustomerForm } from "@/components/admin/promote-customer-form"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
@@ -309,6 +310,8 @@ export default async function AdminCustomerDetailPage({
                           <Badge variant="outline">No vaccination records</Badge>
                         )}
                       </div>
+
+                      <AddVaccinationForm customerId={customer.id} dogId={dog.id} />
 
                       <DogFlagsManager
                         customerId={customer.id}

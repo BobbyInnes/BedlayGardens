@@ -10,6 +10,8 @@ import { getSettings } from "@/lib/settings"
 import { formatPence } from "@/lib/format"
 import { canManageAdmins } from "@/lib/admin-permissions"
 import { deleteCustomerAndAllData } from "@/lib/delete-customer"
+import { saveUpload } from "@/lib/storage"
+import { checkWaitlistAfterVaccination } from "@/lib/waitlist"
 import type { DogFlagType } from "@/generated/prisma/client"
 
 export type AdminActionState = { status: "idle" | "error"; message?: string }
@@ -121,6 +123,67 @@ export async function addDogFlag(
     meta: type,
   })
   revalidatePath(`/admin/customers/${customerId}`)
+}
+
+// Records staff manually seeing/confirming a certificate themselves (phone
+// customer reads it out, or a physical copy brought in) — status goes
+// straight to VERIFIED with this admin as the verifier, unlike a customer's
+// own upload which lands UNVERIFIED and waits in the review queue.
+export async function addVaccinationRecordManually(
+  customerId: string,
+  dogId: string,
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  const session = await requireAdmin()
+
+  const type = ((formData.get("type") as string | null) ?? "").trim()
+  const dateGivenRaw = formData.get("dateGiven") as string | null
+  const expiryDateRaw = formData.get("expiryDate") as string | null
+  if (!type || !dateGivenRaw || !expiryDateRaw) {
+    return { status: "error", message: "Vaccine type, date given, and expiry date are required." }
+  }
+
+  const dog = await prisma.dog.findFirst({
+    where: { id: dogId, ownerId: customerId },
+    include: { owner: true },
+  })
+  if (!dog) {
+    return { status: "error", message: "Dog not found." }
+  }
+
+  let documentUrl: string | null = null
+  const certificate = formData.get("certificate")
+  if (certificate instanceof File && certificate.size > 0) {
+    const buffer = Buffer.from(await certificate.arrayBuffer())
+    documentUrl = await saveUpload(`vaccinations/${dogId}`, certificate.name, buffer)
+  }
+
+  const record = await prisma.vaccinationRecord.create({
+    data: {
+      dogId,
+      type,
+      dateGiven: new Date(dateGivenRaw),
+      expiryDate: new Date(expiryDateRaw),
+      documentUrl,
+      status: "VERIFIED",
+      verifiedById: session.user.id,
+      verifiedAt: new Date(),
+    },
+  })
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "ADD_VACCINATION_RECORD_MANUALLY",
+    entity: "VaccinationRecord",
+    entityId: record.id,
+    meta: `${type} for ${dog.name}, owner ${dog.owner.name} <${dog.owner.email}> — ${record.dateGiven.toLocaleDateString("en-GB")} to ${record.expiryDate.toLocaleDateString("en-GB")} — added manually by ${session.user.name}`,
+  })
+
+  await checkWaitlistAfterVaccination(dogId)
+
+  revalidatePath(`/admin/customers/${customerId}`)
+  return { status: "idle", message: "Vaccination record added." }
 }
 
 export async function removeDogFlag(customerId: string, flagId: string) {
