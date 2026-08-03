@@ -1,5 +1,6 @@
 import Link from "next/link"
-import { PawPrint } from "lucide-react"
+import { PawPrint, UserCog } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { LogoutButton } from "@/components/portal/logout-button"
 
 export function PortalHeader({
@@ -17,6 +18,12 @@ export function PortalHeader({
       </Link>
       <div className="flex items-center gap-3">
         <span className="hidden text-sm text-muted-foreground sm:inline">{name}</span>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/portal/account">
+            <UserCog className="size-4" aria-hidden="true" />
+            <span className="hidden sm:inline">My Account</span>
+          </Link>
+        </Button>
         <LogoutButton />
       </div>
     </header>
