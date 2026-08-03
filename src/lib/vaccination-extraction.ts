@@ -23,7 +23,11 @@ const EXTRACTION_SCHEMA = {
       items: {
         type: "object",
         properties: {
-          type: { type: ["string", "null"], description: "e.g. DHPP, Leptospirosis, Kennel Cough, Rabies" },
+          type: {
+            type: ["string", "null"],
+            description:
+              "The generic disease category — DHPP, Leptospirosis, Kennel Cough, or Rabies — not the commercial product name.",
+          },
           dateGiven: { type: ["string", "null"], description: "ISO date yyyy-mm-dd" },
           expiryDate: { type: ["string", "null"], description: "ISO date yyyy-mm-dd" },
           vetPractice: { type: ["string", "null"] },
@@ -44,7 +48,7 @@ Rules:
 - Dates on the certificate are in UK format (day/month/year). Convert every date to ISO format (yyyy-mm-dd).
 - If a field is illegible or not present, set it to null rather than guessing.
 - One certificate can list several vaccines (e.g. DHPP, Leptospirosis, Kennel Cough, Rabies) — return one entry per vaccine.
-- "type" should be the vaccine name as written (e.g. "DHPP", "Leptospirosis", "Kennel Cough", "Rabies"), not a description.`
+- Certificates print the commercial product name (e.g. "Nobivac DHPPi", "Nobivac KC", "Nobivac L4", "Vanguard Plus 7"), not the generic disease category — translate it to whichever of DHPP, Leptospirosis, Kennel Cough, or Rabies it protects against. A combination product covering more than one (e.g. a 7-in-1 covering both DHPP and Leptospirosis) should produce one entry per disease it covers, each with the same dateGiven/expiryDate/vetPractice. If you genuinely cannot tell which disease a product protects against, set "type" to null rather than guessing.`
 
 async function toJpegBase64(buffer: Buffer, mimeType: string): Promise<{ mediaType: string; data: string }> {
   if (mimeType === "image/heic" || mimeType === "image/heif") {
