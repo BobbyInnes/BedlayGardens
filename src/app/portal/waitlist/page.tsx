@@ -48,6 +48,11 @@ export default async function PortalWaitlistPage() {
                   {entry.date.toLocaleDateString("en-GB")}
                   {entry.endDate ? ` – ${entry.endDate.toLocaleDateString("en-GB")}` : ""}
                 </p>
+                {entry.reason && <p className="mt-1 text-muted-foreground">{entry.reason}</p>}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Added {entry.createdAt.toLocaleDateString("en-GB")} at{" "}
+                  {entry.createdAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                </p>
               </div>
               <div className="flex items-center gap-3">
                 <Badge variant={entry.status === "OFFERED" ? "default" : "secondary"}>

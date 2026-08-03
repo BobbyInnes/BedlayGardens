@@ -77,6 +77,8 @@ export default async function AdminWaitlistPage() {
                       customerName={entry.customer.name}
                       dogName={entry.dog.name}
                       status={entry.status}
+                      reason={entry.reason}
+                      createdAt={entry.createdAt}
                       canMoveUp={entry.status === "WAITING" && waiting[0]?.id !== entry.id}
                       canMoveDown={
                         entry.status === "WAITING" && waiting[waiting.length - 1]?.id !== entry.id

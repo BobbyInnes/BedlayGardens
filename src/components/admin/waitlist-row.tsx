@@ -18,6 +18,8 @@ export function WaitlistRow({
   customerName,
   dogName,
   status,
+  reason,
+  createdAt,
   canMoveUp,
   canMoveDown,
 }: {
@@ -26,6 +28,8 @@ export function WaitlistRow({
   customerName: string
   dogName: string
   status: keyof typeof STATUS_LABELS
+  reason: string | null
+  createdAt: Date
   canMoveUp: boolean
   canMoveDown: boolean
 }) {
@@ -38,6 +42,11 @@ export function WaitlistRow({
         <div>
           <p className="font-medium">{dogName}</p>
           <p className="text-muted-foreground">{customerName}</p>
+          {reason && <p className="text-muted-foreground">{reason}</p>}
+          <p className="text-xs text-muted-foreground">
+            Added {createdAt.toLocaleDateString("en-GB")} at{" "}
+            {createdAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+          </p>
         </div>
         <Badge variant={status === "WAITING" ? "secondary" : status === "OFFERED" ? "default" : "outline"}>
           {STATUS_LABELS[status]}

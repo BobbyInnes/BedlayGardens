@@ -323,6 +323,30 @@ export function pupdateEmail(
   }
 }
 
+export function waitlistJoinedEmail(
+  branding: EmailBranding,
+  serviceName: string,
+  dogName: string,
+  date: Date,
+  reason: string,
+  endDate?: Date | null
+): { subject: string; html: string } {
+  const format = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+  const dateLabel = endDate ? `${format(date)} – ${format(endDate)}` : format(date)
+  return {
+    subject: `You're on the waiting list — ${serviceName} for ${dogName}`,
+    html: layout(
+      branding,
+      "You're on the waiting list",
+      `
+        <p><strong>${dogName}</strong> is on the waiting list for <strong>${serviceName}</strong> on ${dateLabel}.</p>
+        <p>${reason}</p>
+        <p>We'll email you the moment you're able to book.</p>
+      `
+    ),
+  }
+}
+
 export function waitlistOfferEmail(
   branding: EmailBranding,
   serviceName: string,

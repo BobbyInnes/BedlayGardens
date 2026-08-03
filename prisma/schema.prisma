@@ -662,6 +662,7 @@ model WaitlistEntry {
   createdAt      DateTime       @default(now())
   status         WaitlistStatus @default(WAITING)
   offerExpiresAt DateTime?
+  reason         String?
 }
 
 model TrialVisit {

@@ -5,6 +5,10 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { startOfDay, toDateInputValue } from "@/lib/dates"
 import { expireStaleOffers, offerNextInLine } from "@/lib/waitlist"
+import { checkVaccinationGate } from "@/lib/vaccination-gate"
+import { notifyCustomer } from "@/lib/notify"
+import { getSettings } from "@/lib/settings"
+import { waitlistJoinedEmail } from "@/lib/email-templates"
 import { resolveBookingCreation } from "@/app/(marketing)/book/actions"
 
 export type WaitlistActionState = { status: "idle" | "error"; message?: string }
@@ -46,8 +50,26 @@ export async function joinWaitlist(
   })
   if (existing) return { status: "error", message: "You're already on the waitlist for this date." }
 
+  // Record *why* this entry was created, for staff and the customer to see later —
+  // re-check the same gate booking-time would, since the caller doesn't tell us.
+  const gate = await checkVaccinationGate([dogId], endDay ?? day)
+  const missingTypes = gate.perDog.find((d) => d.dogId === dogId)?.missingTypes ?? []
+  const reason = !gate.ok
+    ? missingTypes.length > 0
+      ? `Valid vaccination certificates required (missing: ${missingTypes.join(", ")}). Please upload.`
+      : "Valid vaccination certificates required. Please upload."
+    : "No availability for these dates — we'll email you the moment a space opens up."
+
   await prisma.waitlistEntry.create({
-    data: { customerId: session.user.id, serviceId: service.id, dogId, date: day, endDate: endDay },
+    data: { customerId: session.user.id, serviceId: service.id, dogId, date: day, endDate: endDay, reason },
+  })
+
+  const settings = await getSettings()
+  const email = waitlistJoinedEmail(settings, service.name, dog.name, day, reason, endDay)
+  await notifyCustomer(session.user.id, "WAITLIST_JOINED", {
+    subject: email.subject,
+    html: email.html,
+    smsBody: `${dog.name} is on the waitlist for ${service.name} — ${reason}`,
   })
 
   revalidatePath("/portal/waitlist")

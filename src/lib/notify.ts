@@ -7,6 +7,7 @@ export type NotificationType =
   | "BALANCE_DUE_REMINDER"
   | "CHECKIN_REMINDER"
   | "WAITLIST_OFFER"
+  | "WAITLIST_JOINED"
 
 /**
  * Sends a customer notification on their preferred channel(s) (defaulting to
