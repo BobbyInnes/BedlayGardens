@@ -40,7 +40,10 @@ test("new customer registers, adds a dog, and adds a vaccination record", async 
   await page.getByRole("button", { name: "Add dog" }).click()
 
   await page.waitForURL("**/portal/dogs")
-  await expect(page.getByText(E2E_NEW_CUSTOMER_DOG_NAME)).toBeVisible()
+  // Master-detail layout: newly added dog is auto-selected, so its name
+  // appears both in the list row and the detail panel heading. Assert the
+  // heading specifically to avoid a strict-mode multi-match violation.
+  await expect(page.getByRole("heading", { name: E2E_NEW_CUSTOMER_DOG_NAME })).toBeVisible()
 
   await page.goto("/portal/vaccinations")
   await page.getByRole("link", { name: "Add vaccination" }).click()
@@ -54,7 +57,9 @@ test("new customer registers, adds a dog, and adds a vaccination record", async 
   await page.getByRole("button", { name: "Add vaccination record" }).click()
 
   await page.waitForURL("**/portal/vaccinations")
-  await expect(page.getByText(E2E_NEW_CUSTOMER_DOG_NAME)).toBeVisible()
+  // Per-dog tabs layout: the dog's name appears both in the tab link and the
+  // panel heading. Assert the heading to avoid a strict-mode multi-match.
+  await expect(page.getByRole("heading", { name: E2E_NEW_CUSTOMER_DOG_NAME })).toBeVisible()
   await expect(page.getByText("DHPP")).toBeVisible()
   await expect(page.getByText("Unverified")).toBeVisible()
 })
