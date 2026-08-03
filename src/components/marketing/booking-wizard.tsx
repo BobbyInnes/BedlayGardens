@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { AlertTriangle, Loader2, ScrollText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -75,6 +76,7 @@ export function BookingWizard({
   depositPercent: number
   secondDogDiscountPercent: number
 }) {
+  const router = useRouter()
   const isBoarding = service.slug === "overnight-boarding"
   const isDaycare = service.slug === "daycare"
   const isMeetGreet = service.slug === "meet-greet"
@@ -112,6 +114,7 @@ export function BookingWizard({
   const [waitlistDogId, setWaitlistDogId] = React.useState("")
   const [waitlistMessage, setWaitlistMessage] = React.useState<string | null>(null)
   const [joiningWaitlist, setJoiningWaitlist] = React.useState(false)
+  const [joinedWaitlist, setJoinedWaitlist] = React.useState(false)
   const [failedDaycareDates, setFailedDaycareDates] = React.useState<string[]>([])
 
   // Dogs
@@ -212,12 +215,15 @@ export function BookingWizard({
             ? `You're on the waitlist for ${failedDaycareDates.length} date${failedDaycareDates.length === 1 ? "" : "s"} — we'll email you if a space opens up.`
             : (failed[0].message ?? null)
         )
+        setJoinedWaitlist(failed.length === 0)
       } else if (isBoarding) {
         const result = await joinWaitlist(service.slug, dogId, startDate, endDate)
         setWaitlistMessage(result.message ?? null)
+        setJoinedWaitlist(result.status !== "error")
       } else {
         const result = await joinWaitlist(service.slug, dogId, date)
         setWaitlistMessage(result.message ?? null)
+        setJoinedWaitlist(result.status !== "error")
       }
     } finally {
       setJoiningWaitlist(false)
@@ -228,6 +234,11 @@ export function BookingWizard({
     setSelectedDogIds((prev) =>
       prev.includes(dogId) ? prev.filter((id) => id !== dogId) : [...prev, dogId]
     )
+    // A previous blocked/joined-waitlist state no longer applies once the
+    // dog selection changes — force a fresh check on the next Continue.
+    setVaccinationWarning(null)
+    setJoinedWaitlist(false)
+    setWaitlistMessage(null)
   }
 
   function toggleAddon(addonId: string) {
@@ -758,18 +769,22 @@ export function BookingWizard({
             <Button variant="outline" onClick={() => setStepIndex((i) => i - 1)}>
               Back
             </Button>
-            <Button
-              onClick={goToReviewFromDogs}
-              disabled={selectedDogIds.length === 0 || checkingVaccinations || checkingTrial}
-            >
-              {checkingVaccinations || checkingTrial ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" /> Checking…
-                </>
-              ) : (
-                "Continue"
-              )}
-            </Button>
+            {isBoarding && vaccinationWarning && joinedWaitlist ? (
+              <Button onClick={() => router.push("/portal/waitlist")}>Back to my account</Button>
+            ) : (
+              <Button
+                onClick={goToReviewFromDogs}
+                disabled={selectedDogIds.length === 0 || checkingVaccinations || checkingTrial}
+              >
+                {checkingVaccinations || checkingTrial ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" /> Checking…
+                  </>
+                ) : (
+                  "Continue"
+                )}
+              </Button>
+            )}
           </div>
         </div>
       )}
