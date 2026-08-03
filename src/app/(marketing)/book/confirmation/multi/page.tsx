@@ -9,6 +9,7 @@ import { reconcilePendingBookingPayments } from "@/lib/payments"
 import { Button } from "@/components/ui/button"
 import { formatPence } from "@/lib/format"
 import { PayButton } from "@/components/marketing/pay-button"
+import { AutoPortalRedirect } from "@/components/marketing/auto-portal-redirect"
 
 export const metadata: Metadata = {
   title: "Bookings Confirmed",
@@ -42,6 +43,7 @@ export default async function MultiBookingConfirmationPage({
 
   const totalPence = bookings.reduce((sum, b) => sum + b.totalPence, 0)
   const failedCount = Number(failed ?? "0")
+  const anyPendingPayment = bookings.some((b) => b.status === "PENDING_PAYMENT")
 
   return (
     <div className="mx-auto max-w-xl px-4 py-16 sm:px-6">
@@ -126,6 +128,7 @@ export default async function MultiBookingConfirmationPage({
       <Button variant="outline" className="mt-6 w-full" asChild>
         <Link href="/portal/bookings">View my bookings</Link>
       </Button>
+      {!anyPendingPayment && <AutoPortalRedirect />}
     </div>
   )
 }

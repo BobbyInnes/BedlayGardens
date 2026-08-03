@@ -9,6 +9,7 @@ import { reconcilePendingBookingPayments } from "@/lib/payments"
 import { Button } from "@/components/ui/button"
 import { formatPence } from "@/lib/format"
 import { PayButton } from "@/components/marketing/pay-button"
+import { AutoPortalRedirect } from "@/components/marketing/auto-portal-redirect"
 
 export const metadata: Metadata = {
   title: "Booking Confirmed",
@@ -153,6 +154,7 @@ export default async function BookingConfirmationPage({
       <Button variant="outline" className="mt-3 w-full" asChild>
         <Link href="/portal/bookings">View my bookings</Link>
       </Button>
+      {booking.status !== "PENDING_PAYMENT" && <AutoPortalRedirect />}
     </div>
   )
 }
