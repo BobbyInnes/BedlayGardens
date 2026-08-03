@@ -5,6 +5,7 @@ import { z } from "zod"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { logAudit } from "@/lib/audit"
+import { checkWaitlistAfterVaccination } from "@/lib/waitlist"
 
 const entrySchema = z.object({
   type: z.string().trim().min(1).max(100),
@@ -57,6 +58,8 @@ export async function saveExtractedVaccinations(
       meta: `${record.type} for ${dog.name}, owner ${session.user.name} <${session.user.email}> — ${record.dateGiven.toLocaleDateString("en-GB")} to ${record.expiryDate.toLocaleDateString("en-GB")} — from uploaded certificate`,
     })
   }
+
+  await checkWaitlistAfterVaccination(dogId)
 
   revalidatePath("/portal/vaccinations")
   return { status: "success" }

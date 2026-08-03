@@ -7,6 +7,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { logAudit } from "@/lib/audit"
 import { saveUpload, deleteUpload } from "@/lib/storage"
+import { checkWaitlistAfterVaccination } from "@/lib/waitlist"
 
 const manualSchema = z.object({
   dogId: z.string().min(1),
@@ -76,6 +77,8 @@ export async function createVaccinationManual(
     entityId: record.id,
     meta: `${type} for ${dog.name}, owner ${session.user.name} <${session.user.email}> — ${record.dateGiven.toLocaleDateString("en-GB")} to ${record.expiryDate.toLocaleDateString("en-GB")} — entered manually`,
   })
+
+  await checkWaitlistAfterVaccination(dogId)
 
   revalidatePath("/portal/vaccinations")
   redirect("/portal/vaccinations")

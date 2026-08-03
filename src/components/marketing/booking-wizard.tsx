@@ -718,6 +718,38 @@ export function BookingWizard({
                 <Link href="/portal/vaccinations" className="mt-2 inline-block font-medium underline">
                   Add vaccination records
                 </Link>
+                {isBoarding && (
+                  <div className="mt-3 space-y-2 rounded-md border border-border bg-background p-3">
+                    <p className="text-sm text-muted-foreground">
+                      Join the waiting list for these dates and we&apos;ll email you if you become able to
+                      book once you&apos;ve added a valid certificate, as long as a kennel is still free.
+                    </p>
+                    {dogs.length > 1 && (
+                      <select
+                        value={waitlistDogId}
+                        onChange={(e) => setWaitlistDogId(e.target.value)}
+                        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                      >
+                        <option value="">Select a dog</option>
+                        {dogs.map((dog) => (
+                          <option key={dog.id} value={dog.id}>
+                            {dog.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={joiningWaitlist || (dogs.length > 1 && !waitlistDogId) || dogs.length === 0}
+                      onClick={handleJoinWaitlist}
+                    >
+                      {joiningWaitlist ? "Joining…" : "Join waiting list"}
+                    </Button>
+                    {waitlistMessage && <p className="text-sm">{waitlistMessage}</p>}
+                  </div>
+                )}
               </div>
             </div>
           )}

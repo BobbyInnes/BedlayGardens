@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { startOfDay } from "@/lib/dates"
+import { startOfDay, toDateInputValue } from "@/lib/dates"
 import { expireStaleOffers, offerNextInLine } from "@/lib/waitlist"
 import { resolveBookingCreation } from "@/app/(marketing)/book/actions"
 
@@ -71,13 +71,13 @@ export async function claimWaitlistOffer(entryId: string): Promise<WaitlistActio
     return { status: "error", message: "This offer is no longer available." }
   }
 
-  const dateStr = entry.date.toISOString().slice(0, 10)
+  const dateStr = toDateInputValue(entry.date)
   const result = await resolveBookingCreation(session.user.id, {
     serviceSlug: entry.service.slug,
     dogIds: [entry.dogId],
     addons: [],
     ...(entry.endDate
-      ? { startDate: dateStr, endDate: entry.endDate.toISOString().slice(0, 10) }
+      ? { startDate: dateStr, endDate: toDateInputValue(entry.endDate) }
       : { date: dateStr }),
   })
   if (result.status === "error") {
