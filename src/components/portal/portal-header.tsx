@@ -2,16 +2,25 @@ import Link from "next/link"
 import { PawPrint, UserCog } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { LogoutButton } from "@/components/portal/logout-button"
+import { cn } from "@/lib/utils"
 
 export function PortalHeader({
   name,
   accountHref = "/portal/account",
+  isAdmin = false,
 }: {
   name: string
   accountHref?: string
+  // Pastel blue for admins, pastel red for everyone else (customers, staff).
+  isAdmin?: boolean
 }) {
   return (
-    <header className="flex h-16 items-center justify-between border-b border-border bg-red-100 px-4 sm:px-6">
+    <header
+      className={cn(
+        "flex h-16 items-center justify-between border-b border-border px-4 sm:px-6",
+        isAdmin ? "bg-blue-100" : "bg-red-100"
+      )}
+    >
       <Link href="/" className="flex items-center gap-2 font-semibold">
         <PawPrint className="size-6 text-primary" aria-hidden="true" />
         <span>Bedlay Gardens</span>

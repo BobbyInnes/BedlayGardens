@@ -15,7 +15,10 @@ export default async function PortalLayout({
 
   return (
     <div className="flex min-h-full flex-col">
-      <PortalHeader name={session.user.name ?? session.user.email ?? "Account"} />
+      <PortalHeader
+        name={session.user.name ?? session.user.email ?? "Account"}
+        isAdmin={session.user.role === "ADMIN"}
+      />
       <div className="flex flex-1 flex-col md:flex-row">
         <PortalNav />
         <main className="flex-1 px-4 py-8 sm:px-6">{children}</main>

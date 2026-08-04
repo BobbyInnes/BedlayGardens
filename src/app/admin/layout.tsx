@@ -18,6 +18,7 @@ export default async function AdminLayout({
       <PortalHeader
         name={session.user.name ?? session.user.email ?? "Admin"}
         accountHref={`/admin/staff/${session.user.id}`}
+        isAdmin
       />
       <div className="flex flex-1 flex-col md:flex-row">
         <AdminNav />

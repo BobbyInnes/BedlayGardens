@@ -15,7 +15,10 @@ export default async function StaffLayout({
 
   return (
     <div className="flex min-h-full flex-col">
-      <PortalHeader name={session.user.name ?? session.user.email ?? "Staff"} />
+      <PortalHeader
+        name={session.user.name ?? session.user.email ?? "Staff"}
+        isAdmin={session.user.role === "ADMIN"}
+      />
       <div className="flex flex-1 flex-col md:flex-row">
         <StaffNav />
         <main className="flex-1 px-4 py-8 sm:px-6">{children}</main>
