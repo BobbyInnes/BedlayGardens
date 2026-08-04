@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation"
 import { AuthError } from "next-auth"
-import { auth, signIn } from "@/auth"
+import { signIn } from "@/auth"
 import { prisma } from "@/lib/prisma"
 
 export type LoginState = {
@@ -14,12 +14,14 @@ export async function loginWithPassword(
   _prevState: LoginState,
   formData: FormData
 ): Promise<LoginState> {
+  const email = formData.get("email")
+
   try {
     // redirect: false so we can send super admins to /admin instead of
     // /portal — next/navigation's redirect() below throws on purpose once
     // we know who signed in.
     await signIn("credentials", {
-      email: formData.get("email"),
+      email,
       password: formData.get("password"),
       redirect: false,
     })
@@ -30,8 +32,16 @@ export async function loginWithPassword(
     throw error
   }
 
-  const session = await auth()
-  redirect(session?.user.isSuperAdmin ? "/admin" : "/portal")
+  // Look the role up directly rather than reading it back off the session
+  // cookie set: whether that cookie is visible again within the same
+  // request isn't guaranteed, and this is the same lookup the credentials
+  // authorize() call just did.
+  const user =
+    typeof email === "string"
+      ? await prisma.user.findUnique({ where: { email }, select: { isSuperAdmin: true } })
+      : null
+
+  redirect(user?.isSuperAdmin ? "/admin" : "/portal")
 }
 
 export async function loginWithMagicLink(
