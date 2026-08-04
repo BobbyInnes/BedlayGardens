@@ -25,8 +25,9 @@ export default async function EditStaffPage({
   if (!staff || (staff.role !== "STAFF" && staff.role !== "ADMIN")) notFound()
 
   const viewerIsSuperAdmin = session ? await canManageAdmins(session) : false
+  const isSelf = session?.user.id === staffId
 
-  if (staff.role === "ADMIN" && !viewerIsSuperAdmin) {
+  if (staff.role === "ADMIN" && !viewerIsSuperAdmin && !isSelf) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold tracking-tight">Edit {staff.name}</h1>

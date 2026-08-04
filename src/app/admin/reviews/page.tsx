@@ -37,7 +37,7 @@ export default async function AdminReviewsPage() {
               <li key={review.id} className="space-y-2 p-4 text-sm">
                 <div className="flex items-center justify-between">
                   <p className="font-medium">
-                    {review.customer.name} — {review.booking.service.name}
+                    {review.customer.name} — {review.booking?.service.name ?? "Overall experience"}
                   </p>
                   <span className="text-muted-foreground">{"★".repeat(review.rating)}</span>
                 </div>
@@ -70,7 +70,7 @@ export default async function AdminReviewsPage() {
               <li key={review.id} className="flex items-center justify-between gap-3 p-4 text-sm">
                 <div>
                   <p className="font-medium">
-                    {review.customer.name} — {review.booking.service.name}
+                    {review.customer.name} — {review.booking?.service.name ?? "Overall experience"}
                   </p>
                   {review.text && <p className="text-muted-foreground">{review.text}</p>}
                 </div>

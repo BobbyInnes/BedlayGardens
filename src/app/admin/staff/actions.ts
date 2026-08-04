@@ -175,7 +175,8 @@ export async function updateStaff(
   }
 
   const viewerCanManage = await canManageAdmins(session)
-  if (staff.role === "ADMIN" && !viewerCanManage) {
+  const isSelf = session.user.id === staffId
+  if (staff.role === "ADMIN" && !viewerCanManage && !isSelf) {
     return {
       status: "error",
       message: "Only a super admin can edit an admin account.",
@@ -311,7 +312,7 @@ export async function resetStaffPassword(
   if (!staff) {
     return { status: "error", message: "Staff member not found." }
   }
-  if (staff.role === "ADMIN" && !(await canManageAdmins(session))) {
+  if (staff.role === "ADMIN" && !(await canManageAdmins(session)) && session.user.id !== staffId) {
     return { status: "error", message: "Only a super admin can reset an admin's password." }
   }
 

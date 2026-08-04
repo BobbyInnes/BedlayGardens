@@ -55,3 +55,57 @@ export async function submitReview(
   revalidatePath("/portal/reviews")
   return { status: "idle", message: "Thanks for your review!" }
 }
+
+const generalReviewSchema = z.object({
+  rating: z.coerce.number().int().min(1).max(5),
+  text: z.string().trim().max(2000).optional().or(z.literal("")),
+})
+
+/**
+ * A review of the overall experience (the service, the booking system, the
+ * portal — not any one stay) — bookingId is null. At most one per customer:
+ * submitting again edits their existing one rather than adding another, and
+ * an edit goes back to PENDING since the content actually changed.
+ */
+export async function submitGeneralReview(
+  _prevState: ReviewActionState,
+  formData: FormData
+): Promise<ReviewActionState> {
+  const session = await auth()
+  if (!session?.user) return { status: "error", message: "Please log in." }
+
+  const parsed = generalReviewSchema.safeParse({
+    rating: formData.get("rating"),
+    text: formData.get("text"),
+  })
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input." }
+  }
+
+  const existing = await prisma.review.findFirst({
+    where: { customerId: session.user.id, bookingId: null },
+  })
+
+  if (existing) {
+    await prisma.review.update({
+      where: { id: existing.id },
+      data: {
+        rating: parsed.data.rating,
+        text: parsed.data.text || null,
+        status: "PENDING",
+      },
+    })
+  } else {
+    await prisma.review.create({
+      data: {
+        customerId: session.user.id,
+        bookingId: null,
+        rating: parsed.data.rating,
+        text: parsed.data.text || null,
+      },
+    })
+  }
+
+  revalidatePath("/portal/reviews")
+  return { status: "idle", message: "Thanks for your review!" }
+}
