@@ -1,0 +1,155 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="New Customer and Dog" id="new-customer-dog">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1650" pageHeight="1320" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Entry -->
+        <mxCell id="s1" value="A new customer (with a dog) needs&#10;to be added to the system" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="560" y="30" width="420" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Path headers -->
+        <mxCell id="l0h" value="Path 1: customer self-service (via the website)" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="120" width="400" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="r0h" value="Path 2: admin quick-add (during a manual / phone booking)" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="820" y="120" width="400" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Left column: self-service ===== -->
+        <mxCell id="l1" value="Customer opens /register and fills in&#10;name, email, password, phone, address" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="160" width="400" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="l2" value="Email already registered?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="100" y="250" width="320" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="l2a" value="Show error:&#10;&quot;account already exists&quot;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="520" y="270" width="260" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="l3" value="User created&#10;role = CUSTOMER" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="60" y="360" width="400" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="l4" value="Audit log: CREATE_CUSTOMER&#10;(self-registered)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="60" y="440" width="400" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="l5" value="Welcome email sent (best-effort)&#10;&#8212; links to /portal/dogs/new" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="510" width="400" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="l6" value="Customer auto-signed in&#10;&#8594; redirected to /portal" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="590" width="400" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="l7" value="Customer opens&#10;/portal/dogs/new" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="670" width="400" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="l8" value="Fills in dog form: name, breed&#10;required; DOB, sex, size, weight,&#10;notes, photo optional" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="740" width="400" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="l9" value="Fields valid?&#10;(e.g. age &#8804; 18yrs, weight &#8804; 200kg)" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="100" y="840" width="320" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="l9a" value="Show field errors&#10;&#8212; stays on the form" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="520" y="860" width="260" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="l10" value="Dog created, owned by the&#10;customer; photo uploaded&#10;to storage if provided" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="60" y="960" width="400" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="l11" value="Audit log: CREATE_DOG" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1060" width="400" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="l12" value="Notification email sent&#10;(best-effort)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1130" width="400" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="l13" value="Redirected to /portal/dogs&#10;&#8212; customer and dog fully onboarded" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1200" width="400" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Right column: admin quick-add ===== -->
+        <mxCell id="r1" value="Admin opens Admin &#8594; Bookings &#8594; New&#10;(manual / phone booking)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="820" y="160" width="400" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="r2" value="Admin searches for the&#10;customer by name or email" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="820" y="250" width="400" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="r3" value="Existing customer found?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="860" y="330" width="320" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="r3a" value="Yes &#8594; use existing customer&#10;(skip customer creation)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="350" width="280" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="r4" value="No &#8594; admin fills &quot;quick add&#10;customer&quot;: name, email, phone,&#10;address (no password set yet)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="820" y="440" width="400" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="r5" value="Email already registered?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="860" y="540" width="320" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="r5a" value="Show error:&#10;&quot;search for them instead&quot;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="560" width="280" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="r6" value="User created&#10;role = CUSTOMER" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="820" y="650" width="400" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="r7" value="Audit log: CREATE_CUSTOMER" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="820" y="730" width="400" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="r8" value="Admin quick-adds a dog:&#10;name + breed only" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="820" y="800" width="400" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="r9" value="createQuickDog checks the&#10;owner is a CUSTOMER" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="820" y="880" width="400" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="r10" value="Dog created&#10;(no photo, no extra fields,&#10;no notification email)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="820" y="960" width="400" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="r11" value="Audit log: CREATE_DOG" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="820" y="1060" width="400" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="r12" value="Customer and dog now&#10;selected on the booking form" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="820" y="1130" width="400" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="r13" value="Admin continues creating&#10;the manual booking" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="820" y="1210" width="400" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ===== edges: entry ===== -->
+        <mxCell id="e_s1l1" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="s1" target="l1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_s1r1" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="s1" target="r1"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ===== edges: left path ===== -->
+        <mxCell id="e_l1l2" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="l1" target="l2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_l2l2a" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="l2" target="l2a"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_l2l3" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="l2" target="l3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_l3l4" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="l3" target="l4"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_l4l5" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="l4" target="l5"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_l5l6" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="l5" target="l6"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_l6l7" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="l6" target="l7"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_l7l8" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="l7" target="l8"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_l8l9" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="l8" target="l9"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_l9l9a" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="l9" target="l9a"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_l9l10" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="l9" target="l10"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_l10l11" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="l10" target="l11"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_l11l12" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="l11" target="l12"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_l12l13" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="l12" target="l13"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- ===== edges: right path ===== -->
+        <mxCell id="e_r1r2" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="r1" target="r2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_r2r3" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="r2" target="r3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_r3r3a" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="r3" target="r3a"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_r3r4" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="r3" target="r4"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_r4r5" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="r4" target="r5"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_r5r5a" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="r5" target="r5a"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_r5r6" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="r5" target="r6"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_r6r7" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="r6" target="r7"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_r7r8" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="r7" target="r8"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_r3ar8" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;" edge="1" parent="1" source="r3a" target="r8"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_r8r9" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="r8" target="r9"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_r9r10" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="r9" target="r10"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_r10r11" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="r10" target="r11"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_r11r12" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="r11" target="r12"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_r12r13" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" parent="1" source="r12" target="r13"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

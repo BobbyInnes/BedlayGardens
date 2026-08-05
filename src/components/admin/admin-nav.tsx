@@ -23,6 +23,7 @@ import {
   Home,
   ShieldCheck,
   Receipt,
+  Mail,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -44,6 +45,7 @@ const navItems = [
   { href: "/admin/reviews", label: "Reviews", icon: Star },
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
   { href: "/admin/accounting", label: "Accounting", icon: Receipt },
+  { href: "/admin/emails", label: "Sent Emails", icon: Mail },
   { href: "/admin/audit-log", label: "Audit Log", icon: ShieldCheck },
 ]
 

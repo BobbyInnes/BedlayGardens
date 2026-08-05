@@ -1,0 +1,131 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Email Triggers Map" id="email-triggers">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1650" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="When &amp; why every email is sent" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=20;" vertex="1" parent="1">
+          <mxGeometry x="40" y="0" width="1520" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== COLUMN 1 ===================== -->
+        <mxCell id="c1h" value="Account &amp; profile" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="480" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="a1" value="WHEN: customer chooses &quot;Email me a sign-in link&quot; on /login&#10;EMAIL: magic sign-in link (sent by NextAuth/Resend, not the app's own mailer) &#8594; that address" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="480" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="a2" value="WHEN: customer completes /register&#10;EMAIL: welcome email, links to /portal/dogs/new &#8594; the new customer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="150" width="480" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="a3" value="WHEN: customer adds a dog (/portal/dogs/new)&#10;EMAIL: &quot;dog added&quot; confirmation &#8594; the owner" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="220" width="480" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="a4" value="WHEN: customer edits a dog's profile&#10;EMAIL: &quot;dog updated&quot; confirmation &#8594; the owner" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="290" width="480" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c1h2" value="Dog care &amp; compliance" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="40" y="380" width="480" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="c1" value="WHEN: cron &#8212; an active vaccination record expires within 14 days&#10;EMAIL: vaccination expiry warning &#8594; the dog's owner (once per record)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="420" width="480" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" value="WHEN: staff posts a pupdate (photo/video) during a stay&#10;EMAIL: pupdate notification, sent immediately &#8594; the customer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="490" width="480" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== COLUMN 2 ===================== -->
+        <mxCell id="c2h" value="Booking lifecycle" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="560" y="40" width="480" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="b1" value="WHEN: a payment succeeds (Stripe webhook, confirmation-page reconciliation, admin manual payment, or credit/voucher redemption)&#10;EMAIL: payment receipt, always; PLUS booking confirmation if this payment just moved the booking PENDING_PAYMENT &#8594; CONFIRMED &#8594; the customer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="560" y="80" width="480" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="b2b" value="WHEN: an INVOICE_AFTER booking (e.g. dog walking) is created&#10;EMAIL: booking confirmation sent immediately &#8594; the customer (this service type never goes through the payment webhook)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="560" y="180" width="480" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="b3" value="WHEN: booking is cancelled (by the customer in the portal, or by an admin)&#10;EMAIL: cancellation confirmation with refund/policy note &#8594; the customer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="560" y="260" width="480" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="b4" value="WHEN: cron &#8212; booking starts tomorrow&#10;EMAIL: check-in reminder &#8594; the customer (once per booking)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="560" y="330" width="480" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="b5" value="WHEN: cron &#8212; balance due within 3 days and still unpaid&#10;EMAIL: balance due reminder &#8594; the customer (once per booking)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="560" y="400" width="480" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="b6" value="WHEN: cron &#8212; booking left PENDING_PAYMENT for &gt; 2h (configurable)&#10;EMAIL: abandoned-booking reminder, 1st nudge &#8594; the customer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="560" y="470" width="480" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="b7" value="WHEN: cron &#8212; still PENDING_PAYMENT after &gt; 24h (configurable)&#10;EMAIL: abandoned-booking reminder, final nudge &#8594; the customer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="560" y="540" width="480" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="b8" value="WHEN: cron &#8212; booking CHECKED_OUT, ended &gt; 1 day ago, no review yet&#10;EMAIL: review request &#8594; the customer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="560" y="610" width="480" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== COLUMN 3 ===================== -->
+        <mxCell id="c3h" value="Waitlist &amp; operations" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="40" width="480" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="d1" value="WHEN: customer is blocked by the vaccination gate and joins the waitlist&#10;EMAIL: waitlist-joined confirmation &#8594; the customer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="80" width="480" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="d2" value="WHEN: a slot frees up (cancellation, or a vaccination record now clears the gate) and is offered to the next person in line&#10;EMAIL/SMS: time-limited waitlist offer &#8594; the customer, on their preferred channel" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="150" width="480" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="d3" value="WHEN: staff marks a van-run stop collected or dropped off&#10;EMAIL/SMS: pickup/drop-off update, sent immediately &#8594; the customer, on their preferred channel" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="230" width="480" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c3h2" value="Money &amp; credit" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="320" width="480" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="WHEN: a gift voucher purchase completes (Stripe checkout, or immediately if Stripe isn't configured)&#10;EMAIL: voucher code &amp; delivery &#8594; the recipient (or the purchaser, if no recipient given)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="360" width="480" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="WHEN: admin manually issues account credit to a customer&#10;EMAIL: &quot;account credit added&quot; &#8594; the customer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="440" width="480" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="WHEN: a subscription's recurring payment fails; the subscription is paused&#10;EMAIL/SMS: payment-failed notice &#8594; the customer, on their preferred channel" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="510" width="480" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c3h3" value="Internal / business-facing" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="610" width="480" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="f1" value="WHEN: someone submits the public contact form&#10;EMAIL: new contact message &#8594; the business's configured email address" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="650" width="480" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="f2" value="WHEN: a subscription's recurring payment fails (same trigger as the customer notice)&#10;EMAIL: copy of the failure notice &#8594; the business's configured email address" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;spacingLeft=6;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="720" width="480" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== Legend ===================== -->
+        <mxCell id="legTitle" value="Legend:" style="text;html=1;align=left;verticalAlign=middle;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="810" width="100" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legSw1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="140" y="815" width="30" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legT1" value="Email only, to a customer" style="text;html=1;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="180" y="810" width="260" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legSw2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="460" y="815" width="30" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legT2" value="Dual-channel (email and/or SMS, per the customer's saved preference)" style="text;html=1;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="500" y="810" width="520" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legSw3" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="815" width="30" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legT3" value="Internal &#8212; goes to the business, not a customer" style="text;html=1;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="810" width="400" height="30" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

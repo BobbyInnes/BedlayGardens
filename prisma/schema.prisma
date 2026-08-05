@@ -617,6 +617,24 @@ model EmailLog {
   @@index([type, vaccinationRecordId])
 }
 
+// Every email the app has ever attempted to send, written by sendEmail()
+// itself — the one choke point every call site goes through — so this is
+// complete without having to instrument each caller individually. `to` is
+// a plain string rather than a User relation since some recipients aren't
+// customers at all (the business inbox, a voucher sent to a non-account
+// email). Feeds the admin "Sent Emails" page.
+model SentEmail {
+  id      String   @id @default(cuid())
+  to      String
+  subject String
+  status  String // "SENT" | "SKIPPED" | "FAILED"
+  error   String?
+  sentAt  DateTime @default(now())
+
+  @@index([to])
+  @@index([sentAt])
+}
+
 // ---------------------------------------------------------------------------
 // Extended features (§13.4)
 // ---------------------------------------------------------------------------
