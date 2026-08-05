@@ -6,7 +6,7 @@ import { z } from "zod"
 import { Prisma } from "@/generated/prisma/client"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { logAudit } from "@/lib/audit"
+import { logAudit, logEntityChange } from "@/lib/audit"
 import { saveUpload, deleteUpload } from "@/lib/storage"
 import { sendEmail } from "@/lib/email"
 import { getSettings } from "@/lib/settings"
@@ -192,37 +192,59 @@ export async function updateDog(
     photoUrl = await saveUpload(`dogs/${dog.id}`, photo.name, buffer)
   }
 
-  const updatedDog = await prisma.dog.update({
-    where: { id: dogId },
-    data: {
-      name: data.name,
-      breed: data.breed,
-      dob: data.dob ? new Date(data.dob) : null,
-      sex: data.sex || null,
-      size: data.size || null,
-      neutered: !!data.neutered,
-      weightKg: data.weightKg === "" || data.weightKg === undefined ? null : data.weightKg,
-      feedingNotes: data.feedingNotes || null,
-      medicationNotes: data.medicationNotes || null,
-      behaviourNotes: data.behaviourNotes || null,
-      vetName: data.vetName || null,
-      vetPhone: data.vetPhone || null,
-      emergencyContact: data.emergencyContact || null,
-      microchipNumber: data.microchipNumber || null,
-      color: data.color || null,
-      runType: data.runType || null,
-      temperament: data.temperament || null,
-      groupPlayApproved: !!data.groupPlayApproved,
-      photoUrl,
-    },
-  })
+  const after = {
+    name: data.name,
+    breed: data.breed,
+    dob: data.dob ? new Date(data.dob) : null,
+    sex: data.sex || null,
+    size: data.size || null,
+    neutered: !!data.neutered,
+    weightKg: data.weightKg === "" || data.weightKg === undefined ? null : data.weightKg,
+    feedingNotes: data.feedingNotes || null,
+    medicationNotes: data.medicationNotes || null,
+    behaviourNotes: data.behaviourNotes || null,
+    vetName: data.vetName || null,
+    vetPhone: data.vetPhone || null,
+    emergencyContact: data.emergencyContact || null,
+    microchipNumber: data.microchipNumber || null,
+    color: data.color || null,
+    runType: data.runType || null,
+    temperament: data.temperament || null,
+    groupPlayApproved: !!data.groupPlayApproved,
+    photoUrl,
+  }
 
-  await logAudit({
+  const updatedDog = await prisma.dog.update({ where: { id: dogId }, data: after })
+
+  await logEntityChange({
     actorId: session.user.id,
     action: "UPDATE_DOG",
     entity: "Dog",
     entityId: updatedDog.id,
-    meta: `${updatedDog.name} (${updatedDog.breed})`,
+    context: `dog ${dog.name}, owner ${session.user.name ?? session.user.email}`,
+    before: dog,
+    after,
+    labels: {
+      name: "Name",
+      breed: "Breed",
+      dob: "Date of birth",
+      sex: "Sex",
+      size: "Size",
+      neutered: "Neutered",
+      weightKg: "Weight (kg)",
+      feedingNotes: "Feeding notes",
+      medicationNotes: "Medication notes",
+      behaviourNotes: "Behaviour notes",
+      vetName: "Vet name",
+      vetPhone: "Vet phone",
+      emergencyContact: "Emergency contact",
+      microchipNumber: "Microchip number",
+      color: "Colour",
+      runType: "Run type",
+      temperament: "Temperament",
+      groupPlayApproved: "Group play approved",
+      photoUrl: "Photo",
+    },
   })
 
   // A failed notification email must not fail the dog update itself.

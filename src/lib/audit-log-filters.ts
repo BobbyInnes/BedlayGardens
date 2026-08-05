@@ -19,6 +19,10 @@ const CUSTOMER_ACTIONS = [
   "DELETE_CUSTOMER",
   "PROMOTE_CUSTOMER_TO_STAFF",
   "ISSUE_GOODWILL_CREDIT",
+  "UPDATE_CUSTOMER_PROFILE",
+  "UPDATE_CUSTOMER_NOTES",
+  "UPDATE_CUSTOMER_DETAILS",
+  "TOGGLE_CUSTOMER_ACTIVE",
 ]
 
 function categoryWhere(category: string | undefined): Prisma.AuditLogWhereInput | undefined {

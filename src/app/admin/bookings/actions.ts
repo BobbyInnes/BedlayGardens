@@ -14,7 +14,7 @@ import { paymentFieldsFor } from "@/lib/payment-timing"
 import { getSetting, getSettings } from "@/lib/settings"
 import { sendEmail } from "@/lib/email"
 import { cancellationConfirmationEmail, bookingConfirmationEmail, paymentReceiptEmail } from "@/lib/email-templates"
-import { logAudit } from "@/lib/audit"
+import { logAudit, logEntityChange } from "@/lib/audit"
 import { resolveBookingCreation, type BookingCreationResult } from "@/app/(marketing)/book/actions"
 import { createBookingInvoice } from "@/lib/invoicing"
 import { getActiveAgreement } from "@/lib/agreement"
@@ -286,7 +286,7 @@ export async function modifyBookingDates(
   }
 
   const dogCount = booking.bookingDogs.length
-  let dateSummary = ""
+  let afterDates: { startDate: Date; endDate: Date } | null = null
 
   if (booking.service.slug === "overnight-boarding") {
     const startDateRaw = formData.get("startDate") as string | null
@@ -394,7 +394,7 @@ export async function modifyBookingDates(
       await restoreOldOccupancy()
       return { status: "error", message: "Those dates just became fully booked. Please try again." }
     }
-    dateSummary = `${startDate.toDateString()} – ${endDate.toDateString()}`
+    afterDates = { startDate, endDate }
   } else if (booking.service.slug === "daycare") {
     const dateRaw = formData.get("date") as string | null
     if (!dateRaw) return { status: "error", message: "Select a date." }
@@ -409,17 +409,20 @@ export async function modifyBookingDates(
       where: { id: bookingId },
       data: { startDate: date, endDate: date },
     })
-    dateSummary = date.toDateString()
+    afterDates = { startDate: date, endDate: date }
   } else {
     return { status: "error", message: "Dates for this service are changed by reassigning the slot or run." }
   }
 
-  await logAudit({
+  await logEntityChange({
     actorId: session.user.id,
     action: "MODIFY_BOOKING_DATES",
     entity: "Booking",
     entityId: bookingId,
-    meta: `${dateSummary} — owner ${booking.customer.name} <${booking.customer.email}>`,
+    context: `booking ${bookingId} — ${booking.service.name} for ${booking.customer.name} <${booking.customer.email}>`,
+    before: { startDate: booking.startDate, endDate: booking.endDate },
+    after: afterDates ?? {},
+    labels: { startDate: "Start date", endDate: "End date" },
   })
 
   revalidatePath(`/admin/bookings/${bookingId}`)
@@ -449,7 +452,10 @@ export async function reassignKennel(
     return { status: "idle", message: "Already assigned to that accommodation." }
   }
 
-  const newKennel = await prisma.kennelUnit.findUnique({ where: { id: newKennelUnitId } })
+  const [oldKennel, newKennel] = await Promise.all([
+    prisma.kennelUnit.findUnique({ where: { id: booking.kennelUnitId } }),
+    prisma.kennelUnit.findUnique({ where: { id: newKennelUnitId } }),
+  ])
   const dogCount = booking.bookingDogs.length
   if (!newKennel || !newKennel.active || newKennel.dogCapacity < dogCount) {
     return { status: "error", message: "That accommodation can't take this booking." }
@@ -481,12 +487,15 @@ export async function reassignKennel(
     throw error
   }
 
-  await logAudit({
+  await logEntityChange({
     actorId: session.user.id,
     action: "REASSIGN_KENNEL",
     entity: "Booking",
     entityId: bookingId,
-    meta: `Moved to ${newKennel.name} — owner ${booking.customer.name} <${booking.customer.email}>`,
+    context: `booking ${bookingId} — ${booking.service.name} for ${booking.customer.name} <${booking.customer.email}>`,
+    before: { kennelUnitId: oldKennel?.name ?? booking.kennelUnitId },
+    after: { kennelUnitId: newKennel.name },
+    labels: { kennelUnitId: "Accommodation" },
   })
 
   revalidatePath(`/admin/bookings/${bookingId}`)

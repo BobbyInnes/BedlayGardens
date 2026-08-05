@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { logAudit } from "@/lib/audit"
+import { logAudit, logEntityChange } from "@/lib/audit"
 import { sendEmail } from "@/lib/email"
 import { getSettings } from "@/lib/settings"
 import { formatPence } from "@/lib/format"
@@ -29,12 +29,23 @@ export async function updateCustomerNotes(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const notes = ((formData.get("adminNotes") as string | null) ?? "").trim()
 
-  await prisma.user.update({
-    where: { id: customerId },
-    data: { adminNotes: notes || null },
+  const before = await prisma.user.findUniqueOrThrow({ where: { id: customerId } })
+  const after = { adminNotes: notes || null }
+
+  await prisma.user.update({ where: { id: customerId }, data: after })
+
+  await logEntityChange({
+    actorId: session.user.id,
+    action: "UPDATE_CUSTOMER_NOTES",
+    entity: "User",
+    entityId: customerId,
+    context: `customer ${before.name} <${before.email}>`,
+    before,
+    after,
+    labels: { adminNotes: "Admin notes" },
   })
 
   revalidatePath(`/admin/customers/${customerId}`)
@@ -46,22 +57,41 @@ export async function updateCustomerContactDetails(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
-  await requireAdmin()
+  const session = await requireAdmin()
   const name = ((formData.get("name") as string | null) ?? "").trim()
   if (!name) {
     return { status: "error", message: "Name is required." }
   }
 
-  await prisma.user.update({
-    where: { id: customerId },
-    data: {
-      name,
-      phone: ((formData.get("phone") as string | null) ?? "").trim() || null,
-      workPhone: ((formData.get("workPhone") as string | null) ?? "").trim() || null,
-      addressLine1: ((formData.get("addressLine1") as string | null) ?? "").trim() || null,
-      addressLine2: ((formData.get("addressLine2") as string | null) ?? "").trim() || null,
-      addressCity: ((formData.get("addressCity") as string | null) ?? "").trim() || null,
-      addressPostcode: ((formData.get("addressPostcode") as string | null) ?? "").trim() || null,
+  const before = await prisma.user.findUniqueOrThrow({ where: { id: customerId } })
+  const after = {
+    name,
+    phone: ((formData.get("phone") as string | null) ?? "").trim() || null,
+    workPhone: ((formData.get("workPhone") as string | null) ?? "").trim() || null,
+    addressLine1: ((formData.get("addressLine1") as string | null) ?? "").trim() || null,
+    addressLine2: ((formData.get("addressLine2") as string | null) ?? "").trim() || null,
+    addressCity: ((formData.get("addressCity") as string | null) ?? "").trim() || null,
+    addressPostcode: ((formData.get("addressPostcode") as string | null) ?? "").trim() || null,
+  }
+
+  await prisma.user.update({ where: { id: customerId }, data: after })
+
+  await logEntityChange({
+    actorId: session.user.id,
+    action: "UPDATE_CUSTOMER_DETAILS",
+    entity: "User",
+    entityId: customerId,
+    context: `customer ${before.name} <${before.email}>`,
+    before,
+    after,
+    labels: {
+      name: "Name",
+      phone: "Phone",
+      workPhone: "Work phone",
+      addressLine1: "Address line 1",
+      addressLine2: "Address line 2",
+      addressCity: "City",
+      addressPostcode: "Postcode",
     },
   })
 
@@ -70,8 +100,22 @@ export async function updateCustomerContactDetails(
 }
 
 export async function toggleCustomerActive(customerId: string, active: boolean) {
-  await requireAdmin()
+  const session = await requireAdmin()
+
+  const before = await prisma.user.findUniqueOrThrow({ where: { id: customerId } })
   await prisma.user.update({ where: { id: customerId }, data: { active } })
+
+  await logEntityChange({
+    actorId: session.user.id,
+    action: "TOGGLE_CUSTOMER_ACTIVE",
+    entity: "User",
+    entityId: customerId,
+    context: `customer ${before.name} <${before.email}>`,
+    before,
+    after: { active },
+    labels: { active: "Active" },
+  })
+
   revalidatePath("/admin/customers")
   revalidatePath(`/admin/customers/${customerId}`)
 }

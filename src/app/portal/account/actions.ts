@@ -9,6 +9,7 @@ import { auth, signOut } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { stripe, getSiteUrl } from "@/lib/stripe"
 import { setOptOut } from "@/lib/notification-preferences"
+import { logEntityChange } from "@/lib/audit"
 
 export type ActionState = { status: "idle" | "success" | "error"; message?: string }
 
@@ -47,16 +48,35 @@ export async function updateProfile(
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
   }
 
-  await prisma.user.update({
-    where: { id: session.user.id },
-    data: {
-      name: parsed.data.name,
-      phone: parsed.data.phone || null,
-      workPhone: parsed.data.workPhone || null,
-      addressLine1: parsed.data.addressLine1,
-      addressLine2: parsed.data.addressLine2 || null,
-      addressCity: parsed.data.addressCity || null,
-      addressPostcode: parsed.data.addressPostcode || null,
+  const before = await prisma.user.findUniqueOrThrow({ where: { id: session.user.id } })
+  const after = {
+    name: parsed.data.name,
+    phone: parsed.data.phone || null,
+    workPhone: parsed.data.workPhone || null,
+    addressLine1: parsed.data.addressLine1,
+    addressLine2: parsed.data.addressLine2 || null,
+    addressCity: parsed.data.addressCity || null,
+    addressPostcode: parsed.data.addressPostcode || null,
+  }
+
+  await prisma.user.update({ where: { id: session.user.id }, data: after })
+
+  await logEntityChange({
+    actorId: session.user.id,
+    action: "UPDATE_CUSTOMER_PROFILE",
+    entity: "User",
+    entityId: session.user.id,
+    context: `customer ${before.name} <${before.email}> (self-service)`,
+    before,
+    after,
+    labels: {
+      name: "Name",
+      phone: "Phone",
+      workPhone: "Work phone",
+      addressLine1: "Address line 1",
+      addressLine2: "Address line 2",
+      addressCity: "City",
+      addressPostcode: "Postcode",
     },
   })
 
