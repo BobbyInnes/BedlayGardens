@@ -288,6 +288,8 @@ export async function issueGoodwillCredit(
     return { status: "error", message: "Enter a positive amount." }
   }
 
+  const customer = await prisma.user.findUnique({ where: { id: customerId } })
+
   await prisma.creditLedger.create({
     data: { customerId, amountPence, reason: reason || "Goodwill credit" },
   })
@@ -296,10 +298,9 @@ export async function issueGoodwillCredit(
     action: "ISSUE_GOODWILL_CREDIT",
     entity: "User",
     entityId: customerId,
-    meta: `${amountPence}p — ${reason}`,
+    meta: `Customer: ${customer?.name ?? "Unknown"} (ID: ${customerId}) — ${formatPence(amountPence)} — ${reason}`,
   })
 
-  const customer = await prisma.user.findUnique({ where: { id: customerId } })
   if (customer) {
     const settings = await getSettings()
     await sendEmail({
