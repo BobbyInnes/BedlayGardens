@@ -4,12 +4,13 @@ import { Clock } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ExpandableDescription } from "@/components/marketing/expandable-description"
 import {
   formatPenceCompact,
   pricingSuffixLabel,
   serviceDuration,
 } from "@/lib/service-display"
-import { sanitizeRichText } from "@/lib/sanitize-html"
+import { sanitizeRichTextPreview } from "@/lib/sanitize-html"
 import { cn } from "@/lib/utils"
 import type { PricingModel } from "@/generated/prisma/client"
 
@@ -73,10 +74,7 @@ export function ServiceCard({
         )}
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-6">
-        <div
-          className="line-clamp-4 flex-1 text-sm text-muted-foreground [&_img]:inline [&_img]:align-middle"
-          dangerouslySetInnerHTML={{ __html: sanitizeRichText(description) }}
-        />
+        <ExpandableDescription html={sanitizeRichTextPreview(description)} />
         <Button asChild className="w-full">
           <Link href={`/book/${slug}`}>
             Book Now <span className="sr-only">— {name}</span>

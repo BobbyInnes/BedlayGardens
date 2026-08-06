@@ -39,3 +39,17 @@ export function htmlToPlainText(value: string): string {
   const withBreaks = value.replace(/<\/(p|div)>/gi, "\n").replace(/<br\s*\/?>/gi, "\n")
   return sanitizeHtml(withBreaks, { allowedTags: [], allowedAttributes: {} }).trim()
 }
+
+// For `line-clamp`-truncated previews (e.g. service cards). `-webkit-line-clamp`
+// only clips correctly across a single flowing run of text — if the sanitized
+// HTML has multiple <p>/<div> paragraphs, the clamp box's line-fragmentation
+// math breaks down and paragraphs render overlapping each other instead of
+// stacked. Flattening paragraph breaks to <br> keeps bold/italic/colour/images
+// but avoids the nested-block layout that trips up the clamp.
+export function sanitizeRichTextPreview(value: string): string {
+  return sanitizeRichText(value)
+    .replace(/<\/(p|div)>/gi, "<br>")
+    .replace(/<(p|div)[^>]*>/gi, "")
+    .replace(/(<br>\s*)+$/i, "")
+    .replace(/^(\s*<br>)+/i, "")
+}
