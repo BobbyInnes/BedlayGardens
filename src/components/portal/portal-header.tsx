@@ -9,18 +9,20 @@ export function PortalHeader({
   name,
   accountHref = "/portal/account",
   role,
+  isSuperAdmin,
 }: {
   name: string
   accountHref?: string
-  // Pastel blue for admins (including super admins), pastel red for staff,
-  // no tint for customers.
+  // Pastel blue for super admins specifically (not every ADMIN), pastel red
+  // for staff, white for everyone else (regular admins, customers).
   role: Role
+  isSuperAdmin: boolean
 }) {
   return (
     <header
       className={cn(
         "flex h-16 items-center justify-between border-b border-border px-4 sm:px-6",
-        role === "ADMIN" ? "bg-blue-100" : role === "STAFF" ? "bg-red-100" : ""
+        isSuperAdmin ? "bg-blue-100" : role === "STAFF" ? "bg-red-100" : "bg-white"
       )}
     >
       <Link href="/" className="flex items-center gap-2 font-semibold">

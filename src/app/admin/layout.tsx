@@ -19,6 +19,7 @@ export default async function AdminLayout({
         name={session.user.name ?? session.user.email ?? "Admin"}
         accountHref={`/admin/staff/${session.user.id}`}
         role={session.user.role}
+        isSuperAdmin={session.user.isSuperAdmin}
       />
       <div className="flex flex-1 flex-col md:flex-row">
         <AdminNav />
