@@ -128,7 +128,7 @@ export async function registerAction(
   // A failed welcome email must not fail the registration itself.
   try {
     const settings = await getSettings()
-    const welcome = welcomeEmail(settings, name, `${getSiteUrl()}/portal/dogs/new`)
+    const welcome = welcomeEmail(settings, user, `${getSiteUrl()}/portal/dogs/new`)
     await sendEmail({ to: email, subject: welcome.subject, html: welcome.html })
   } catch (error) {
     console.error("[register] failed to send welcome email", error)

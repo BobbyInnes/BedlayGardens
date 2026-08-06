@@ -7,7 +7,13 @@ export const metadata: Metadata = {
   description: "Log in to your Bedlay Gardens LTD account.",
 }
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ reset?: string }>
+}) {
+  const { reset } = await searchParams
+
   return (
     <div className="mx-auto max-w-md px-4 py-16 sm:px-6">
       <div className="mb-8 text-center">
@@ -19,6 +25,14 @@ export default function LoginPage() {
           </Link>
         </p>
       </div>
+      {reset === "success" && (
+        <p
+          className="mb-6 rounded-md border border-border bg-muted/50 p-4 text-center text-sm text-foreground"
+          role="status"
+        >
+          Your password has been reset. Log in with your new password below.
+        </p>
+      )}
       <LoginForm />
     </div>
   )

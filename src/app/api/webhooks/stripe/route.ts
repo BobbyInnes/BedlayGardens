@@ -8,7 +8,7 @@ import { formatPence } from "@/lib/format"
 import { paymentReceiptEmail, voucherDeliveryEmail } from "@/lib/email-templates"
 import { notifySubscriptionPaymentFailed } from "@/lib/subscriptions"
 import { markPaymentSucceededAndNotify } from "@/lib/payments"
-import { logAudit } from "@/lib/audit"
+import { logAudit, describeBooking } from "@/lib/audit"
 
 async function handleVoucherCheckoutCompleted(voucherId: string) {
   const voucher = await prisma.voucher.findUnique({ where: { id: voucherId }, include: { purchaser: true } })
@@ -95,7 +95,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { service: true, customer: true },
+    include: { service: true, customer: true, bookingDogs: { include: { dog: true } } },
   })
   if (!booking) return
 
@@ -104,7 +104,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
     action: "PAYMENT_SUCCEEDED",
     entity: "Booking",
     entityId: booking.id,
-    meta: `INVOICE — ${formatPence(payment.amountPence)}`,
+    meta: `INVOICE — ${formatPence(payment.amountPence)} — ${describeBooking(booking)}`,
   })
 
   const settings = await getSettings()

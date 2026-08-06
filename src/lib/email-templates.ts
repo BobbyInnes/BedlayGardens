@@ -69,9 +69,41 @@ function otherDaycareDatesLine(dates: Date[] | undefined): string {
   return `<p>You also booked day care for: ${formatted}.</p>`
 }
 
+type NewCustomerDetails = {
+  name: string
+  email: string
+  customerNumber: number
+  phone: string | null
+  workPhone: string | null
+  addressLine1: string | null
+  addressLine2: string | null
+  addressCity: string | null
+  addressPostcode: string | null
+}
+
+function customerDetailRows(customer: NewCustomerDetails): [string, string][] {
+  const address = [
+    customer.addressLine1,
+    customer.addressLine2,
+    customer.addressCity,
+    customer.addressPostcode,
+  ]
+    .filter(Boolean)
+    .join(", ")
+
+  return [
+    ["Customer reference", formatCustomerNumber(customer.customerNumber)],
+    ["Name", customer.name],
+    ["Email", customer.email],
+    ...(customer.phone ? ([["Phone", customer.phone]] as [string, string][]) : []),
+    ...(customer.workPhone ? ([["Work phone", customer.workPhone]] as [string, string][]) : []),
+    ...(address ? ([["Address", address]] as [string, string][]) : []),
+  ]
+}
+
 export function welcomeEmail(
   branding: EmailBranding,
-  name: string,
+  customer: NewCustomerDetails,
   addDogUrl: string
 ): { subject: string; html: string } {
   const businessName = branding.business_name ?? "Bedlay Gardens LTD"
@@ -79,12 +111,34 @@ export function welcomeEmail(
     subject: `Welcome to ${businessName}`,
     html: layout(
       branding,
-      `Welcome, ${name}!`,
+      `Welcome, ${customer.name}!`,
       `
         <p>Thanks for creating an account with ${businessName} — we're looking forward to meeting your dog.</p>
+        <p>Here's a summary of the details you entered:</p>
+        ${detailsTable(customerDetailRows(customer))}
+        <p>If any of this looks wrong, you can update it any time from your account.</p>
         <p>Next, add a dog profile with their details and vaccination records so you're ready to book:</p>
         <p style="margin: 16px 0;"><a href="${addDogUrl}" style="color: #3f5a3a; font-weight: bold;">Add a dog →</a></p>
         <p>Once that's done, you can book Day Care, Home Boarding, Secure Forest Walks, and more from your account any time.</p>
+      `
+    ),
+  }
+}
+
+export function passwordResetEmail(
+  branding: EmailBranding,
+  resetUrl: string
+): { subject: string; html: string } {
+  return {
+    subject: "Reset your password",
+    html: layout(
+      branding,
+      "Reset your password",
+      `
+        <p>We received a request to reset the password on your account. Click below to choose a new one:</p>
+        <p style="margin: 16px 0;"><a href="${resetUrl}" style="color: #3f5a3a; font-weight: bold;">Reset password →</a></p>
+        <p>This link expires in 1 hour and can only be used once.</p>
+        <p>If you didn't request this, you can safely ignore this email — your password won't be changed.</p>
       `
     ),
   }
@@ -136,7 +190,7 @@ function dogDetailRows(dog: NewDogDetails): [string, string][] {
   ]
 }
 
-function dogDetailsTable(rows: [string, string][]): string {
+function detailsTable(rows: [string, string][]): string {
   return `
     <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
       ${rows
@@ -164,7 +218,7 @@ export function dogAddedEmail(
       `${dog.name} has been added`,
       `
         <p>Here's a summary of the details you entered for ${dog.name}:</p>
-        ${dogDetailsTable(dogDetailRows(dog))}
+        ${detailsTable(dogDetailRows(dog))}
         <p>If any of this looks wrong, you can update it any time from your account.</p>
       `
     ),
@@ -182,7 +236,7 @@ export function dogUpdatedEmail(
       `${dog.name}'s details have been updated`,
       `
         <p>Here's a summary of ${dog.name}'s current details on your account:</p>
-        ${dogDetailsTable(dogDetailRows(dog))}
+        ${detailsTable(dogDetailRows(dog))}
         <p>If any of this looks wrong, you can update it any time from your account.</p>
       `
     ),

@@ -1,5 +1,27 @@
 import { prisma } from "@/lib/prisma"
 
+/**
+ * "<Service>, <dates> — dogs: <names> — owner <name> <email>" — the
+ * standard way a booking-related audit entry (payments especially)
+ * identifies which booking and which dog(s) it's actually about, since
+ * entityId alone is just an opaque id. Pass a booking fetched with
+ * `service`, `customer`, and `bookingDogs: { include: { dog: true } }`.
+ */
+export function describeBooking(booking: {
+  service: { name: string }
+  customer: { name: string; email: string }
+  startDate: Date
+  endDate: Date
+  bookingDogs: { dog: { name: string } }[]
+}): string {
+  const dateLabel =
+    booking.startDate.getTime() === booking.endDate.getTime()
+      ? booking.startDate.toLocaleDateString("en-GB")
+      : `${booking.startDate.toLocaleDateString("en-GB")} – ${booking.endDate.toLocaleDateString("en-GB")}`
+  const dogNames = booking.bookingDogs.map((bd) => bd.dog.name).join(", ") || "no dogs on file"
+  return `${booking.service.name}, ${dateLabel} — dogs: ${dogNames} — owner ${booking.customer.name} <${booking.customer.email}>`
+}
+
 export async function logAudit(options: {
   actorId: string
   action: string

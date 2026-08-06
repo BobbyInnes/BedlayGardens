@@ -1,6 +1,6 @@
 import { stripe } from "@/lib/stripe"
 import { prisma } from "@/lib/prisma"
-import { logAudit } from "@/lib/audit"
+import { logAudit, describeBooking } from "@/lib/audit"
 import { sendEmail } from "@/lib/email"
 import { getSettings } from "@/lib/settings"
 import { formatPence } from "@/lib/format"
@@ -30,7 +30,7 @@ export async function markPaymentSucceededAndNotify(stripePaymentIntentId: strin
 
   const booking = await prisma.booking.findUnique({
     where: { id: payment.bookingId },
-    include: { service: true, customer: true },
+    include: { service: true, customer: true, bookingDogs: { include: { dog: true } } },
   })
   if (!booking) return
 
@@ -39,7 +39,7 @@ export async function markPaymentSucceededAndNotify(stripePaymentIntentId: strin
     action: "PAYMENT_SUCCEEDED",
     entity: "Booking",
     entityId: booking.id,
-    meta: `${payment.type} — ${formatPence(payment.amountPence)}`,
+    meta: `${payment.type} — ${formatPence(payment.amountPence)} — ${describeBooking(booking)}`,
   })
 
   const settings = await getSettings()

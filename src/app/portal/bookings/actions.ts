@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { logAudit } from "@/lib/audit"
+import { logAudit, describeBooking } from "@/lib/audit"
 import { getSetting, getSettings } from "@/lib/settings"
 import { stripe } from "@/lib/stripe"
 import { formatPence } from "@/lib/format"
@@ -158,7 +158,12 @@ export async function redeemCreditForPayment(
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { payments: true, service: true, customer: true },
+    include: {
+      payments: true,
+      service: true,
+      customer: true,
+      bookingDogs: { include: { dog: true } },
+    },
   })
   if (!booking || booking.customerId !== session.user.id) {
     return { status: "error", message: "Booking not found." }
@@ -195,7 +200,7 @@ export async function redeemCreditForPayment(
     action: "PAYMENT_SUCCEEDED",
     entity: "Booking",
     entityId: booking.id,
-    meta: `${type} — ${formatPence(result.appliedPence)} (credit/voucher)`,
+    meta: `${type} — ${formatPence(result.appliedPence)} (credit/voucher) — ${describeBooking(booking)}`,
   })
 
   const settings = await getSettings()

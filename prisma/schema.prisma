@@ -190,6 +190,7 @@ model User {
   signedAgreements       SignedAgreement[]
   notificationPreference NotificationPreference?
   messageLogs            MessageLog[]
+  passwordResetTokens    PasswordResetToken[]
 
   @@index([role])
 }
@@ -228,6 +229,24 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// Self-service "forgot password" — separate from VerificationToken (which
+// Auth.js/Resend owns for magic-link sign-in) so this has its own lifecycle:
+// single-use (usedAt), a short expiry, and a direct User relation rather
+// than being keyed by email string. Works for any account regardless of
+// whether it already has a password, so it also covers the case of an
+// account that's only ever signed in via magic link.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model Service {

@@ -14,7 +14,8 @@ import { paymentFieldsFor } from "@/lib/payment-timing"
 import { getSetting, getSettings } from "@/lib/settings"
 import { sendEmail } from "@/lib/email"
 import { cancellationConfirmationEmail, bookingConfirmationEmail, paymentReceiptEmail } from "@/lib/email-templates"
-import { logAudit, logEntityChange } from "@/lib/audit"
+import { logAudit, logEntityChange, describeBooking } from "@/lib/audit"
+import { formatPence } from "@/lib/format"
 import { resolveBookingCreation, type BookingCreationResult } from "@/app/(marketing)/book/actions"
 import { createBookingInvoice } from "@/lib/invoicing"
 import { getActiveAgreement } from "@/lib/agreement"
@@ -724,7 +725,12 @@ export async function recordManualPayment(
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { payments: true, service: true, customer: true },
+    include: {
+      payments: true,
+      service: true,
+      customer: true,
+      bookingDogs: { include: { dog: true } },
+    },
   })
   if (!booking) return { status: "error", message: "Booking not found." }
 
@@ -771,7 +777,7 @@ export async function recordManualPayment(
       action: "RECORD_MANUAL_PAYMENT",
       entity: "Booking",
       entityId: booking.id,
-      meta: `INVOICE ${invoicePayment.amountPence}p — ${reason.trim()} — owner ${booking.customer.name} <${booking.customer.email}>`,
+      meta: `INVOICE — ${formatPence(invoicePayment.amountPence)} — ${reason.trim()} — ${describeBooking(booking)}`,
     })
 
     const settings = await getSettings()
@@ -813,7 +819,7 @@ export async function recordManualPayment(
     action: "RECORD_MANUAL_PAYMENT",
     entity: "Booking",
     entityId: booking.id,
-    meta: `${type} ${amountPence}p — ${reason.trim()} — owner ${booking.customer.name} <${booking.customer.email}>`,
+    meta: `${type} — ${formatPence(amountPence)} — ${reason.trim()} — ${describeBooking(booking)}`,
   })
 
   const settings = await getSettings()

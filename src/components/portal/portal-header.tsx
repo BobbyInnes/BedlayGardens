@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { PawPrint, UserCog } from "lucide-react"
+import type { Role } from "@/generated/prisma/client"
 import { Button } from "@/components/ui/button"
 import { LogoutButton } from "@/components/portal/logout-button"
 import { cn } from "@/lib/utils"
@@ -7,18 +8,19 @@ import { cn } from "@/lib/utils"
 export function PortalHeader({
   name,
   accountHref = "/portal/account",
-  isAdmin = false,
+  role,
 }: {
   name: string
   accountHref?: string
-  // Pastel blue for admins, pastel red for everyone else (customers, staff).
-  isAdmin?: boolean
+  // Pastel blue for admins (including super admins), pastel red for staff,
+  // no tint for customers.
+  role: Role
 }) {
   return (
     <header
       className={cn(
         "flex h-16 items-center justify-between border-b border-border px-4 sm:px-6",
-        isAdmin ? "bg-blue-100" : "bg-red-100"
+        role === "ADMIN" ? "bg-blue-100" : role === "STAFF" ? "bg-red-100" : ""
       )}
     >
       <Link href="/" className="flex items-center gap-2 font-semibold">

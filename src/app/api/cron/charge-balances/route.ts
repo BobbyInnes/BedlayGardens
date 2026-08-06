@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server"
 import { stripe } from "@/lib/stripe"
 import { prisma } from "@/lib/prisma"
-import { logAudit } from "@/lib/audit"
+import { logAudit, describeBooking } from "@/lib/audit"
 import { formatPence } from "@/lib/format"
 
 async function chargeBookingBalance(booking: {
   id: string
   totalPence: number
   depositPence: number
-  customer: { id: string; stripeCustomerId: string | null }
+  startDate: Date
+  endDate: Date
+  service: { name: string }
+  customer: { id: string; name: string; email: string; stripeCustomerId: string | null }
+  bookingDogs: { dog: { name: string } }[]
 }) {
   const balancePence = booking.totalPence - booking.depositPence
   if (balancePence <= 0 || !booking.customer.stripeCustomerId) {
@@ -52,7 +56,7 @@ async function chargeBookingBalance(booking: {
         action: "PAYMENT_SUCCEEDED",
         entity: "Booking",
         entityId: booking.id,
-        meta: `BALANCE — ${formatPence(balancePence)} (auto-charged)`,
+        meta: `BALANCE — ${formatPence(balancePence)} (auto-charged) — ${describeBooking(booking)}`,
       })
     }
     return { bookingId: booking.id, outcome: "charged" as const }
@@ -80,7 +84,11 @@ export async function GET(request: Request) {
       balanceDueDate: { lte: new Date() },
       payments: { none: { type: "BALANCE", status: "SUCCEEDED" } },
     },
-    include: { customer: { select: { id: true, stripeCustomerId: true } } },
+    include: {
+      service: true,
+      customer: { select: { id: true, name: true, email: true, stripeCustomerId: true } },
+      bookingDogs: { include: { dog: true } },
+    },
   })
 
   const results = []
