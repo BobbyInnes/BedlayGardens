@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { logAudit } from "@/lib/audit"
+import { notifyCustomerVaccinationReviewed } from "@/lib/vaccination-review-notify"
 
 async function requireAdmin() {
   const session = await auth()
@@ -30,6 +31,13 @@ export async function verifyVaccinationRecord(
     entity: "VaccinationRecord",
     entityId: recordId,
     meta: `${record.type} — ${status} — ${record.dateGiven.toLocaleDateString("en-GB")} to ${record.expiryDate.toLocaleDateString("en-GB")} — ${record.dog.name}, owner ${record.dog.owner.name} <${record.dog.owner.email}>`,
+  })
+  await notifyCustomerVaccinationReviewed({
+    customerId: record.dog.ownerId,
+    dogName: record.dog.name,
+    type: record.type,
+    expiryDate: record.expiryDate,
+    status,
   })
 
   revalidatePath("/admin/vaccinations")

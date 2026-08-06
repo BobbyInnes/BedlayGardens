@@ -8,6 +8,7 @@ export type NotificationType =
   | "CHECKIN_REMINDER"
   | "WAITLIST_OFFER"
   | "WAITLIST_JOINED"
+  | "VACCINATION_REVIEWED"
 
 /**
  * Sends a customer notification on their preferred channel(s) (defaulting to

@@ -376,6 +376,47 @@ export function checkinReminderEmail(
   }
 }
 
+// Sent to the customer once staff/admin have reviewed an uploaded
+// certificate — the outcome of that review, not a nudge to upload one (see
+// vaccinationReviewDigestEmail, which goes to staff instead).
+export function vaccinationApprovedEmail(
+  branding: EmailBranding,
+  dogName: string,
+  vaccineType: string,
+  expiryDate: Date
+): { subject: string; html: string } {
+  return {
+    subject: `${dogName}'s ${vaccineType} certificate has been verified`,
+    html: layout(
+      branding,
+      "Vaccination certificate verified",
+      `
+        <p>Good news — the ${vaccineType} certificate you uploaded for ${dogName} has been checked and verified.</p>
+        <p>It's valid until ${expiryDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}.</p>
+        <p>No action needed — ${dogName} is ready to book.</p>
+      `
+    ),
+  }
+}
+
+export function vaccinationNotApprovedEmail(
+  branding: EmailBranding,
+  dogName: string,
+  vaccineType: string
+): { subject: string; html: string } {
+  return {
+    subject: `${dogName}'s ${vaccineType} certificate needs attention`,
+    html: layout(
+      branding,
+      "Vaccination certificate not approved",
+      `
+        <p>We've reviewed the ${vaccineType} certificate you uploaded for ${dogName}, but weren't able to approve it — it may be out of date or the details didn't match what we need.</p>
+        <p>Please log in to your account and upload a current certificate so ${dogName} stays ready to book.</p>
+      `
+    ),
+  }
+}
+
 export function vaccinationExpiryWarningEmail(
   branding: EmailBranding,
   dogName: string,
