@@ -50,9 +50,9 @@ const dogSchema = z.object({
   emergencyContact: z.string().trim().max(200).optional(),
   microchipNumber: z.string().trim().max(50).optional(),
   color: z.string().trim().max(100).optional(),
-  runType: z.string().trim().max(100).optional(),
-  temperament: z.string().trim().max(100).optional(),
-  groupPlayApproved: z.coerce.boolean().optional(),
+  // runType, temperament, and groupPlayApproved are deliberately not
+  // accepted here — they're kennel-assessed fields set by admin staff (see
+  // admin/customers/actions.ts), not something a customer submits.
 })
 
 export type DogFormState = {
@@ -78,9 +78,6 @@ async function readDogFields(formData: FormData) {
     emergencyContact: formData.get("emergencyContact") || "",
     microchipNumber: formData.get("microchipNumber") || "",
     color: formData.get("color") || "",
-    runType: formData.get("runType") || "",
-    temperament: formData.get("temperament") || "",
-    groupPlayApproved: formData.get("groupPlayApproved") === "on",
   })
   return parsed
 }
@@ -125,9 +122,6 @@ export async function createDog(
       emergencyContact: data.emergencyContact || null,
       microchipNumber: data.microchipNumber || null,
       color: data.color || null,
-      runType: data.runType || null,
-      temperament: data.temperament || null,
-      groupPlayApproved: !!data.groupPlayApproved,
     },
   })
 
@@ -208,9 +202,6 @@ export async function updateDog(
     emergencyContact: data.emergencyContact || null,
     microchipNumber: data.microchipNumber || null,
     color: data.color || null,
-    runType: data.runType || null,
-    temperament: data.temperament || null,
-    groupPlayApproved: !!data.groupPlayApproved,
     photoUrl,
   }
 
@@ -240,9 +231,6 @@ export async function updateDog(
       emergencyContact: "Emergency contact",
       microchipNumber: "Microchip number",
       color: "Colour",
-      runType: "Run type",
-      temperament: "Temperament",
-      groupPlayApproved: "Group play approved",
       photoUrl: "Photo",
     },
   })

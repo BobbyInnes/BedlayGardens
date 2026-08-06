@@ -11,6 +11,7 @@ import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
 import { CustomerNotesForm } from "@/components/admin/customer-notes-form"
 import { CustomerDetailsForm } from "@/components/admin/customer-details-form"
 import { DogFlagsManager } from "@/components/admin/dog-flags-manager"
+import { DogCareProfileForm } from "@/components/admin/dog-care-profile-form"
 import { AddVaccinationForm } from "@/components/admin/add-vaccination-form"
 import { GoodwillCreditForm } from "@/components/admin/goodwill-credit-form"
 import { PromoteCustomerForm } from "@/components/admin/promote-customer-form"
@@ -312,6 +313,14 @@ export default async function AdminCustomerDetailPage({
                       </div>
 
                       <AddVaccinationForm customerId={customer.id} dogId={dog.id} />
+
+                      <DogCareProfileForm
+                        customerId={customer.id}
+                        dogId={dog.id}
+                        runType={dog.runType}
+                        temperament={dog.temperament}
+                        groupPlayApproved={dog.groupPlayApproved}
+                      />
 
                       <DogFlagsManager
                         customerId={customer.id}

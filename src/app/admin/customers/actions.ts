@@ -230,6 +230,43 @@ export async function addVaccinationRecordManually(
   return { status: "idle", message: "Vaccination record added." }
 }
 
+// Run type, temperament, and group-play approval are a kennel assessment,
+// not something the customer enters or sees — only admins set these, from
+// what staff observe of the dog on site.
+export async function updateDogCareProfile(
+  customerId: string,
+  dogId: string,
+  fields: { runType: string; temperament: string; groupPlayApproved: boolean }
+) {
+  const session = await requireAdmin()
+  const dog = await prisma.dog.findFirst({ where: { id: dogId, ownerId: customerId } })
+  if (!dog) throw new Error("Dog not found.")
+
+  const after = {
+    runType: fields.runType.trim() || null,
+    temperament: fields.temperament.trim() || null,
+    groupPlayApproved: fields.groupPlayApproved,
+  }
+  await prisma.dog.update({ where: { id: dogId }, data: after })
+
+  await logEntityChange({
+    actorId: session.user.id,
+    action: "UPDATE_DOG_CARE_PROFILE",
+    entity: "Dog",
+    entityId: dogId,
+    context: `dog ${dog.name}`,
+    before: dog,
+    after,
+    labels: {
+      runType: "Run type",
+      temperament: "Temperament",
+      groupPlayApproved: "Group play approved",
+    },
+  })
+
+  revalidatePath(`/admin/customers/${customerId}`)
+}
+
 export async function removeDogFlag(customerId: string, flagId: string) {
   const session = await requireAdmin()
   const flag = await prisma.dogFlag.findUnique({ where: { id: flagId } })

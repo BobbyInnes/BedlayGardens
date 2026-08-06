@@ -227,40 +227,6 @@ export function DogForm({
         </div>
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="runType">Run type</Label>
-          <Input
-            id="runType"
-            name="runType"
-            defaultValue={dog?.runType ?? ""}
-            placeholder="e.g. Outdoor access"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="temperament">Temperament</Label>
-          <Input
-            id="temperament"
-            name="temperament"
-            defaultValue={dog?.temperament ?? ""}
-            placeholder="e.g. High energy"
-          />
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <input
-          id="groupPlayApproved"
-          name="groupPlayApproved"
-          type="checkbox"
-          defaultChecked={dog?.groupPlayApproved}
-          className="size-4 rounded border-input"
-        />
-        <Label htmlFor="groupPlayApproved" className="font-normal">
-          Approved for group play
-        </Label>
-      </div>
-
       <div className="space-y-2">
         <Label htmlFor="feedingNotes">Feeding instructions</Label>
         <Textarea id="feedingNotes" name="feedingNotes" defaultValue={dog?.feedingNotes ?? ""} rows={3} />

@@ -234,20 +234,6 @@ export default async function DogsPage({
                   <dt className="text-muted-foreground">Feeding:</dt>
                   <dd className="font-medium">{selectedDog.feedingNotes || "—"}</dd>
                 </div>
-                <div className="flex items-center justify-between gap-2">
-                  <dt className="text-muted-foreground">Run Type:</dt>
-                  <dd className="font-medium">{selectedDog.runType || "—"}</dd>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <dt className="text-muted-foreground">Temperament:</dt>
-                  <dd className="font-medium">{selectedDog.temperament || "—"}</dd>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <dt className="text-muted-foreground">Group Play:</dt>
-                  <dd className={`font-medium ${selectedDog.groupPlayApproved ? "text-emerald-600" : "text-muted-foreground"}`}>
-                    {selectedDog.groupPlayApproved ? "Approved" : "Not approved"}
-                  </dd>
-                </div>
               </dl>
             </div>
           </div>
