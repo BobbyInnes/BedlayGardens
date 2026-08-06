@@ -3,13 +3,14 @@ import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import { toDateInputValue, parseMonthParam, monthParamFor, nightsBetween } from "@/lib/dates"
 import { buildServiceColorMap } from "@/lib/service-colors"
+import { formatCustomerNumber } from "@/lib/customer-dog-numbers"
 
 export const metadata: Metadata = {
   title: "Calendar | Admin",
 }
 
 // Bookings in these statuses don't represent a real, going-ahead booking, so
-// they're left out of the day counts.
+// they're left off the calendar.
 const EXCLUDED_STATUSES = ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] as const
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -37,26 +38,38 @@ export default async function AdminCalendarPage({
         startDate: { lt: monthEnd },
         endDate: { gte: monthStart },
       },
-      select: { serviceId: true, startDate: true, endDate: true },
+      select: {
+        id: true,
+        serviceId: true,
+        startDate: true,
+        endDate: true,
+        customer: { select: { name: true, customerNumber: true } },
+        bookingDogs: { select: { dog: { select: { name: true } } } },
+      },
     }),
   ])
 
   const colorByServiceId = buildServiceColorMap(services)
 
-  // dateKey -> serviceId -> count of bookings covering that day
-  const countsByDate = new Map<string, Map<string, number>>()
+  // dateKey -> one entry per booking covering that day, each labelled with
+  // who it's for so a glance at the calendar says more than "3 Day Care".
+  type CalendarEntry = { bookingId: string; serviceId: string; label: string }
+  const entriesByDate = new Map<string, CalendarEntry[]>()
   for (const booking of bookings) {
     const days =
       booking.endDate.getTime() === booking.startDate.getTime()
         ? [booking.startDate]
         : nightsBetween(booking.startDate, booking.endDate)
 
+    const dogNames = booking.bookingDogs.map((bd) => bd.dog.name)
+    const label = `${booking.customer.name} (${formatCustomerNumber(booking.customer.customerNumber)}) – ${dogNames.length > 0 ? dogNames.join(", ") : "no dog on record"}`
+
     for (const day of days) {
       if (day < monthStart || day >= monthEnd) continue
       const dateKey = toDateInputValue(day)
-      const dayCounts = countsByDate.get(dateKey) ?? new Map<string, number>()
-      dayCounts.set(booking.serviceId, (dayCounts.get(booking.serviceId) ?? 0) + 1)
-      countsByDate.set(dateKey, dayCounts)
+      const dayEntries = entriesByDate.get(dateKey) ?? []
+      dayEntries.push({ bookingId: booking.id, serviceId: booking.serviceId, label })
+      entriesByDate.set(dateKey, dayEntries)
     }
   }
 
@@ -123,13 +136,13 @@ export default async function AdminCalendarPage({
                     )
                   }
                   const dateKey = toDateInputValue(new Date(year, monthIndex, day))
-                  const dayCounts = countsByDate.get(dateKey)
+                  const dayEntries = entriesByDate.get(dateKey)
                   const isToday = dateKey === today
 
                   return (
                     <td
                       key={dayIndex}
-                      className="h-24 min-w-24 border-b border-r border-border p-1.5 align-top last:border-r-0"
+                      className="min-h-24 min-w-24 border-b border-r border-border p-1.5 align-top last:border-r-0"
                     >
                       <div className="flex items-center justify-between">
                         <span
@@ -142,21 +155,20 @@ export default async function AdminCalendarPage({
                           {day}
                         </span>
                       </div>
-                      {dayCounts && dayCounts.size > 0 && (
+                      {dayEntries && dayEntries.length > 0 && (
                         <div className="mt-1 space-y-0.5">
-                          {[...dayCounts.entries()].map(([serviceId, count]) => {
-                            const service = services.find((s) => s.id === serviceId)
+                          {dayEntries.map((entry) => {
+                            const service = services.find((s) => s.id === entry.serviceId)
                             return (
                               <div
-                                key={serviceId}
-                                title={service?.name ?? "Unknown service"}
+                                key={entry.bookingId}
+                                title={`${service?.name ?? "Unknown service"} — ${entry.label}`}
                                 className="flex items-center gap-1 truncate rounded bg-muted px-1 py-0.5 text-[10px] font-medium"
                               >
                                 <span
-                                  className={`inline-block size-2 shrink-0 rounded-full ${colorByServiceId.get(serviceId) ?? "bg-gray-400"}`}
+                                  className={`inline-block size-2 shrink-0 rounded-full ${colorByServiceId.get(entry.serviceId) ?? "bg-gray-400"}`}
                                 />
-                                <span className="truncate">{service?.name ?? "Unknown"}</span>
-                                <span className="ml-auto shrink-0 text-muted-foreground">{count}</span>
+                                <span className="truncate">{entry.label}</span>
                               </div>
                             )
                           })}
