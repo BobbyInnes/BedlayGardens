@@ -13,6 +13,7 @@ import {
   updateVacancies,
 } from "@/app/admin/content/actions"
 import { BusinessEmailForm } from "@/components/admin/business-email-form"
+import { VaccinationReviewEmailForm } from "@/components/admin/vaccination-review-email-form"
 import { OpeningHoursForm } from "@/components/admin/opening-hours-form"
 import { FaqCreateForm } from "@/components/admin/faq-create-form"
 import { FaqListItem } from "@/components/admin/faq-list-item"
@@ -33,6 +34,7 @@ export default async function AdminContentPage() {
     testimonials,
     googleReviewUrl,
     businessEmail,
+    vaccinationReviewEmail,
     announcementBanner,
     aboutBanner,
     aboutStory,
@@ -47,6 +49,7 @@ export default async function AdminContentPage() {
       prisma.testimonial.findMany({ orderBy: { id: "asc" } }),
       getSetting("google_business_review_url", ""),
       getSetting("business_email", ""),
+      getSetting("vaccination_review_email", ""),
       getSetting("announcement_banner", ""),
       getSetting("about_banner", ""),
       getSetting("about_story", ""),
@@ -87,6 +90,15 @@ export default async function AdminContentPage() {
             <span className="text-muted-foreground"> — only a super admin can change this.</span>
           </p>
         )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Vaccination review notifications</h2>
+        <p className="text-sm text-muted-foreground">
+          Once a day, if any vaccination certificates are still awaiting review, a summary is
+          emailed to this address. Leave blank to turn the notification off.
+        </p>
+        <VaccinationReviewEmailForm email={vaccinationReviewEmail} />
       </section>
 
       <section className="space-y-3">

@@ -465,6 +465,41 @@ export async function updateBusinessEmail(
   return { status: "idle", message: "Business email updated across the site." }
 }
 
+// Recipient for the daily "vaccination certificates awaiting review" digest
+// (see api/cron/send-reminders) — deliberately separate from business_email
+// so this can be routed to whoever actually handles vaccination review
+// without also changing the site's public contact address.
+export async function updateVaccinationReviewEmail(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  const session = await requireAdmin()
+
+  const raw = ((formData.get("vaccination_review_email") as string | null) ?? "").trim()
+  if (raw) {
+    const parsed = z.string().email("Enter a valid email address").safeParse(raw)
+    if (!parsed.success) {
+      return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid email" }
+    }
+  }
+
+  await prisma.setting.upsert({
+    where: { key: "vaccination_review_email" },
+    update: { value: raw },
+    create: { key: "vaccination_review_email", value: raw },
+  })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_SETTING",
+    entity: "Setting",
+    entityId: "vaccination_review_email",
+    meta: raw || "(cleared)",
+  })
+
+  revalidatePath("/admin/content")
+  return { status: "idle", message: raw ? "Notification email saved." : "Notification email cleared." }
+}
+
 export async function updateGoogleReviewUrl(
   _prevState: AdminActionState,
   formData: FormData

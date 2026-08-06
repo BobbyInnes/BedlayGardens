@@ -11,6 +11,7 @@ import {
   checkinReminderEmail,
   vaccinationExpiryWarningEmail,
   reviewRequestEmail,
+  vaccinationReviewDigestEmail,
 } from "@/lib/email-templates"
 import { createBookingInvoice } from "@/lib/invoicing"
 import type { BookingStatus } from "@/generated/prisma/client"
@@ -122,6 +123,36 @@ async function sendVaccinationExpiryWarnings(settings: Record<string, string>) {
   return sent
 }
 
+// One email per day summarizing the whole current UNVERIFIED backlog — not
+// per-record dedup like the other reminders here, since this cron only runs
+// once a day anyway (see vercel.json) and a record that's still unreviewed
+// tomorrow should just appear in tomorrow's digest again rather than going
+// silent after its first mention.
+async function sendVaccinationReviewDigest(settings: Record<string, string>) {
+  const recipient = settings.vaccination_review_email?.trim()
+  if (!recipient) return 0
+
+  const records = await prisma.vaccinationRecord.findMany({
+    where: { status: "UNVERIFIED" },
+    include: { dog: { include: { owner: true } } },
+    orderBy: { expiryDate: "asc" },
+  })
+  if (records.length === 0) return 0
+
+  const email = vaccinationReviewDigestEmail(
+    settings,
+    records.map((record) => ({
+      dogName: record.dog.name,
+      ownerName: record.dog.owner.name,
+      type: record.type,
+      dateGiven: record.dateGiven,
+      expiryDate: record.expiryDate,
+    }))
+  )
+  await sendEmail({ to: recipient, subject: email.subject, html: email.html })
+  return records.length
+}
+
 async function sendReviewRequests(settings: Record<string, string>) {
   const cutoff = addDays(today(), -1)
   const bookings = await prisma.booking.findMany({
@@ -190,10 +221,17 @@ export async function GET(request: Request) {
   // a booking invoiced today can also get its review request in the same run.
   const invoicedBookings = await invoicePastServiceBookings()
 
-  const [balanceDueReminders, checkinReminders, vaccinationExpiryWarnings, reviewRequests] = await Promise.all([
+  const [
+    balanceDueReminders,
+    checkinReminders,
+    vaccinationExpiryWarnings,
+    vaccinationReviewDigest,
+    reviewRequests,
+  ] = await Promise.all([
     sendBalanceDueReminders(settings),
     sendCheckinReminders(settings),
     sendVaccinationExpiryWarnings(settings),
+    sendVaccinationReviewDigest(settings),
     sendReviewRequests(settings),
   ])
 
@@ -201,6 +239,7 @@ export async function GET(request: Request) {
     balanceDueReminders,
     checkinReminders,
     vaccinationExpiryWarnings,
+    vaccinationReviewDigest,
     reviewRequests,
     invoicedBookings,
   })

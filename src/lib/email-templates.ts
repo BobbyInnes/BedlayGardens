@@ -144,6 +144,43 @@ export function passwordResetEmail(
   }
 }
 
+type PendingVaccinationRecord = {
+  dogName: string
+  ownerName: string
+  type: string
+  dateGiven: Date
+  expiryDate: Date
+}
+
+// A daily snapshot of the whole current backlog (not "what's new since
+// yesterday" — VaccinationRecord has no createdAt to key that off), sent by
+// the reminders cron once a day only if there's at least one record still
+// UNVERIFIED. That means a record staff haven't got to yet keeps appearing
+// until it's actually reviewed, which is the point — a persistent nudge
+// rather than a one-off that's easy to miss.
+export function vaccinationReviewDigestEmail(
+  branding: EmailBranding,
+  records: PendingVaccinationRecord[]
+): { subject: string; html: string } {
+  const rows: [string, string][] = records.map((r) => [
+    `${r.dogName} (${r.ownerName})`,
+    `${r.type} — given ${r.dateGiven.toLocaleDateString("en-GB")}, expires ${r.expiryDate.toLocaleDateString("en-GB")}`,
+  ])
+
+  return {
+    subject: `${records.length} vaccination certificate${records.length === 1 ? "" : "s"} awaiting review`,
+    html: layout(
+      branding,
+      "Vaccination certificates awaiting review",
+      `
+        <p>The following ${records.length === 1 ? "certificate is" : "certificates are"} still awaiting verification:</p>
+        ${detailsTable(rows)}
+        <p>Review them from Admin → Vaccinations.</p>
+      `
+    ),
+  }
+}
+
 type NewDogDetails = {
   name: string
   dogNumber: number
