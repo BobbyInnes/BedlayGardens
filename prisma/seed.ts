@@ -90,7 +90,7 @@ async function main() {
   // USERS
   // ---------------------------------------------------------------------
   const admin = await prisma.user.create({
-    data: { email: 'admin@bedlaygardens.test', passwordHash, name: 'Robert Innes', phone: '07956301170', addressLine1: 'Bedlay Gardens, Cumbernauld Road, Chryston', addressCity: 'Glasgow', addressPostcode: 'G69 9HP', role: 'ADMIN', active: true },
+    data: { email: 'admin@bedlaygardens.test', passwordHash, name: 'Robert Innes', phone: '07958670328', addressLine1: 'Bedlay Gardens, Cumbernauld Road, Chryston', addressCity: 'Glasgow', addressPostcode: 'G69 9HP', role: 'ADMIN', active: true },
   });
 
   const staff = await prisma.user.create({

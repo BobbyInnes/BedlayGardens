@@ -48,7 +48,7 @@ Sticky white navbar: logo left; centre links — Home, Services, How It Works, G
 
 ### Contact details
 
-- Phone: 07956 301170
+- Phone: 07958 670328
 - Email: bedlaygardensdogforest@gmail.com
 - Address: Bedlay Gardens, Cumbernauld Road, Chryston, Glasgow G69 9HP
 - Opening hours: Mon–Fri 8am–6pm · Saturday 9am–5pm · Sunday 10am–4pm · Drop-offs and collections by appointment
