@@ -129,6 +129,10 @@ async function sendVaccinationExpiryWarnings(settings: Record<string, string>) {
 // tomorrow should just appear in tomorrow's digest again rather than going
 // silent after its first mention.
 async function sendVaccinationReviewDigest(settings: Record<string, string>) {
+  // "Send immediately" mode notifies per-upload instead (see
+  // lib/vaccination-review-notify) — skip the digest so the same record
+  // doesn't get reported twice.
+  if (settings.vaccination_review_immediate === "true") return 0
   const recipient = settings.vaccination_review_email?.trim()
   if (!recipient) return 0
 

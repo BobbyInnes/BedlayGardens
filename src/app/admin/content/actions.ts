@@ -482,22 +482,30 @@ export async function updateVaccinationReviewEmail(
       return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid email" }
     }
   }
+  const immediate = formData.get("vaccination_review_immediate") === "on" ? "true" : "false"
 
-  await prisma.setting.upsert({
-    where: { key: "vaccination_review_email" },
-    update: { value: raw },
-    create: { key: "vaccination_review_email", value: raw },
-  })
+  await prisma.$transaction([
+    prisma.setting.upsert({
+      where: { key: "vaccination_review_email" },
+      update: { value: raw },
+      create: { key: "vaccination_review_email", value: raw },
+    }),
+    prisma.setting.upsert({
+      where: { key: "vaccination_review_immediate" },
+      update: { value: immediate },
+      create: { key: "vaccination_review_immediate", value: immediate },
+    }),
+  ])
   await logAudit({
     actorId: session.user.id,
     action: "UPDATE_SETTING",
     entity: "Setting",
     entityId: "vaccination_review_email",
-    meta: raw || "(cleared)",
+    meta: `${raw || "(cleared)"} — ${immediate === "true" ? "sends immediately per upload" : "sends as a daily digest"}`,
   })
 
   revalidatePath("/admin/content")
-  return { status: "idle", message: raw ? "Notification email saved." : "Notification email cleared." }
+  return { status: "idle", message: raw ? "Notification settings saved." : "Notification email cleared." }
 }
 
 export async function updateGoogleReviewUrl(

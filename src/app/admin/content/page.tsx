@@ -98,7 +98,10 @@ export default async function AdminContentPage() {
           Once a day, if any vaccination certificates are still awaiting review, a summary is
           emailed to this address. Leave blank to turn the notification off.
         </p>
-        <VaccinationReviewEmailForm email={vaccinationReviewEmail} />
+        <VaccinationReviewEmailForm
+          email={vaccinationReviewEmail}
+          immediate={settings.vaccination_review_immediate === "true"}
+        />
       </section>
 
       <section className="space-y-3">

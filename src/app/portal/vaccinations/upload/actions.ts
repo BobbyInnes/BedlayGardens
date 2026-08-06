@@ -6,6 +6,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { logAudit } from "@/lib/audit"
 import { checkWaitlistAfterVaccination } from "@/lib/waitlist"
+import { notifyVaccinationReviewNeeded } from "@/lib/vaccination-review-notify"
 
 const entrySchema = z.object({
   type: z.string().trim().min(1).max(100),
@@ -60,6 +61,15 @@ export async function saveExtractedVaccinations(
   }
 
   await checkWaitlistAfterVaccination(dogId)
+  await notifyVaccinationReviewNeeded(
+    created.map((record) => ({
+      dogName: dog.name,
+      ownerName: session.user.name ?? session.user.email ?? "Unknown",
+      type: record.type,
+      dateGiven: record.dateGiven,
+      expiryDate: record.expiryDate,
+    }))
+  )
 
   revalidatePath("/portal/vaccinations")
   return { status: "success" }
