@@ -54,3 +54,22 @@ export function parseMonthParam(monthParam: string | undefined): { year: number;
 export function monthParamFor(year: number, monthIndex: number): string {
   return `${year}-${String(monthIndex + 1).padStart(2, "0")}`
 }
+
+/**
+ * Parses a "YYYY-MM-DD" query param, falling back to today. Builds the date
+ * from local-time components directly (like `parseMonthParam`) rather than
+ * `new Date(dateParam)`, which parses date-only ISO strings as UTC midnight
+ * and can land on the wrong local day — see `toDateInputValue` above.
+ */
+export function parseDateParam(dateParam: string | undefined): Date {
+  if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+    const [year, month, day] = dateParam.split("-").map(Number)
+    const parsed = new Date(year, month - 1, day)
+    if (!Number.isNaN(parsed.getTime())) return parsed
+  }
+  return startOfDay(new Date())
+}
+
+export function isSameDay(a: Date, b: Date): boolean {
+  return toDateInputValue(a) === toDateInputValue(b)
+}
