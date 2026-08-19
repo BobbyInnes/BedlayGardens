@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { auth } from "@/auth"
 import { canManageAdmins, superAdminSlotAvailable } from "@/lib/admin-permissions"
 import { StaffForm } from "@/components/admin/staff-form"
-import { createStaff } from "@/app/admin/staff/actions"
+import { createStaff } from "@/app/staff/team/actions"
 
 export const metadata: Metadata = {
   title: "Add Staff | Admin",

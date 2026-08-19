@@ -6,15 +6,20 @@ import { z } from "zod"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { stripe, getSiteUrl } from "@/lib/stripe"
-import { generateVoucherCode } from "@/lib/vouchers"
+import { generateVoucherCode, getGiftCardAmountLimits } from "@/lib/vouchers"
 import { getSettings } from "@/lib/settings"
 import { sendEmail } from "@/lib/email"
 import { voucherDeliveryEmail } from "@/lib/email-templates"
+import { formatPence } from "@/lib/format"
 
 export type VoucherActionState = { status: "idle" | "error"; message?: string }
 
+// Amount bounds are admin-configurable (gift_card_min_amount/max_amount in
+// Settings) so can't be enforced in this static schema — checked against
+// getGiftCardAmountLimits() in purchaseVoucher instead. This only guards
+// against garbage input.
 const purchaseSchema = z.object({
-  amountPence: z.coerce.number().int().min(500, "Minimum voucher amount is £5").max(100000, "Maximum voucher amount is £1000"),
+  amountPence: z.coerce.number().int().min(1, "Enter an amount"),
   recipientEmail: z.string().trim().email().optional().or(z.literal("")),
 })
 
@@ -30,7 +35,12 @@ async function ensureStripeCustomer(userId: string): Promise<string> {
       // through and create a fresh one.
     }
   }
-  const customer = await stripe!.customers.create({ email: user.email, name: user.name, metadata: { userId } })
+  const customer = await stripe!.customers.create({
+    email: user.email,
+    name: user.name,
+    address: { country: "GB" },
+    metadata: { userId },
+  })
   await prisma.user.update({ where: { id: userId }, data: { stripeCustomerId: customer.id } })
   return customer.id
 }
@@ -45,6 +55,16 @@ export async function purchaseVoucher(input: {
   const parsed = purchaseSchema.safeParse(input)
   if (!parsed.success) {
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input." }
+  }
+
+  const { minAmount, maxAmount } = await getGiftCardAmountLimits()
+  const minAmountPence = Math.round(minAmount * 100)
+  const maxAmountPence = Math.round(maxAmount * 100)
+  if (parsed.data.amountPence < minAmountPence) {
+    return { status: "error", message: `Minimum gift card amount is ${formatPence(minAmountPence)}.` }
+  }
+  if (parsed.data.amountPence > maxAmountPence) {
+    return { status: "error", message: `Maximum gift card amount is ${formatPence(maxAmountPence)}.` }
   }
 
   const voucher = await prisma.voucher.create({
@@ -78,13 +98,15 @@ export async function purchaseVoucher(input: {
   const checkoutSession = await stripe.checkout.sessions.create({
     mode: "payment",
     customer: customerId,
+    // GBP only — see payment-actions.ts for why Adaptive Pricing is off.
+    adaptive_pricing: { enabled: false },
     line_items: [
       {
         quantity: 1,
         price_data: {
           currency: "gbp",
           unit_amount: parsed.data.amountPence,
-          product_data: { name: "Gift voucher" },
+          product_data: { name: "Gift card" },
         },
       },
     ],

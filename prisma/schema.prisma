@@ -191,6 +191,8 @@ model User {
   notificationPreference NotificationPreference?
   messageLogs            MessageLog[]
   passwordResetTokens    PasswordResetToken[]
+  toDoTasksAssigned      ToDoTask[]              @relation("ToDoAssignee")
+  toDoTasksCreated       ToDoTask[]              @relation("ToDoCreatedBy")
 
   @@index([role])
 }
@@ -518,6 +520,25 @@ model CareTask {
 
   @@index([bookingId])
   @@index([date])
+}
+
+// A general staff to-do list shown on the admin Daily Overview — not tied to
+// a booking or date, just a running list optionally assigned to a staff
+// member (distinct from CareTask, which is the per-dog, per-day feed /
+// medication / walk checklist).
+model ToDoTask {
+  id           String    @id @default(cuid())
+  text         String
+  assignedToId String?
+  assignedTo   User?     @relation("ToDoAssignee", fields: [assignedToId], references: [id])
+  createdById  String
+  createdBy    User      @relation("ToDoCreatedBy", fields: [createdById], references: [id])
+  completed    Boolean   @default(false)
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([assignedToId])
+  @@index([completed])
 }
 
 model IncidentReport {

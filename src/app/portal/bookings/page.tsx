@@ -3,6 +3,8 @@ import Link from "next/link"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { stripe } from "@/lib/stripe"
+import { getSetting } from "@/lib/settings"
+import { getCancellationTier, getExpectedRefundPence } from "@/lib/cancellation-policy"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatPence } from "@/lib/format"
@@ -15,7 +17,7 @@ import { TRIAL_OUTCOME_LABELS } from "@/lib/trial-outcome"
 import { bookingCardClasses } from "@/lib/booking-card-colors"
 
 export const metadata: Metadata = {
-  title: "Bookings",
+  title: "My Bookings",
 }
 
 const NON_CANCELLABLE_STATUSES = [
@@ -34,6 +36,11 @@ export default async function PortalBookingsPage({
 }) {
   const { dogId, serviceId } = await searchParams
   const session = await auth()
+
+  const [freeDays, noRefundHours] = await Promise.all([
+    getSetting("cancellation_free_days", "14"),
+    getSetting("cancellation_no_refund_hours", "48"),
+  ])
 
   const [dogs, services] = await Promise.all([
     prisma.dog.findMany({
@@ -66,7 +73,7 @@ export default async function PortalBookingsPage({
   return (
     <div className="max-w-2xl space-y-6">
       <div className="flex flex-wrap items-center gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Bookings</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">My Bookings</h1>
         <Button size="sm" asChild>
           <Link href="/book">Book a service</Link>
         </Button>
@@ -88,6 +95,22 @@ export default async function PortalBookingsPage({
               (p) => p.type === "BALANCE" && p.status === "SUCCEEDED"
             )
             const balancePence = booking.totalPence - booking.depositPence
+            const depositPaidPence = booking.payments
+              .filter((p) => p.type === "DEPOSIT" && p.status === "SUCCEEDED")
+              .reduce((sum, p) => sum + p.amountPence, 0)
+            const balancePaidPence = booking.payments
+              .filter((p) => p.type === "BALANCE" && p.status === "SUCCEEDED")
+              .reduce((sum, p) => sum + p.amountPence, 0)
+            const cancellationTier = getCancellationTier(
+              booking.startDate,
+              Number(freeDays),
+              Number(noRefundHours)
+            )
+            const expectedRefundPence = getExpectedRefundPence(
+              cancellationTier,
+              depositPaidPence,
+              balancePaidPence
+            )
             const pendingInvoice = booking.payments.find(
               (p) => p.type === "INVOICE" && p.status === "PENDING"
             )
@@ -162,7 +185,11 @@ export default async function PortalBookingsPage({
                       </Button>
                     )}
                     {!NON_CANCELLABLE_STATUSES.includes(booking.status) && (
-                      <CancelBookingButton bookingId={booking.id} />
+                      <CancelBookingButton
+                        bookingId={booking.id}
+                        paidPence={depositPaidPence + balancePaidPence}
+                        expectedRefundPence={expectedRefundPence}
+                      />
                     )}
                   </div>
                 </div>

@@ -11,6 +11,7 @@ import { sendEmail } from "@/lib/email"
 import { cancellationConfirmationEmail, bookingConfirmationEmail, paymentReceiptEmail } from "@/lib/email-templates"
 import { offerNextInLine } from "@/lib/waitlist"
 import { redeemForCharge } from "@/lib/vouchers"
+import { getCancellationTier } from "@/lib/cancellation-policy"
 
 export type CancelBookingResult = { status: "success"; message: string } | { status: "error"; message: string }
 
@@ -22,8 +23,6 @@ const NON_CANCELLABLE_STATUSES = [
   "CANCELLED_BY_ADMIN",
   "NO_SHOW",
 ]
-
-type PolicyTier = "free" | "deposit_forfeit" | "no_refund"
 
 async function refundPayment(
   bookingId: string,
@@ -62,16 +61,7 @@ export async function cancelBooking(bookingId: string, reason?: string): Promise
 
   const freeDays = Number(await getSetting("cancellation_free_days", "14"))
   const noRefundHours = Number(await getSetting("cancellation_no_refund_hours", "48"))
-  const hoursUntilStart = (booking.startDate.getTime() - Date.now()) / (1000 * 60 * 60)
-
-  let tier: PolicyTier
-  if (hoursUntilStart >= freeDays * 24) {
-    tier = "free"
-  } else if (hoursUntilStart >= noRefundHours) {
-    tier = "deposit_forfeit"
-  } else {
-    tier = "no_refund"
-  }
+  const tier = getCancellationTier(booking.startDate, freeDays, noRefundHours)
 
   const successfulDeposit = booking.payments.find((p) => p.type === "DEPOSIT" && p.status === "SUCCEEDED")
   const successfulBalance = booking.payments.find((p) => p.type === "BALANCE" && p.status === "SUCCEEDED")

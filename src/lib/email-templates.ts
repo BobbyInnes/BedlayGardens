@@ -531,12 +531,12 @@ export function voucherDeliveryEmail(
   fromName: string
 ): { subject: string; html: string } {
   return {
-    subject: `You've received a ${formatPence(amountPence)} gift voucher!`,
+    subject: `You've received a ${formatPence(amountPence)} gift card!`,
     html: layout(
       branding,
-      "You've been sent a gift voucher",
+      "You've been sent a gift card",
       `
-        <p>${fromName} has sent you a gift voucher worth <strong>${formatPence(amountPence)}</strong> to use on any of our services.</p>
+        <p>${fromName} has sent you a gift card worth <strong>${formatPence(amountPence)}</strong> to use on any of our services.</p>
         <p style="margin: 16px 0; font-size: 20px; font-weight: bold; letter-spacing: 2px;">${code}</p>
         <p>Log in or create an account and enter this code at checkout to redeem it.</p>
       `

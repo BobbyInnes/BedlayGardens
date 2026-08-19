@@ -46,7 +46,11 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${poppins.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      {/* suppressHydrationWarning: browser extensions (e.g. Grammarly) inject
+          attributes like data-gr-ext-installed onto <body> before React
+          hydrates, which otherwise trips a false-positive hydration warning
+          — see https://nextjs.org/docs/messages/react-hydration-error */}
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         {children}
         <Toaster position="top-center" />
       </body>

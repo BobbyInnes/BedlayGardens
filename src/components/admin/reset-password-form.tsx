@@ -4,7 +4,7 @@ import { useActionState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { resetStaffPassword, type AdminActionState } from "@/app/admin/staff/actions"
+import { resetStaffPassword, type AdminActionState } from "@/app/staff/team/actions"
 
 const initialState: AdminActionState = { status: "idle" }
 

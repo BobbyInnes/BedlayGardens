@@ -6,7 +6,7 @@ import { canManageAdmins, superAdminSlotAvailable } from "@/lib/admin-permission
 import { StaffForm } from "@/components/admin/staff-form"
 import { ResetPasswordForm } from "@/components/admin/reset-password-form"
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
-import { updateStaff, deleteStaff } from "@/app/admin/staff/actions"
+import { updateStaff, deleteStaff } from "@/app/staff/team/actions"
 
 export const metadata: Metadata = {
   title: "Edit Staff | Admin",

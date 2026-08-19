@@ -16,4 +16,5 @@ export async function completeCareTask(taskId: string, notes: string) {
   })
 
   revalidatePath("/staff/care-schedule")
+  revalidatePath("/admin")
 }

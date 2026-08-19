@@ -35,6 +35,10 @@ export function DogForm({
   submitLabel: string
 }) {
   const [state, formAction, pending] = useActionState(action, initialState)
+  // On error, the action echoes back whatever was submitted so a failed
+  // submission refills the form instead of blanking it — remount (via
+  // `key` below) so these `defaultValue`s take effect.
+  const values = state.status === "error" ? state.values : undefined
 
   const today = new Date()
   const minDob = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
@@ -64,11 +68,15 @@ export function DogForm({
   }
 
   return (
-    <form action={formAction} className="max-w-2xl space-y-6">
+    <form
+      key={values ? JSON.stringify(values) : "initial"}
+      action={formAction}
+      className="max-w-2xl space-y-6"
+    >
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="name">Name</Label>
-          <Input id="name" name="name" defaultValue={dog?.name} required />
+          <Input id="name" name="name" defaultValue={values ? values.name : dog?.name} required />
           {state.fieldErrors?.name && (
             <p className="text-sm text-destructive">{state.fieldErrors.name}</p>
           )}
@@ -96,7 +104,7 @@ export function DogForm({
             <Input
               name="breed"
               placeholder="Enter breed"
-              defaultValue={!knownBreed ? (dog?.breed ?? "") : ""}
+              defaultValue={values ? values.breed : !knownBreed ? (dog?.breed ?? "") : ""}
               required
               className="mt-2"
             />
@@ -116,7 +124,7 @@ export function DogForm({
             type="date"
             min={toDateInputValue(minDob)}
             max={toDateInputValue(today)}
-            defaultValue={toDateInputValue(dog?.dob)}
+            defaultValue={values ? values.dob : toDateInputValue(dog?.dob)}
           />
           {state.fieldErrors?.dob && (
             <p className="text-sm text-destructive">{state.fieldErrors.dob}</p>
@@ -124,7 +132,7 @@ export function DogForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="sex">Sex</Label>
-          <Select name="sex" defaultValue={dog?.sex ?? ""}>
+          <Select name="sex" defaultValue={values ? values.sex : (dog?.sex ?? "")}>
             <SelectTrigger id="sex" className="w-full">
               <SelectValue placeholder="Select" />
             </SelectTrigger>
@@ -143,7 +151,7 @@ export function DogForm({
             step="0.1"
             min="0"
             max="200"
-            defaultValue={dog?.weightKg ?? ""}
+            defaultValue={values ? values.weightKg : (dog?.weightKg ?? "")}
           />
           {state.fieldErrors?.weightKg && (
             <p className="text-sm text-destructive">{state.fieldErrors.weightKg}</p>
@@ -151,7 +159,7 @@ export function DogForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor="size">Pet size</Label>
-          <Select name="size" defaultValue={dog?.size ?? ""}>
+          <Select name="size" defaultValue={values ? values.size : (dog?.size ?? "")}>
             <SelectTrigger id="size" className="w-full">
               <SelectValue placeholder="Select" />
             </SelectTrigger>
@@ -171,7 +179,7 @@ export function DogForm({
           id="neutered"
           name="neutered"
           type="checkbox"
-          defaultChecked={dog?.neutered}
+          defaultChecked={values ? values.neutered : dog?.neutered}
           className="size-4 rounded border-input"
         />
         <Label htmlFor="neutered" className="font-normal">
@@ -198,11 +206,15 @@ export function DogForm({
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="vetName">Vet name</Label>
-          <Input id="vetName" name="vetName" defaultValue={dog?.vetName ?? ""} />
+          <Input id="vetName" name="vetName" defaultValue={values ? values.vetName : (dog?.vetName ?? "")} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="vetPhone">Vet phone</Label>
-          <PhoneInput id="vetPhone" name="vetPhone" defaultValue={dog?.vetPhone ?? ""} />
+          <PhoneInput
+            id="vetPhone"
+            name="vetPhone"
+            defaultValue={values ? values.vetPhone : (dog?.vetPhone ?? "")}
+          />
         </div>
       </div>
 
@@ -211,7 +223,7 @@ export function DogForm({
         <Input
           id="emergencyContact"
           name="emergencyContact"
-          defaultValue={dog?.emergencyContact ?? ""}
+          defaultValue={values ? values.emergencyContact : (dog?.emergencyContact ?? "")}
           placeholder="Name and phone number"
         />
       </div>
@@ -219,17 +231,26 @@ export function DogForm({
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="microchipNumber">Microchip number</Label>
-          <Input id="microchipNumber" name="microchipNumber" defaultValue={dog?.microchipNumber ?? ""} />
+          <Input
+            id="microchipNumber"
+            name="microchipNumber"
+            defaultValue={values ? values.microchipNumber : (dog?.microchipNumber ?? "")}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="color">Color</Label>
-          <Input id="color" name="color" defaultValue={dog?.color ?? ""} />
+          <Input id="color" name="color" defaultValue={values ? values.color : (dog?.color ?? "")} />
         </div>
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="feedingNotes">Feeding instructions</Label>
-        <Textarea id="feedingNotes" name="feedingNotes" defaultValue={dog?.feedingNotes ?? ""} rows={3} />
+        <Textarea
+          id="feedingNotes"
+          name="feedingNotes"
+          defaultValue={values ? values.feedingNotes : (dog?.feedingNotes ?? "")}
+          rows={3}
+        />
       </div>
 
       <div className="space-y-2">
@@ -237,7 +258,7 @@ export function DogForm({
         <Textarea
           id="medicationNotes"
           name="medicationNotes"
-          defaultValue={dog?.medicationNotes ?? ""}
+          defaultValue={values ? values.medicationNotes : (dog?.medicationNotes ?? "")}
           rows={3}
         />
       </div>
@@ -247,7 +268,7 @@ export function DogForm({
         <Textarea
           id="behaviourNotes"
           name="behaviourNotes"
-          defaultValue={dog?.behaviourNotes ?? ""}
+          defaultValue={values ? values.behaviourNotes : (dog?.behaviourNotes ?? "")}
           rows={3}
         />
       </div>

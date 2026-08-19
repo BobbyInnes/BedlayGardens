@@ -147,8 +147,8 @@ export async function promoteCustomerToStaff(customerId: string, role: "STAFF" |
   })
 
   revalidatePath("/admin/customers")
-  revalidatePath("/admin/staff")
-  redirect(`/admin/staff/${customerId}`)
+  revalidatePath("/staff/team")
+  redirect(`/staff/team/${customerId}`)
 }
 
 export async function addDogFlag(

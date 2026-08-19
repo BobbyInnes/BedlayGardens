@@ -29,15 +29,26 @@ export async function logAudit(options: {
   entityId: string
   meta?: string
 }) {
-  await prisma.auditLog.create({
-    data: {
-      actorId: options.actorId,
-      action: options.action,
-      entity: options.entity,
-      entityId: options.entityId,
-      meta: options.meta ?? null,
-    },
-  })
+  try {
+    await prisma.auditLog.create({
+      data: {
+        actorId: options.actorId,
+        action: options.action,
+        entity: options.entity,
+        entityId: options.entityId,
+        meta: options.meta ?? null,
+      },
+    })
+  } catch (err) {
+    // logAudit is always called after the real mutation it's recording has
+    // already happened (or, for LOGIN, after auth already succeeded) — so a
+    // broken audit write must not take the caller down with it. The known
+    // case: a JWT session whose actorId no longer matches any User row
+    // (account deleted/recreated after login) trips AuditLog_actorId_fkey.
+    // Log loudly instead of throwing so the gap is visible without
+    // blocking whatever the user actually came here to do.
+    console.error("logAudit failed:", options, err)
+  }
 }
 
 function formatFieldValue(value: unknown): string {

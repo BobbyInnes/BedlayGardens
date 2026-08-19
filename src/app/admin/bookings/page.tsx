@@ -75,7 +75,12 @@ export default async function AdminBookingsPage({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Bookings</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">Bookings</h1>
+          <Badge variant="outline" className="tabular-nums">
+            {bookings.length}
+          </Badge>
+        </div>
         <Button size="sm" asChild>
           <Link href="/admin/bookings/new">Create manual booking</Link>
         </Button>
@@ -129,10 +134,10 @@ export default async function AdminBookingsPage({
             <li key={booking.id}>
               <Link
                 href={`/admin/bookings/${booking.id}`}
-                className="flex flex-wrap items-center justify-between gap-4 p-4 text-sm hover:bg-muted/50"
+                className="flex flex-wrap items-center justify-between gap-4 p-4 text-sm transition-colors hover:bg-muted/50 sm:p-5"
               >
                 <div>
-                  <p className="font-medium">
+                  <p className="font-semibold text-foreground">
                     {booking.customer.name}{" "}
                     <span className="font-normal text-muted-foreground">
                       ({formatCustomerNumber(booking.customer.customerNumber)})
@@ -157,7 +162,7 @@ export default async function AdminBookingsPage({
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="font-medium">{formatPence(booking.totalPence)}</p>
+                  <p className="font-medium tabular-nums">{formatPence(booking.totalPence)}</p>
                   <div className="flex items-center justify-end gap-1">
                     {booking.payments.some(
                       (p) => p.type === "INVOICE" && p.status === "PENDING"

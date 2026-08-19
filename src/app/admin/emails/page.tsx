@@ -160,7 +160,7 @@ export default async function AdminEmailsPage({
                             href={
                               user.role === "CUSTOMER"
                                 ? `/admin/customers/${user.id}`
-                                : `/admin/staff/${user.id}`
+                                : `/staff/team/${user.id}`
                             }
                             className="font-medium hover:underline"
                           >

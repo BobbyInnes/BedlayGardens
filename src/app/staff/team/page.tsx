@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ToggleActiveButton } from "@/components/admin/toggle-active-button"
-import { toggleStaffActive } from "@/app/admin/staff/actions"
+import { toggleStaffActive } from "@/app/staff/team/actions"
 
 export const metadata: Metadata = {
   title: "Staff | Admin",
@@ -32,7 +32,7 @@ export default async function AdminStaffPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Staff</h1>
         <Button size="sm" asChild>
-          <Link href="/admin/staff/new">Add staff</Link>
+          <Link href="/staff/team/new">Add staff</Link>
         </Button>
       </div>
 
@@ -67,7 +67,7 @@ export default async function AdminStaffPage() {
               ) : (
                 <>
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={`/admin/staff/${member.id}`}>Edit</Link>
+                    <Link href={`/staff/team/${member.id}`}>Edit</Link>
                   </Button>
                   <ToggleActiveButton
                     active={member.active}

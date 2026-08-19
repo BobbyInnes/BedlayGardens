@@ -55,31 +55,61 @@ const dogSchema = z.object({
   // admin/customers/actions.ts), not something a customer submits.
 })
 
+export type DogFieldValues = {
+  name: string
+  breed: string
+  dob: string
+  sex: string
+  size: string
+  neutered: boolean
+  weightKg: string
+  feedingNotes: string
+  medicationNotes: string
+  behaviourNotes: string
+  vetName: string
+  vetPhone: string
+  emergencyContact: string
+  microchipNumber: string
+  color: string
+}
+
 export type DogFormState = {
   status: "idle" | "error"
   message?: string
   fieldErrors?: Record<string, string>
+  // Echoed back on error so a failed submission refills the form instead of
+  // blanking it (React resets uncontrolled <form> fields after any action).
+  values?: DogFieldValues
+}
+
+function extractDogFormValues(formData: FormData): DogFieldValues {
+  return {
+    name: String(formData.get("name") ?? ""),
+    breed: String(formData.get("breed") ?? ""),
+    dob: String(formData.get("dob") ?? ""),
+    sex: String(formData.get("sex") ?? ""),
+    size: String(formData.get("size") ?? ""),
+    neutered: formData.get("neutered") === "on",
+    weightKg: String(formData.get("weightKg") ?? ""),
+    feedingNotes: String(formData.get("feedingNotes") ?? ""),
+    medicationNotes: String(formData.get("medicationNotes") ?? ""),
+    behaviourNotes: String(formData.get("behaviourNotes") ?? ""),
+    vetName: String(formData.get("vetName") ?? ""),
+    vetPhone: String(formData.get("vetPhone") ?? ""),
+    emergencyContact: String(formData.get("emergencyContact") ?? ""),
+    microchipNumber: String(formData.get("microchipNumber") ?? ""),
+    color: String(formData.get("color") ?? ""),
+  }
 }
 
 async function readDogFields(formData: FormData) {
+  const values = extractDogFormValues(formData)
   const parsed = dogSchema.safeParse({
-    name: formData.get("name"),
-    breed: formData.get("breed"),
-    dob: formData.get("dob") || undefined,
-    sex: (formData.get("sex") as string) || "",
-    size: (formData.get("size") as string) || "",
-    neutered: formData.get("neutered") === "on",
-    weightKg: formData.get("weightKg") || "",
-    feedingNotes: formData.get("feedingNotes") || "",
-    medicationNotes: formData.get("medicationNotes") || "",
-    behaviourNotes: formData.get("behaviourNotes") || "",
-    vetName: formData.get("vetName") || "",
-    vetPhone: formData.get("vetPhone") || "",
-    emergencyContact: formData.get("emergencyContact") || "",
-    microchipNumber: formData.get("microchipNumber") || "",
-    color: formData.get("color") || "",
+    ...values,
+    dob: values.dob || undefined,
+    weightKg: values.weightKg || "",
   })
-  return parsed
+  return { parsed, values }
 }
 
 async function requireOwnerSession() {
@@ -93,14 +123,14 @@ export async function createDog(
   formData: FormData
 ): Promise<DogFormState> {
   const session = await requireOwnerSession()
-  const parsed = await readDogFields(formData)
+  const { parsed, values } = await readDogFields(formData)
 
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {}
     for (const issue of parsed.error.issues) {
       fieldErrors[String(issue.path[0])] = issue.message
     }
-    return { status: "error", fieldErrors, message: "Please fix the errors below." }
+    return { status: "error", fieldErrors, message: "Please fix the errors below.", values }
   }
 
   const data = parsed.data
@@ -163,16 +193,16 @@ export async function updateDog(
   const session = await requireOwnerSession()
   const dog = await prisma.dog.findUnique({ where: { id: dogId } })
   if (!dog || dog.ownerId !== session.user.id) {
-    return { status: "error", message: "Dog not found." }
+    return { status: "error", message: "Dog not found.", values: extractDogFormValues(formData) }
   }
 
-  const parsed = await readDogFields(formData)
+  const { parsed, values } = await readDogFields(formData)
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {}
     for (const issue of parsed.error.issues) {
       fieldErrors[String(issue.path[0])] = issue.message
     }
-    return { status: "error", fieldErrors, message: "Please fix the errors below." }
+    return { status: "error", fieldErrors, message: "Please fix the errors below.", values }
   }
 
   const data = parsed.data
