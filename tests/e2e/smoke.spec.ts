@@ -81,9 +81,6 @@ const adminRoutes = present([
   "/admin/services",
   "/admin/services/new",
   `/admin/services/${ids.serviceId}`,
-  "/admin/staff",
-  "/admin/staff/new",
-  `/admin/staff/${ids.staffId}`,
   "/admin/vaccinations",
   "/admin/van-runs",
   "/admin/van-runs/new",
@@ -94,6 +91,9 @@ const adminRoutes = present([
 const staffRoutes = present([
   "/staff",
   "/staff/care-schedule",
+  "/staff/team",
+  "/staff/team/new",
+  `/staff/team/${ids.staffId}`,
   `/staff/bookings/${ids.bookingId}/check-in`,
   `/staff/bookings/${ids.checkedInBookingId}/check-out`,
 ])

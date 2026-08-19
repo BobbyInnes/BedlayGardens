@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { redirect } from "next/navigation"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Badge } from "@/components/ui/badge"
@@ -8,8 +9,13 @@ import { SubscriptionActions } from "@/components/portal/subscription-actions"
 import { WEEKDAY_LABELS, parseWeekdays } from "@/lib/subscriptions"
 
 export const metadata: Metadata = {
-  title: "Subscriptions",
+  title: "Recurring Bookings",
 }
+
+// Recurring Bookings is removed from the customer portal for now (nav entry
+// pulled too — see portal-nav.tsx). Underlying code left in place so this
+// is easy to re-enable later; direct URL access redirects to the dashboard.
+const FEATURE_ENABLED = false
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: "Awaiting payment setup",
@@ -20,6 +26,8 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 export default async function PortalSubscriptionsPage() {
+  if (!FEATURE_ENABLED) redirect("/portal")
+
   const session = await auth()
   const [dogs, subscriptions] = await Promise.all([
     prisma.dog.findMany({ where: { ownerId: session!.user.id }, orderBy: { name: "asc" } }),
@@ -33,7 +41,7 @@ export default async function PortalSubscriptionsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Subscriptions</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Recurring Bookings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Set up recurring weekly daycare or dog walking — pause individual weeks or cancel anytime.
         </p>
@@ -70,7 +78,7 @@ export default async function PortalSubscriptionsPage() {
                 <Badge variant={sub.status === "ACTIVE" ? "default" : "secondary"}>
                   {STATUS_LABELS[sub.status] ?? sub.status}
                 </Badge>
-                {(sub.status === "ACTIVE" || sub.status === "PAUSED") && (
+                {(sub.status === "ACTIVE" || sub.status === "PAUSED" || sub.status === "PENDING") && (
                   <SubscriptionActions subscriptionId={sub.id} status={sub.status} />
                 )}
               </div>

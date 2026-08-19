@@ -6,7 +6,7 @@ import { z } from "zod"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { stripe, getSiteUrl } from "@/lib/stripe"
-import { pauseSubscription as pauseSubscriptionLib } from "@/lib/subscriptions"
+import { pauseSubscription as pauseSubscriptionLib, parseWeekdays } from "@/lib/subscriptions"
 
 export type SubscriptionActionState = { status: "idle" | "error"; message?: string }
 
@@ -31,9 +31,52 @@ async function ensureStripeCustomer(userId: string): Promise<string> {
       // through and create a fresh one.
     }
   }
-  const customer = await stripe!.customers.create({ email: user.email, name: user.name, metadata: { userId } })
+  const customer = await stripe!.customers.create({
+    email: user.email,
+    name: user.name,
+    address: { country: "GB" },
+    metadata: { userId },
+  })
   await prisma.user.update({ where: { id: userId }, data: { stripeCustomerId: customer.id } })
   return customer.id
+}
+
+async function startSubscriptionCheckout(
+  customerUserId: string,
+  subscriptionId: string,
+  service: { name: string; basePricePence: number },
+  dog: { name: string },
+  weekdayCount: number
+): Promise<SubscriptionActionState> {
+  const weeklyPricePence = service.basePricePence * weekdayCount
+  const customerId = await ensureStripeCustomer(customerUserId)
+  const baseUrl = getSiteUrl()
+  const checkoutSession = await stripe!.checkout.sessions.create({
+    mode: "subscription",
+    customer: customerId,
+    // GBP only — see payment-actions.ts for why Adaptive Pricing is off.
+    adaptive_pricing: { enabled: false },
+    line_items: [
+      {
+        quantity: 1,
+        price_data: {
+          currency: "gbp",
+          unit_amount: weeklyPricePence,
+          recurring: { interval: "week" },
+          product_data: { name: `${service.name} subscription — ${dog.name}` },
+        },
+      },
+    ],
+    metadata: { subscriptionId },
+    subscription_data: { metadata: { subscriptionId } },
+    success_url: `${baseUrl}/portal/subscriptions?checkout=success`,
+    cancel_url: `${baseUrl}/portal/subscriptions?checkout=cancelled`,
+  })
+
+  if (!checkoutSession.url) {
+    return { status: "error", message: "Could not start checkout. Please try again." }
+  }
+  redirect(checkoutSession.url)
 }
 
 export async function createSubscription(input: {
@@ -61,8 +104,6 @@ export async function createSubscription(input: {
   const service = await prisma.service.findUnique({ where: { slug: parsed.data.serviceSlug } })
   if (!service) return { status: "error", message: "Service not found." }
 
-  const weeklyPricePence = service.basePricePence * parsed.data.weekdays.length
-
   const subscription = await prisma.subscription.create({
     data: {
       customerId: session.user.id,
@@ -79,32 +120,39 @@ export async function createSubscription(input: {
     return { status: "idle", message: "Subscription created — online payment isn't enabled yet, so we'll invoice you directly." }
   }
 
-  const customerId = await ensureStripeCustomer(session.user.id)
-  const baseUrl = getSiteUrl()
-  const checkoutSession = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: customerId,
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: "gbp",
-          unit_amount: weeklyPricePence,
-          recurring: { interval: "week" },
-          product_data: { name: `${service.name} subscription — ${dog.name}` },
-        },
-      },
-    ],
-    metadata: { subscriptionId: subscription.id },
-    subscription_data: { metadata: { subscriptionId: subscription.id } },
-    success_url: `${baseUrl}/portal/subscriptions?checkout=success`,
-    cancel_url: `${baseUrl}/portal/subscriptions?checkout=cancelled`,
-  })
+  return startSubscriptionCheckout(session.user.id, subscription.id, service, dog, parsed.data.weekdays.length)
+}
 
-  if (!checkoutSession.url) {
-    return { status: "error", message: "Could not start checkout. Please try again." }
+/**
+ * For a subscription stuck at PENDING (Stripe Checkout was abandoned before
+ * payment setup completed, or its confirming webhook never arrived) —
+ * starts a fresh Checkout session against the same subscription row rather
+ * than creating a duplicate. There was previously no way to recover from
+ * this state short of contacting support.
+ */
+export async function retrySubscriptionCheckout(subscriptionId: string): Promise<SubscriptionActionState> {
+  const session = await auth()
+  if (!session?.user) return { status: "error", message: "Please log in." }
+  if (!stripe) return { status: "error", message: "Online payment isn't enabled." }
+
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: { service: true, dog: true },
+  })
+  if (!subscription || subscription.customerId !== session.user.id) {
+    return { status: "error", message: "Subscription not found." }
   }
-  redirect(checkoutSession.url)
+  if (subscription.status !== "PENDING") {
+    return { status: "error", message: "This subscription doesn't need payment setup." }
+  }
+
+  return startSubscriptionCheckout(
+    session.user.id,
+    subscription.id,
+    subscription.service,
+    subscription.dog,
+    parseWeekdays(subscription.weekdays).length
+  )
 }
 
 export async function pauseSubscription(subscriptionId: string, pausedUntil: string): Promise<SubscriptionActionState> {

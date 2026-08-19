@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { TriangleAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -12,13 +13,26 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { formatPence } from "@/lib/format"
 import { cancelBooking } from "@/app/portal/bookings/actions"
 
-export function CancelBookingButton({ bookingId }: { bookingId: string }) {
+export function CancelBookingButton({
+  bookingId,
+  paidPence,
+  expectedRefundPence,
+}: {
+  bookingId: string
+  /** Total successfully paid so far (deposit + balance), before this cancellation. */
+  paidPence: number
+  /** What our cancellation policy would refund of that, based on how close the stay is. */
+  expectedRefundPence: number
+}) {
   const [open, setOpen] = React.useState(false)
   const [pending, setPending] = React.useState(false)
   const [reason, setReason] = React.useState("")
   const [message, setMessage] = React.useState<string | null>(null)
+
+  const forfeitPence = Math.max(0, paidPence - expectedRefundPence)
 
   return (
     <>
@@ -37,6 +51,28 @@ export function CancelBookingButton({ bookingId }: { bookingId: string }) {
             <p className="text-sm">{message}</p>
           ) : (
             <>
+              {paidPence > 0 &&
+                (forfeitPence > 0 ? (
+                  <div className="flex gap-3 rounded-lg border-l-4 border-amber-400 bg-amber-50 p-4">
+                    <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden="true" />
+                    <div className="text-sm">
+                      <p className="font-semibold text-amber-900">
+                        {expectedRefundPence > 0
+                          ? `Only ${formatPence(expectedRefundPence)} of your ${formatPence(paidPence)} will be refunded`
+                          : `${formatPence(paidPence)} won’t be refunded`}
+                      </p>
+                      <p className="text-amber-800">
+                        Per our cancellation policy, {formatPence(forfeitPence)} is non-refundable this close to
+                        your stay.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    You&rsquo;re within the free cancellation window — the full {formatPence(paidPence)}{" "}
+                    you&rsquo;ve paid will be refunded.
+                  </p>
+                ))}
               <div className="space-y-2">
                 <Label htmlFor="cancellationReason">Reason (optional)</Label>
                 <Textarea

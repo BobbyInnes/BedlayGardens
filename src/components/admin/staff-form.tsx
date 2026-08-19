@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { User } from "@/generated/prisma/client"
-import type { AdminActionState } from "@/app/admin/staff/actions"
+import type { AdminActionState } from "@/app/staff/team/actions"
 import { compressImage } from "@/lib/compress-image"
 
 const initialState: AdminActionState = { status: "idle" }

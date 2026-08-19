@@ -66,7 +66,7 @@ const staffSchema = z.object({
 })
 
 function revalidateStaffPaths() {
-  revalidatePath("/admin/staff")
+  revalidatePath("/staff/team")
   revalidatePath("/about")
 }
 
@@ -160,7 +160,7 @@ export async function createStaff(
   })
 
   revalidateStaffPaths()
-  redirect("/admin/staff")
+  redirect("/staff/team")
 }
 
 export async function updateStaff(
@@ -278,7 +278,7 @@ export async function updateStaff(
   })
 
   revalidateStaffPaths()
-  redirect("/admin/staff")
+  redirect("/staff/team")
 }
 
 export async function toggleStaffActive(staffId: string, active: boolean) {
@@ -366,5 +366,5 @@ export async function deleteStaff(staffId: string) {
   })
 
   revalidateStaffPaths()
-  redirect("/admin/staff")
+  redirect("/staff/team")
 }

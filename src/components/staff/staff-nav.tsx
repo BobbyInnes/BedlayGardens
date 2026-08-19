@@ -2,10 +2,11 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, ClipboardList, TreePine, Truck, AlertTriangle, HeartHandshake, Camera, Syringe, Home } from "lucide-react"
+import { LayoutDashboard, ClipboardList, TreePine, Truck, AlertTriangle, HeartHandshake, Camera, Syringe, Home, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
+  { href: "/staff/team", label: "Staff", icon: Users },
   { href: "/staff", label: "Today", icon: LayoutDashboard },
   { href: "/staff/care-schedule", label: "Care Schedule", icon: ClipboardList },
   { href: "/staff/walk-roster", label: "Walk Roster", icon: TreePine },

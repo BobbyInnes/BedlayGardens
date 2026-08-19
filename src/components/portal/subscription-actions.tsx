@@ -7,6 +7,7 @@ import {
   pauseSubscription,
   resumeSubscription,
   cancelSubscription,
+  retrySubscriptionCheckout,
 } from "@/app/portal/subscriptions/actions"
 
 export function SubscriptionActions({
@@ -39,6 +40,29 @@ export function SubscriptionActions({
     setPending(true)
     await cancelSubscription(subscriptionId)
     setPending(false)
+  }
+
+  async function handleCompleteSetup() {
+    setPending(true)
+    const result = await retrySubscriptionCheckout(subscriptionId)
+    if (result?.status === "error") setMessage(result.message ?? "Something went wrong.")
+    setPending(false)
+  }
+
+  if (status === "PENDING") {
+    return (
+      <div className="flex flex-col items-end gap-2">
+        <div className="flex items-center gap-2">
+          <Button size="sm" disabled={pending} onClick={handleCompleteSetup}>
+            {pending ? "Redirecting…" : "Complete payment setup"}
+          </Button>
+          <Button size="sm" variant="outline" disabled={pending} onClick={handleCancel}>
+            Cancel
+          </Button>
+        </div>
+        {message && <p className="text-xs text-destructive">{message}</p>}
+      </div>
+    )
   }
 
   if (status === "PAUSED") {

@@ -1,19 +1,35 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { ArrowRight, Check, ChevronLeft, ChevronRight } from "lucide-react"
+import {
+  AlertCircle,
+  ArrowRight,
+  BedDouble,
+  Check,
+  ClipboardList,
+  DoorClosed,
+  DoorOpen,
+  Footprints,
+  Globe,
+  LayoutGrid,
+  ListChecks,
+  Pill,
+  TreePine,
+  UtensilsCrossed,
+  Users,
+} from "lucide-react"
 import { prisma } from "@/lib/prisma"
 import { Prisma, type BookingStatus } from "@/generated/prisma/client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { addDays, isSameDay, parseDateParam, startOfDay, toDateInputValue } from "@/lib/dates"
+import { isSameDay, parseDateParam, startOfDay, toDateInputValue } from "@/lib/dates"
 import { ensureCareTasksForToday } from "@/lib/care-tasks"
 import { getSetting } from "@/lib/settings"
 import { formatPence } from "@/lib/format"
 import { ToDoList } from "@/components/admin/todo-list"
 import { CareTaskRecordButton } from "@/components/admin/care-task-record-button"
+import { DailyDatePicker } from "@/components/admin/daily-date-picker"
 
 export const metadata: Metadata = {
   title: "Daily Overview | Admin",
@@ -38,6 +54,14 @@ const scheduledServiceInclude = {
   vanRunStops: { include: { vanRun: { include: { staff: true } } } },
 } satisfies Prisma.BookingInclude
 type ScheduledServiceBooking = Prisma.BookingGetPayload<{ include: typeof scheduledServiceInclude }>
+
+type IconType = React.ComponentType<{ className?: string }>
+
+// Shared table styling so every list on the page reads as one system.
+const TABLE_HEAD_ROW =
+  "border-b border-border bg-muted/40 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase"
+const TABLE_CELL = "px-4 py-2.5"
+const TABLE_ROW = "border-b border-border last:border-0 hover:bg-muted/30"
 
 function dogsCell(bookingDogs: { dog: { name: string; breed: string } }[]): string {
   return bookingDogs.map((bd) => `${bd.dog.name} (${bd.dog.breed})`).join(", ")
@@ -104,7 +128,7 @@ function paymentCell(booking: BookingListItem) {
 function StatBlock({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="rounded-lg bg-muted/50 p-3 text-center">
-      <p className="text-2xl font-semibold">{value}</p>
+      <p className="text-2xl font-semibold tracking-tight tabular-nums">{value}</p>
       <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   )
@@ -114,73 +138,150 @@ function StatRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between text-sm">
       <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value}</span>
+      <span className="font-medium tabular-nums">{value}</span>
     </div>
+  )
+}
+
+// A category tile inside the "Other Types" card — icon-led, same neutral
+// treatment throughout so the row differentiates by shape, not colour.
+function TypeRow({ icon: Icon, label, detail }: { icon: IconType; label: string; detail: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+      <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      <div>
+        <p className="font-medium">{label}</p>
+        <p className="text-xs text-muted-foreground">{detail}</p>
+      </div>
+    </div>
+  )
+}
+
+// One row inside the New Online Bookings alert card. Category is read from
+// the icon + label; the destructive-tinted count is the one "needs action"
+// signal, reused from the same token the outstanding-balance badges use.
+function PendingBookingRow({
+  href,
+  icon: Icon,
+  label,
+  count,
+}: {
+  href: string
+  icon: IconType
+  label: string
+  count: number
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3.5 text-sm transition-colors hover:border-primary/30 hover:bg-accent"
+    >
+      <div className="flex items-center gap-3">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-card text-primary ring-1 ring-border">
+          <Icon className="size-4" aria-hidden="true" />
+        </div>
+        <div>
+          <p className="font-medium text-foreground">{label}</p>
+          <p className="text-muted-foreground">Click to review and confirm</p>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2.5">
+        <Badge className="border-transparent bg-destructive/10 text-destructive tabular-nums">{count}</Badge>
+        <ArrowRight
+          className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+          aria-hidden="true"
+        />
+      </div>
+    </Link>
+  )
+}
+
+// Card shell shared by every list on the page: icon + title in the header,
+// a count badge, and either the table/list content or an empty state.
+function TableCard({
+  title,
+  icon: Icon,
+  count,
+  emptyMessage,
+  action,
+  children,
+}: {
+  title: string
+  icon: IconType
+  count: number
+  emptyMessage: string
+  action?: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 border-b">
+        <div className="flex items-center gap-2">
+          <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
+          <CardTitle>{title}</CardTitle>
+          <Badge variant="outline" className="tabular-nums">
+            {count}
+          </Badge>
+        </div>
+        {action}
+      </CardHeader>
+      <CardContent className={count === 0 ? "py-6" : "overflow-x-auto p-0"}>
+        {count === 0 ? <p className="text-sm text-muted-foreground">{emptyMessage}</p> : children}
+      </CardContent>
+    </Card>
   )
 }
 
 function BookingTable({
   title,
+  icon,
   emptyMessage,
   bookings,
   direction,
 }: {
   title: string
+  icon: IconType
   emptyMessage: string
   bookings: BookingListItem[]
   direction: "in" | "out"
 }) {
   return (
-    <section className="space-y-3">
-      <h2 className="text-lg font-semibold">
-        {title} ({bookings.length})
-      </h2>
-      {bookings.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
-      ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
-                <th className="p-2">Type</th>
-                <th className="p-2">Customer</th>
-                <th className="p-2">Dog(s)</th>
-                <th className="p-2">Duration</th>
-                <th className="p-2">Location</th>
-                <th className="p-2">Status</th>
-                <th className="p-2">Paid</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bookings.map((booking) => (
-                <tr key={`${direction}-${booking.id}`} className="border-b border-border last:border-0">
-                  <td className="p-2">
-                    <Badge variant="secondary">
-                      {booking.service.slug === "daycare" ? "Daycare" : "Home Boarding"}
-                    </Badge>
-                  </td>
-                  <td className="p-2">
-                    <Link
-                      href={`/admin/customers/${booking.customerId}`}
-                      className="font-medium hover:underline"
-                    >
-                      {booking.customer.name}
-                    </Link>
-                  </td>
-                  <td className="p-2">{dogsCell(booking.bookingDogs)}</td>
-                  <td className="p-2">{stayLabel(booking)}</td>
-                  <td className="p-2">
-                    {booking.kennelUnit?.name ?? (booking.service.slug === "daycare" ? "Daycare" : "—")}
-                  </td>
-                  <td className="p-2">{statusCell(booking, direction)}</td>
-                  <td className="p-2">{paymentCell(booking)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
+    <TableCard title={title} icon={icon} count={bookings.length} emptyMessage={emptyMessage}>
+      <table className="w-full border-collapse text-sm">
+        <thead>
+          <tr className={TABLE_HEAD_ROW}>
+            <th className={TABLE_CELL}>Type</th>
+            <th className={TABLE_CELL}>Customer</th>
+            <th className={TABLE_CELL}>Dog(s)</th>
+            <th className={TABLE_CELL}>Duration</th>
+            <th className={TABLE_CELL}>Location</th>
+            <th className={TABLE_CELL}>Status</th>
+            <th className={TABLE_CELL}>Paid</th>
+          </tr>
+        </thead>
+        <tbody>
+          {bookings.map((booking) => (
+            <tr key={`${direction}-${booking.id}`} className={TABLE_ROW}>
+              <td className={TABLE_CELL}>
+                <Badge variant="secondary">{booking.service.slug === "daycare" ? "Daycare" : "Home Boarding"}</Badge>
+              </td>
+              <td className={TABLE_CELL}>
+                <Link href={`/admin/customers/${booking.customerId}`} className="font-medium hover:underline">
+                  {booking.customer.name}
+                </Link>
+              </td>
+              <td className={TABLE_CELL}>{dogsCell(booking.bookingDogs)}</td>
+              <td className={TABLE_CELL}>{stayLabel(booking)}</td>
+              <td className={TABLE_CELL}>
+                {booking.kennelUnit?.name ?? (booking.service.slug === "daycare" ? "Daycare" : "—")}
+              </td>
+              <td className={TABLE_CELL}>{statusCell(booking, direction)}</td>
+              <td className={TABLE_CELL}>{paymentCell(booking)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </TableCard>
   )
 }
 
@@ -193,8 +294,6 @@ export default async function AdminOverviewPage({
   const date = parseDateParam(dateParam)
   const realToday = startOfDay(new Date())
   const isToday = isSameDay(date, realToday)
-  const prevDate = addDays(date, -1)
-  const nextDate = addDays(date, 1)
   const assignee = assigneeParam || "ALL"
 
   if (isToday) await ensureCareTasksForToday()
@@ -208,8 +307,8 @@ export default async function AdminOverviewPage({
     boardingDepartures,
     daycareToday,
     scheduledServiceBookings,
-    newOnlineBookingsCount,
     pendingBoardingCount,
+    pendingMeetGreetCount,
     careTasksToday,
     toDoTasks,
     staffUsers,
@@ -266,13 +365,10 @@ export default async function AdminOverviewPage({
       orderBy: { createdAt: "asc" },
     }),
     prisma.booking.count({
-      where: {
-        createdAt: { gte: realToday, lt: addDays(realToday, 1) },
-        status: { in: ["PENDING_PAYMENT", "CONFIRMED"] },
-      },
+      where: { service: { slug: "overnight-boarding" }, status: "PENDING_PAYMENT" },
     }),
     prisma.booking.count({
-      where: { service: { slug: "overnight-boarding" }, status: "PENDING_PAYMENT" },
+      where: { service: { slug: "meet-greet" }, status: "PENDING_PAYMENT" },
     }),
     prisma.careTask.findMany({
       where: { date, type: { in: ["FEED", "MEDICATION"] } },
@@ -297,6 +393,8 @@ export default async function AdminOverviewPage({
   ])
 
   const boardingService = services.find((s) => s.slug === "overnight-boarding")
+  const meetGreetService = services.find((s) => s.slug === "meet-greet")
+  const totalPendingConfirmation = pendingBoardingCount + pendingMeetGreetCount
 
   const boardingDogIds = new Set<string>()
   const soloManagedDogIds = new Set<string>()
@@ -340,89 +438,70 @@ export default async function AdminOverviewPage({
     assignedTo: t.assignedTo ? { id: t.assignedTo.id, name: t.assignedTo.name } : null,
   }))
 
-  function dayHref(target: Date): string {
-    const params = new URLSearchParams({ date: toDateInputValue(target) })
-    if (assignee !== "ALL") params.set("assignee", assignee)
-    return `/admin?${params.toString()}`
-  }
-
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Daily Overview</h1>
-          <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-            <Link href={dayHref(prevDate)} aria-label="Previous day" className="rounded p-1 hover:bg-muted">
-              <ChevronLeft className="size-4" />
-            </Link>
-            <span className="font-medium text-foreground">
-              {date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
-            </span>
-            <Link href={dayHref(nextDate)} aria-label="Next day" className="rounded p-1 hover:bg-muted">
-              <ChevronRight className="size-4" />
-            </Link>
-            {!isToday && (
-              <Link href={dayHref(realToday)} className="ml-2 font-medium text-primary hover:underline">
-                Today
-              </Link>
-            )}
-          </div>
+          <DailyDatePicker date={toDateInputValue(date)} todayDate={toDateInputValue(realToday)} assignee={assignee} />
         </div>
-        <form className="flex items-end gap-2">
-          {assignee !== "ALL" && <input type="hidden" name="assignee" value={assignee} />}
-          <div className="space-y-1">
-            <Label htmlFor="date" className="sr-only">
-              Jump to date
-            </Label>
-            <Input id="date" name="date" type="date" defaultValue={toDateInputValue(date)} className="w-40" />
-          </div>
-          <Button type="submit" variant="outline" size="sm">
-            Go
-          </Button>
-        </form>
       </div>
 
-      {(newOnlineBookingsCount > 0 || pendingBoardingCount > 0) && (
-        <div className="space-y-2">
-          {newOnlineBookingsCount > 0 && (
-            <Link
-              href="/admin/bookings"
-              className="flex items-center justify-between gap-3 rounded-lg border-l-4 border-emerald-400 bg-emerald-50 p-4 text-sm hover:bg-emerald-100"
-            >
-              <div>
-                <p className="font-semibold text-emerald-900">New online bookings today</p>
-                <p className="text-emerald-800">Click to review and confirm</p>
+      {totalPendingConfirmation > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-3 border-b">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+                <AlertCircle className="size-5" aria-hidden="true" />
               </div>
-              <Badge variant="secondary">{newOnlineBookingsCount} total</Badge>
-            </Link>
-          )}
-          {pendingBoardingCount > 0 && (
-            <Link
-              href={
-                boardingService
-                  ? `/admin/bookings?service=${boardingService.id}&status=PENDING_PAYMENT`
-                  : "/admin/bookings"
-              }
-              className="flex items-center justify-between gap-3 rounded-lg border-l-4 border-blue-400 bg-blue-50 p-4 text-sm hover:bg-blue-100"
-            >
               <div>
-                <p className="font-semibold text-blue-900">
-                  {pendingBoardingCount} Home Boarding booking{pendingBoardingCount === 1 ? "" : "s"} awaiting
-                  payment
-                </p>
-                <p className="text-blue-800">Click to review and confirm</p>
+                <CardTitle>New Online Bookings</CardTitle>
+                <CardDescription>Click to review and confirm bookings</CardDescription>
               </div>
-              <ArrowRight className="size-4 text-blue-700" />
-            </Link>
-          )}
-        </div>
+            </div>
+            <Badge className="shrink-0 border-transparent bg-destructive/10 text-destructive tabular-nums">
+              {totalPendingConfirmation} Total Pending
+            </Badge>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {pendingBoardingCount > 0 && (
+              <PendingBookingRow
+                href={
+                  boardingService
+                    ? `/admin/bookings?service=${boardingService.id}&status=PENDING_PAYMENT`
+                    : "/admin/bookings"
+                }
+                icon={BedDouble}
+                count={pendingBoardingCount}
+                label={`${pendingBoardingCount} Home Boarding Booking${pendingBoardingCount === 1 ? "" : "s"} To Be Confirmed`}
+              />
+            )}
+            {pendingMeetGreetCount > 0 && (
+              <PendingBookingRow
+                href={
+                  meetGreetService
+                    ? `/admin/bookings?service=${meetGreetService.id}&status=PENDING_PAYMENT`
+                    : "/admin/bookings"
+                }
+                icon={Globe}
+                count={pendingMeetGreetCount}
+                label={`${pendingMeetGreetCount} Meet & Greet/Evaluation Booking${pendingMeetGreetCount === 1 ? "" : "s"} To Be Confirmed`}
+              />
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card>
-          <CardHeader>
-            <CardTitle>Home Boarding</CardTitle>
-            <CardDescription>Real-time occupancy</CardDescription>
+          <CardHeader className="flex flex-row items-center gap-3 border-b">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <BedDouble className="size-5" aria-hidden="true" />
+            </div>
+            <div>
+              <CardTitle>Home Boarding</CardTitle>
+              <CardDescription>Real-time occupancy</CardDescription>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
@@ -439,9 +518,14 @@ export default async function AdminOverviewPage({
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Dog Daycare</CardTitle>
-            <CardDescription>Real-time occupancy</CardDescription>
+          <CardHeader className="flex flex-row items-center gap-3 border-b">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-navy/10 text-navy">
+              <Users className="size-5" aria-hidden="true" />
+            </div>
+            <div>
+              <CardTitle>Dog Daycare</CardTitle>
+              <CardDescription>Real-time occupancy</CardDescription>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
@@ -460,36 +544,38 @@ export default async function AdminOverviewPage({
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Other Types</CardTitle>
-            <CardDescription>Scheduled today</CardDescription>
+          <CardHeader className="flex flex-row items-center gap-3 border-b">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+              <LayoutGrid className="size-5" aria-hidden="true" />
+            </div>
+            <div>
+              <CardTitle>Other Types</CardTitle>
+              <CardDescription>Scheduled today</CardDescription>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="rounded-lg bg-muted/50 p-3">
-              <p className="font-medium">Dog Walks</p>
-              <p className="text-xs text-muted-foreground">
-                {dogWalkingBookings.length} booking{dogWalkingBookings.length === 1 ? "" : "s"} ·{" "}
-                {dogWalkingDogIds.size} pet{dogWalkingDogIds.size === 1 ? "" : "s"}
-              </p>
-            </div>
-            <div className="rounded-lg bg-muted/50 p-3">
-              <p className="font-medium">Meet &amp; Greet</p>
-              <p className="text-xs text-muted-foreground">
-                {meetGreetBookings.length} booking{meetGreetBookings.length === 1 ? "" : "s"}
-              </p>
-            </div>
-            <div className="rounded-lg bg-muted/50 p-3">
-              <p className="font-medium">Secure Forest Walks</p>
-              <p className="text-xs text-muted-foreground">
-                {forestWalkBookings.length} booking{forestWalkBookings.length === 1 ? "" : "s"}
-              </p>
-            </div>
+            <TypeRow
+              icon={Footprints}
+              label="Dog Walks"
+              detail={`${dogWalkingBookings.length} booking${dogWalkingBookings.length === 1 ? "" : "s"} · ${dogWalkingDogIds.size} pet${dogWalkingDogIds.size === 1 ? "" : "s"}`}
+            />
+            <TypeRow
+              icon={Globe}
+              label="Meet & Greet"
+              detail={`${meetGreetBookings.length} booking${meetGreetBookings.length === 1 ? "" : "s"}`}
+            />
+            <TypeRow
+              icon={TreePine}
+              label="Secure Forest Walks"
+              detail={`${forestWalkBookings.length} booking${forestWalkBookings.length === 1 ? "" : "s"}`}
+            />
           </CardContent>
         </Card>
       </div>
 
       <BookingTable
         title="Checking In Today"
+        icon={DoorOpen}
         emptyMessage="No arrivals today."
         bookings={checkingIn}
         direction="in"
@@ -497,59 +583,61 @@ export default async function AdminOverviewPage({
 
       <BookingTable
         title="Checking Out Today"
+        icon={DoorClosed}
         emptyMessage="No departures today."
         bookings={checkingOut}
         direction="out"
       />
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Scheduled Services ({scheduledServiceBookings.length})</h2>
-        {scheduledServiceBookings.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nothing else scheduled today.</p>
-        ) : (
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
-                  <th className="p-2">Booking</th>
-                  <th className="p-2">Customer</th>
-                  <th className="p-2">Dog(s)</th>
-                  <th className="p-2">Service</th>
-                  <th className="p-2">Time</th>
-                  <th className="p-2">Assigned to</th>
-                  <th className="p-2">Status</th>
+      <TableCard
+        title="Scheduled Services"
+        icon={ClipboardList}
+        count={scheduledServiceBookings.length}
+        emptyMessage="Nothing else scheduled today."
+      >
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className={TABLE_HEAD_ROW}>
+              <th className={TABLE_CELL}>Booking</th>
+              <th className={TABLE_CELL}>Customer</th>
+              <th className={TABLE_CELL}>Dog(s)</th>
+              <th className={TABLE_CELL}>Service</th>
+              <th className={TABLE_CELL}>Time</th>
+              <th className={TABLE_CELL}>Assigned to</th>
+              <th className={TABLE_CELL}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {scheduledServiceBookings.map((booking: ScheduledServiceBooking) => {
+              const stop = booking.vanRunStops[0]
+              return (
+                <tr key={booking.id} className={TABLE_ROW}>
+                  <td className={TABLE_CELL}>
+                    <Link href={`/admin/bookings/${booking.id}`} className="font-medium hover:underline">
+                      {booking.id.slice(-6).toUpperCase()}
+                    </Link>
+                  </td>
+                  <td className={TABLE_CELL}>{booking.customer.name}</td>
+                  <td className={TABLE_CELL}>{dogsCell(booking.bookingDogs)}</td>
+                  <td className={TABLE_CELL}>{booking.service.name}</td>
+                  <td className={TABLE_CELL}>{stop?.vanRun.startTime ?? "—"}</td>
+                  <td className={TABLE_CELL}>{stop?.vanRun.staff?.name ?? "—"}</td>
+                  <td className={TABLE_CELL}>
+                    <Badge variant="outline">{booking.status.replace(/_/g, " ")}</Badge>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {scheduledServiceBookings.map((booking: ScheduledServiceBooking) => {
-                  const stop = booking.vanRunStops[0]
-                  return (
-                    <tr key={booking.id} className="border-b border-border last:border-0">
-                      <td className="p-2">
-                        <Link href={`/admin/bookings/${booking.id}`} className="font-medium hover:underline">
-                          {booking.id.slice(-6).toUpperCase()}
-                        </Link>
-                      </td>
-                      <td className="p-2">{booking.customer.name}</td>
-                      <td className="p-2">{dogsCell(booking.bookingDogs)}</td>
-                      <td className="p-2">{booking.service.name}</td>
-                      <td className="p-2">{stop?.vanRun.startTime ?? "—"}</td>
-                      <td className="p-2">{stop?.vanRun.staff?.name ?? "—"}</td>
-                      <td className="p-2">
-                        <Badge variant="outline">{booking.status.replace(/_/g, " ")}</Badge>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+              )
+            })}
+          </tbody>
+        </table>
+      </TableCard>
 
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">To-Do List</h2>
+      <Card>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 border-b">
+          <div className="flex items-center gap-2">
+            <ListChecks className="size-4 text-muted-foreground" aria-hidden="true" />
+            <CardTitle>To-Do List</CardTitle>
+          </div>
           <form className="flex items-center gap-2 text-sm">
             <input type="hidden" name="date" value={toDateInputValue(date)} />
             <Label htmlFor="assignee" className="text-muted-foreground">
@@ -573,84 +661,79 @@ export default async function AdminOverviewPage({
               Filter
             </Button>
           </form>
-        </div>
-        <ToDoList
-          tasks={toDoTasksForClient}
-          staff={staffUsers.map((u) => ({ id: u.id, name: u.name }))}
-        />
-      </section>
+        </CardHeader>
+        <CardContent>
+          <ToDoList tasks={toDoTasksForClient} staff={staffUsers.map((u) => ({ id: u.id, name: u.name }))} />
+        </CardContent>
+      </Card>
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Feeding</h2>
-        {feedingTasks.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No feeding tasks for today&rsquo;s in-house dogs.</p>
-        ) : (
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
-                  <th className="p-2">Pet</th>
-                  <th className="p-2">Location</th>
-                  <th className="p-2">Instructions</th>
-                  <th className="p-2">Record</th>
-                </tr>
-              </thead>
-              <tbody>
-                {feedingTasks.map((task) => (
-                  <tr key={task.id} className="border-b border-border last:border-0">
-                    <td className="p-2 font-medium">{task.dog.name}</td>
-                    <td className="p-2">{task.booking.kennelUnit?.name ?? task.booking.service.name}</td>
-                    <td className="p-2 text-muted-foreground">{task.description}</td>
-                    <td className="p-2">
-                      <CareTaskRecordButton
-                        taskId={task.id}
-                        completed={!!task.completedAt}
-                        completedByName={task.completedBy?.name ?? null}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <TableCard
+        title="Feeding"
+        icon={UtensilsCrossed}
+        count={feedingTasks.length}
+        emptyMessage="No feeding tasks for today's in-house dogs."
+      >
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className={TABLE_HEAD_ROW}>
+              <th className={TABLE_CELL}>Pet</th>
+              <th className={TABLE_CELL}>Location</th>
+              <th className={TABLE_CELL}>Instructions</th>
+              <th className={TABLE_CELL}>Record</th>
+            </tr>
+          </thead>
+          <tbody>
+            {feedingTasks.map((task) => (
+              <tr key={task.id} className={TABLE_ROW}>
+                <td className={`${TABLE_CELL} font-medium`}>{task.dog.name}</td>
+                <td className={TABLE_CELL}>{task.booking.kennelUnit?.name ?? task.booking.service.name}</td>
+                <td className={`${TABLE_CELL} text-muted-foreground`}>{task.description}</td>
+                <td className={TABLE_CELL}>
+                  <CareTaskRecordButton
+                    taskId={task.id}
+                    completed={!!task.completedAt}
+                    completedByName={task.completedBy?.name ?? null}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableCard>
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Medications</h2>
-        {medicationTasks.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No medication tasks for today&rsquo;s in-house dogs.</p>
-        ) : (
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
-                  <th className="p-2">Pet</th>
-                  <th className="p-2">Location</th>
-                  <th className="p-2">Instructions</th>
-                  <th className="p-2">Record</th>
-                </tr>
-              </thead>
-              <tbody>
-                {medicationTasks.map((task) => (
-                  <tr key={task.id} className="border-b border-border last:border-0">
-                    <td className="p-2 font-medium">{task.dog.name}</td>
-                    <td className="p-2">{task.booking.kennelUnit?.name ?? task.booking.service.name}</td>
-                    <td className="p-2 text-muted-foreground">{task.description}</td>
-                    <td className="p-2">
-                      <CareTaskRecordButton
-                        taskId={task.id}
-                        completed={!!task.completedAt}
-                        completedByName={task.completedBy?.name ?? null}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <TableCard
+        title="Medications"
+        icon={Pill}
+        count={medicationTasks.length}
+        emptyMessage="No medication tasks for today's in-house dogs."
+      >
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className={TABLE_HEAD_ROW}>
+              <th className={TABLE_CELL}>Pet</th>
+              <th className={TABLE_CELL}>Location</th>
+              <th className={TABLE_CELL}>Instructions</th>
+              <th className={TABLE_CELL}>Record</th>
+            </tr>
+          </thead>
+          <tbody>
+            {medicationTasks.map((task) => (
+              <tr key={task.id} className={TABLE_ROW}>
+                <td className={`${TABLE_CELL} font-medium`}>{task.dog.name}</td>
+                <td className={TABLE_CELL}>{task.booking.kennelUnit?.name ?? task.booking.service.name}</td>
+                <td className={`${TABLE_CELL} text-muted-foreground`}>{task.description}</td>
+                <td className={TABLE_CELL}>
+                  <CareTaskRecordButton
+                    taskId={task.id}
+                    completed={!!task.completedAt}
+                    completedByName={task.completedBy?.name ?? null}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableCard>
     </div>
   )
 }

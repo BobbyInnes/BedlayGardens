@@ -19,6 +19,11 @@ export async function ensureStripeCustomer(userId: string): Promise<string> {
     customer = await stripe!.customers.create({
       email: user.email,
       name: user.name,
+      // Defaults the Checkout billing-address country to GB (and with it,
+      // the postal code field label to "Postcode" instead of "ZIP") — we
+      // only operate in the UK, so there's no reason to make customers
+      // pick their country every time.
+      address: { country: "GB" },
       metadata: { userId: user.id },
     })
   } catch (error) {

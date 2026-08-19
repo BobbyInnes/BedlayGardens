@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, PawPrint, Syringe, CalendarDays, UserCog, Camera, ListOrdered, Repeat, Star, Gift, Home } from "lucide-react"
+import { LayoutDashboard, PawPrint, Syringe, CalendarDays, UserCog, Camera, ListOrdered, Star, Home } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
@@ -10,12 +10,10 @@ const navItems = [
   { href: "/portal/account", label: "Your Details", icon: UserCog },
   { href: "/portal/dogs", label: "My Dogs", icon: PawPrint },
   { href: "/portal/vaccinations", label: "Vaccinations", icon: Syringe },
-  { href: "/portal/bookings", label: "Bookings", icon: CalendarDays },
-  { href: "/portal/subscriptions", label: "Subscriptions", icon: Repeat },
+  { href: "/portal/bookings", label: "My Bookings", icon: CalendarDays },
   { href: "/portal/pupdates", label: "Pet Updates", icon: Camera },
   { href: "/portal/waitlist", label: "Waitlist", icon: ListOrdered },
   { href: "/portal/reviews", label: "Reviews", icon: Star },
-  { href: "/portal/vouchers", label: "Vouchers", icon: Gift },
 ]
 
 export function PortalNav() {

@@ -78,6 +78,27 @@ export function SettingsForm({ settings }: { settings: Record<string, string> })
         </div>
       </div>
 
+      <div className="space-y-2">
+        <Label htmlFor="required_vaccine_types">Required vaccine types (comma-separated)</Label>
+        <Input
+          id="required_vaccine_types"
+          name="required_vaccine_types"
+          type="text"
+          placeholder="DHPP, Leptospirosis, Kennel Cough"
+          defaultValue={settings.required_vaccine_types}
+        />
+        <p className="text-sm text-muted-foreground">
+          A dog must have an in-date record covering every type listed here before any booking
+          (including Meet &amp; Greet) is allowed.{" "}
+          {!settings.required_vaccine_types && (
+            <span className="font-medium text-destructive">
+              This is currently empty — no vaccination requirement is being enforced on any
+              booking, site-wide.
+            </span>
+          )}
+        </p>
+      </div>
+
       <div className="flex items-center gap-2">
         <input
           id="vat_enabled"

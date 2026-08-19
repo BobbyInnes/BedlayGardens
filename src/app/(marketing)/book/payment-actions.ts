@@ -66,6 +66,10 @@ export async function createCheckoutSession(
     checkoutSession = await stripe.checkout.sessions.create({
       mode: "payment",
       customer: customerId,
+      // We only ever price in GBP — without this, Stripe's Adaptive Pricing
+      // offers the customer a USD (or other) toggle that converts at a
+      // markup, which isn't something we want to expose.
+      adaptive_pricing: { enabled: false },
       payment_intent_data: {
         setup_future_usage: "off_session",
         metadata: { bookingId: booking.id, type },

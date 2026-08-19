@@ -26,6 +26,7 @@ const settingsSchema = z.object({
   daycare_max_capacity: z.coerce.number().int().min(0),
   vat_enabled: z.enum(["true", "false"]),
   pupdates_included_free: z.enum(["true", "false"]),
+  required_vaccine_types: z.string().trim().max(500),
 })
 
 export async function updateSettings(
@@ -42,6 +43,7 @@ export async function updateSettings(
     daycare_max_capacity: formData.get("daycare_max_capacity"),
     vat_enabled: formData.get("vat_enabled") === "on" ? "true" : "false",
     pupdates_included_free: formData.get("pupdates_included_free") === "on" ? "true" : "false",
+    required_vaccine_types: formData.get("required_vaccine_types") || "",
   })
   if (!parsed.success) {
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }

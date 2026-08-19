@@ -562,6 +562,17 @@ export async function resolveBookingCreation(
     const duplicateConflict = await checkForDuplicateServiceBooking(data.dogIds, date, date)
     if (duplicateConflict) return duplicateConflict
 
+    const gate = skipVaccinationGate ? { ok: true, perDog: [] } : await checkVaccinationGate(data.dogIds, date)
+    if (!gate.ok) {
+      return {
+        status: "error",
+        message: "Vaccinations are missing or expired.",
+        missingVaccinations: gate.perDog
+          .filter((d) => d.missingTypes.length > 0)
+          .map((d) => ({ dogName: d.dogName, missingTypes: d.missingTypes })),
+      }
+    }
+
     const availability = await isMeetGreetAvailable(date)
     if (!availability.available) {
       return {

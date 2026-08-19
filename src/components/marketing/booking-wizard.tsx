@@ -268,7 +268,7 @@ export function BookingWizard({
       : isDaycare
         ? [...daycareDates].sort().at(-1)
         : isMeetGreet
-          ? undefined
+          ? date
           : isForestWalk
             ? walkSlots.find((s) => s.id === selectedSlotId)?.date
             : vanRuns.find((r) => r.id === selectedRunId)?.date
