@@ -28,6 +28,7 @@ export default async function BookingConfirmationPage({
     include: {
       service: true,
       kennelUnit: true,
+      payments: true,
       bookingDogs: { include: { dog: true } },
       bookingAddons: { include: { addon: true } },
     },
@@ -39,13 +40,34 @@ export default async function BookingConfirmationPage({
     notFound()
   }
 
-  // Fallback if the Stripe webhook hasn't updated the booking yet (e.g. the
+  // Fallback if the Stripe webhook hasn't updated the payment yet (e.g. the
   // customer just returned from Checkout): ask Stripe directly and reconcile,
-  // then re-read so the page shows the up-to-date status.
-  if (booking.status === "PENDING_PAYMENT") {
+  // then re-read so the page shows the up-to-date status. Runs regardless of
+  // booking.status — a BALANCE payment always lands on an already-CONFIRMED
+  // booking (the deposit confirmed it earlier), so gating this on
+  // PENDING_PAYMENT (as before) silently skipped the fallback for every
+  // balance payment, leaving it stuck PENDING forever if the webhook never
+  // arrived. reconcilePendingBookingPayments no-ops cheaply when there's
+  // nothing PENDING, so it's safe to just always attempt it here.
+  if (stripe) {
     await reconcilePendingBookingPayments(bookingId)
     booking = (await prisma.booking.findUnique(bookingQuery)) ?? booking
   }
+
+  const balancePence = booking.totalPence - booking.depositPence
+  const balancePaid = booking.payments.some((p) => p.type === "BALANCE" && p.status === "SUCCEEDED")
+  // Distinguishes "just paid the deposit, balance isn't due yet" (the normal
+  // path into CONFIRMED for every deposit-then-balance booking — no BALANCE
+  // payment exists yet at all) from "came back from a balance Checkout that
+  // didn't complete" (a PENDING/FAILED BALANCE payment already exists) — the
+  // two need different copy so we don't tell someone their deposit "didn't
+  // go through" when it's the balance that's merely not due yet.
+  const balanceAttempted = booking.payments.some((p) => p.type === "BALANCE")
+  const balanceStillDue =
+    booking.status === "CONFIRMED" &&
+    booking.service.paymentTiming === "DEPOSIT_THEN_BALANCE" &&
+    !balancePaid &&
+    balancePence > 0
 
   return (
     <div className="mx-auto max-w-xl px-4 py-16 sm:px-6">
@@ -140,6 +162,15 @@ export default async function BookingConfirmationPage({
         <p className="mt-6 text-sm text-muted-foreground">
           Online payment isn&rsquo;t enabled yet — we&rsquo;ll be in touch to arrange payment.
         </p>
+      ) : balanceStillDue && stripe ? (
+        <div className="mt-6 space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {balanceAttempted
+              ? `That payment didn't go through — ${formatPence(balancePence)} is still due on this booking.`
+              : `Your booking is confirmed. The remaining balance of ${formatPence(balancePence)} is due before your stay — we'll collect it automatically nearer the time, or you can pay it now.`}
+          </p>
+          <PayButton bookingId={booking.id} type="BALANCE" label={`Pay balance — ${formatPence(balancePence)}`} />
+        </div>
       ) : booking.service.paymentTiming === "INVOICE_AFTER" && booking.status === "CONFIRMED" ? (
         <p className="mt-6 text-sm text-muted-foreground">
           Your booking is confirmed — nothing to pay now. We&rsquo;ll email you an invoice
@@ -154,7 +185,7 @@ export default async function BookingConfirmationPage({
       <Button variant="outline" className="mt-3 w-full" asChild>
         <Link href="/portal/bookings">View my bookings</Link>
       </Button>
-      {booking.status !== "PENDING_PAYMENT" && <AutoPortalRedirect />}
+      {booking.status !== "PENDING_PAYMENT" && !balanceStillDue && <AutoPortalRedirect />}
     </div>
   )
 }
