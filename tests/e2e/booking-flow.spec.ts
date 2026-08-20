@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process"
 import { test, expect } from "@playwright/test"
 import { E2E_CUSTOMER_EMAIL, E2E_CUSTOMER_PASSWORD, E2E_DOG_NAME } from "./fixtures"
 
@@ -61,4 +62,20 @@ test("customer can book daycare for multiple dates end to end", async ({ page })
   await expect(page.getByRole("heading", { name: /2 .* bookings reserved/i })).toBeVisible()
   // Match the daycare service however it's named/renamed (e.g. "Day Care : (Half Day)").
   await expect(page.getByText(/day\s*care/i).first()).toBeVisible()
+
+  // Regression check for the bug where daycare bookings never got a
+  // balanceDueDate, so the charge-balances/send-reminders crons silently
+  // skipped them and the balance sat uncollected. Run as a standalone tsx
+  // process — see verify-balance-due-date.ts for why it can't be imported
+  // directly into the spec.
+  const output = execFileSync(
+    "npx",
+    ["tsx", "--env-file=.env.test", "tests/e2e/verify-balance-due-date.ts"],
+    { encoding: "utf-8", shell: true }
+  )
+  const bookings = JSON.parse(output) as { id: string; balanceDueDate: string | null }[]
+  expect(bookings).toHaveLength(2)
+  for (const booking of bookings) {
+    expect(booking.balanceDueDate, `booking ${booking.id} is missing balanceDueDate`).not.toBeNull()
+  }
 })

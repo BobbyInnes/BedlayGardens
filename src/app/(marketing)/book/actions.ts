@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { Prisma } from "@/generated/prisma/client"
+import { Prisma, type PaymentTiming } from "@/generated/prisma/client"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { nightsBetween, startOfDay } from "@/lib/dates"
@@ -89,6 +89,17 @@ async function runCapacityCheckedTransaction<T>(
     }
   }
   return undefined
+}
+
+// Balance is only auto-charged/reminded for DEPOSIT_THEN_BALANCE services —
+// null here means the charge-balances and send-reminders crons skip the
+// booking entirely, so every creation branch below must set this.
+async function balanceDueDateFor(paymentTiming: PaymentTiming, referenceDate: Date): Promise<Date | null> {
+  if (paymentTiming !== "DEPOSIT_THEN_BALANCE") return null
+  const balanceDueDays = Number(await getSetting("balance_due_days_before_checkin", "7"))
+  const dueDate = new Date(referenceDate)
+  dueDate.setDate(dueDate.getDate() - balanceDueDays)
+  return dueDate
 }
 
 export type BookingCreationResult = BookingActionState & { bookingId?: string }
@@ -264,9 +275,7 @@ export async function resolveBookingCreation(
       })),
     })
 
-    const balanceDueDays = Number(await getSetting("balance_due_days_before_checkin", "7"))
-    const balanceDueDate = new Date(startDate)
-    balanceDueDate.setDate(balanceDueDate.getDate() - balanceDueDays)
+    const balanceDueDate = await balanceDueDateFor(service.paymentTiming, startDate)
     const paymentFields = paymentFieldsFor(service.paymentTiming, pricing)
 
     const MAX_ATTEMPTS = 5
@@ -288,7 +297,7 @@ export async function resolveBookingCreation(
               kennelUnitId: candidate.id,
               totalPence: pricing.totalPence,
               depositPence: paymentFields.depositPence,
-              balanceDueDate: service.paymentTiming === "DEPOSIT_THEN_BALANCE" ? balanceDueDate : null,
+              balanceDueDate,
             },
           })
           await tx.kennelOccupancy.createMany({
@@ -364,6 +373,8 @@ export async function resolveBookingCreation(
       addons: [],
     })
 
+    const balanceDueDate = await balanceDueDateFor(service.paymentTiming, date)
+
     const booking = await runCapacityCheckedTransaction(async (tx) => {
       const recheckCount = await tx.bookingDog.count({
         where: {
@@ -389,6 +400,7 @@ export async function resolveBookingCreation(
           batchId: options?.batchId,
           ...paymentFieldsFor(service.paymentTiming, pricing),
           totalPence: pricing.totalPence,
+          balanceDueDate,
         },
       })
       await tx.bookingDog.createMany({
@@ -435,6 +447,8 @@ export async function resolveBookingCreation(
       addons: [],
     })
 
+    const balanceDueDate = await balanceDueDateFor(service.paymentTiming, slot.date)
+
     const booking = await prisma.$transaction(async (tx) => {
       const current = await tx.walkSlot.findUnique({
         where: { id: data.walkSlotId },
@@ -451,6 +465,7 @@ export async function resolveBookingCreation(
           endDate: current.date,
           ...paymentFieldsFor(service.paymentTiming, pricing),
           totalPence: pricing.totalPence,
+          balanceDueDate,
         },
       })
       await tx.bookingDog.createMany({
@@ -517,6 +532,8 @@ export async function resolveBookingCreation(
       addons: [],
     })
 
+    const balanceDueDate = await balanceDueDateFor(service.paymentTiming, run.date)
+
     const booking = await prisma.$transaction(async (tx) => {
       const current = await tx.vanRun.findUnique({ where: { id: data.vanRunId }, include: { stops: true } })
       if (!current || current.maxDogs - current.stops.length < dogs.length) {
@@ -530,6 +547,7 @@ export async function resolveBookingCreation(
           endDate: current.date,
           ...paymentFieldsFor(service.paymentTiming, pricing),
           totalPence: pricing.totalPence,
+          balanceDueDate,
         },
       })
       await tx.bookingDog.createMany({
@@ -590,6 +608,8 @@ export async function resolveBookingCreation(
       addons: [],
     })
 
+    const balanceDueDate = await balanceDueDateFor(service.paymentTiming, date)
+
     const booking = await runCapacityCheckedTransaction(async (tx) => {
       const recheckCount = await tx.booking.count({
         where: {
@@ -609,6 +629,7 @@ export async function resolveBookingCreation(
           endDate: date,
           ...paymentFieldsFor(service.paymentTiming, pricing),
           totalPence: pricing.totalPence,
+          balanceDueDate,
         },
       })
       await tx.bookingDog.createMany({
