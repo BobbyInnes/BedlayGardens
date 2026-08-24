@@ -1,7 +1,28 @@
 import { Resend } from "resend"
+import { readFileSync } from "node:fs"
+import path from "node:path"
 import { prisma } from "@/lib/prisma"
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+
+// Every template's layout() (email-templates.ts) references the logo via
+// `src="cid:logo"` rather than a `https://.../images/logo.png` URL — an
+// external URL needs a publicly reachable NEXT_PUBLIC_SITE_URL, which is
+// http://localhost:3000 in every local/dev environment and therefore
+// unreachable by any real mail client (and by Gmail's image proxy even on
+// the same machine). Embedding the file as an inline `cid:` attachment makes
+// the logo render everywhere, including npm run dev:test, with zero env
+// config. Read once at module load rather than per-send.
+let logoAttachment: { filename: string; content: Buffer; contentId: string } | null = null
+try {
+  logoAttachment = {
+    filename: "logo.png",
+    content: readFileSync(path.join(process.cwd(), "public/images/logo.png")),
+    contentId: "logo",
+  }
+} catch (error) {
+  console.warn("[email] Could not load public/images/logo.png for inline embedding", error)
+}
 
 export async function sendEmail(options: { to: string; subject: string; html: string }) {
   if (!resend) {
@@ -16,6 +37,7 @@ export async function sendEmail(options: { to: string; subject: string; html: st
       to: options.to,
       subject: options.subject,
       html: options.html,
+      attachments: logoAttachment ? [logoAttachment] : undefined,
     })
     await logSentEmail(options, "SENT")
   } catch (error) {

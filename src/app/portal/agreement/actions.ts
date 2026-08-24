@@ -40,6 +40,9 @@ export async function signAgreement(
   if (!agreement || agreement.id !== parsed.data.agreementId) {
     return { status: "error", message: "This agreement version is out of date — please refresh the page." }
   }
+  if (!agreement.documentUrl) {
+    return { status: "error", message: "No agreement document is currently published." }
+  }
 
   const headerList = await headers()
   const ipAddress =
@@ -50,7 +53,7 @@ export async function signAgreement(
   const pdfBuffer = await generateAgreementPdf({
     businessName,
     version: agreement.version,
-    text: agreement.text,
+    documentUrl: agreement.documentUrl,
     signedName: parsed.data.signedName,
     signedAt,
     ipAddress,

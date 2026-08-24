@@ -1,8 +1,9 @@
-import { stripe } from "@/lib/stripe"
+import { stripe, getSiteUrl } from "@/lib/stripe"
 import { prisma } from "@/lib/prisma"
 import { logAudit, describeBooking } from "@/lib/audit"
 import { sendEmail } from "@/lib/email"
 import { getSettings } from "@/lib/settings"
+import { getVatSettings } from "@/lib/vat"
 import { formatPence } from "@/lib/format"
 import { bookingConfirmationEmail, paymentReceiptEmail } from "@/lib/email-templates"
 
@@ -30,7 +31,12 @@ export async function markPaymentSucceededAndNotify(stripePaymentIntentId: strin
 
   const booking = await prisma.booking.findUnique({
     where: { id: payment.bookingId },
-    include: { service: true, customer: true, bookingDogs: { include: { dog: true } } },
+    include: {
+      service: true,
+      customer: true,
+      bookingDogs: { include: { dog: true } },
+      bookingAddons: { include: { addon: true } },
+    },
   })
   if (!booking) return
 
@@ -43,6 +49,7 @@ export async function markPaymentSucceededAndNotify(stripePaymentIntentId: strin
   })
 
   const settings = await getSettings()
+  const vat = await getVatSettings()
   const otherDaycareDates = booking.batchId
     ? (
         await prisma.booking.findMany({
@@ -52,25 +59,62 @@ export async function markPaymentSucceededAndNotify(stripePaymentIntentId: strin
       ).map((b) => b.startDate)
     : []
   const bookingSummary = {
+    bookingId: booking.id,
+    bookingNumber: booking.bookingNumber,
+    customerName: booking.customer.name,
     serviceName: booking.service.name,
     startDate: booking.startDate,
     endDate: booking.endDate,
     totalPence: booking.totalPence,
     depositPence: booking.depositPence,
+    balanceDueDate: booking.balanceDueDate,
+    dogNames: booking.bookingDogs.map((bd) => bd.dog.name),
     otherDaycareDates,
     customerNumber: booking.customer.customerNumber,
   }
 
-  const receipt = paymentReceiptEmail(
+  const receipt = await paymentReceiptEmail(
     settings,
     bookingSummary,
     payment.amountPence,
-    payment.type as "DEPOSIT" | "BALANCE"
+    payment.type as "DEPOSIT" | "BALANCE",
+    `${getSiteUrl()}/portal/bookings`,
+    vat
   )
   await sendEmail({ to: booking.customer.email, subject: receipt.subject, html: receipt.html })
 
-  if (becameConfirmed) {
-    const confirmation = bookingConfirmationEmail(settings, bookingSummary)
+  // DEPOSIT_THEN_BALANCE bookings already got the deposit-invoice email at
+  // creation (see resolveBookingCreation in (marketing)/book/actions.ts) —
+  // sending this post-payment invoice too would be a second invoice-style
+  // email for the same booking. FULL_UPFRONT bookings get no email at
+  // creation, so they still need this one once payment clears.
+  if (becameConfirmed && booking.service.paymentTiming !== "DEPOSIT_THEN_BALANCE") {
+    const confirmation = await bookingConfirmationEmail(
+      settings,
+      {
+        bookingId: booking.id,
+        bookingNumber: booking.bookingNumber,
+        customerName: booking.customer.name,
+        serviceSlug: booking.service.slug,
+        serviceName: booking.service.name,
+        paymentTiming: booking.service.paymentTiming,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        totalPence: booking.totalPence,
+        depositPence: booking.depositPence,
+        balanceDueDate: booking.balanceDueDate,
+        dogNames: booking.bookingDogs.map((bd) => bd.dog.name),
+        customerNumber: booking.customer.customerNumber,
+        otherDaycareDates,
+        addons: booking.bookingAddons.map((ba) => ({
+          name: ba.addon.name,
+          quantity: ba.quantity,
+          totalPence: ba.pricePence,
+        })),
+      },
+      vat,
+      `${getSiteUrl()}/portal/bookings`
+    )
     await sendEmail({ to: booking.customer.email, subject: confirmation.subject, html: confirmation.html })
   }
 }

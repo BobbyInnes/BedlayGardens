@@ -29,7 +29,7 @@ export default async function TermsPage() {
       <p>
         This placeholder sets out the terms that apply when you book with Bedlay
         Gardens LTD. Replace this text with your finalised terms before
-        launch, ideally reviewed alongside the digital boarding agreement.
+        launch, ideally reviewed alongside the separate agreement customers sign at booking.
       </p>
 
       <h2>Vaccinations</h2>
@@ -64,8 +64,8 @@ export default async function TermsPage() {
       <h2>Liability</h2>
       <p>
         While every care is taken, boarding, daycare, and walking involve
-        inherent risks to animals. Full liability terms are set out in our
-        boarding agreement, which owners sign before their dog&rsquo;s first stay.
+        inherent risks to animals. Full liability terms are set out in the
+        separate agreement owners sign before their dog&rsquo;s first stay.
       </p>
     </LegalPage>
   )

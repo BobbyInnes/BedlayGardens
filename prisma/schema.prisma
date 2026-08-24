@@ -193,6 +193,7 @@ model User {
   passwordResetTokens    PasswordResetToken[]
   toDoTasksAssigned      ToDoTask[]              @relation("ToDoAssignee")
   toDoTasksCreated       ToDoTask[]              @relation("ToDoCreatedBy")
+  assignedBookings       Booking[]               @relation("BookingAssignedStaff")
 
   @@index([role])
 }
@@ -290,7 +291,19 @@ model Dog {
   behaviourNotes   String?
   vetName          String?
   vetPhone         String?
-  emergencyContact String?
+  vetPracticeName  String?
+  vetAddressLine1  String?
+  vetAddressLine2  String?
+  vetCity          String?
+  vetPostcode      String?
+  vetEmail         String?
+  allergies        String?
+  emergencyContactName          String?
+  emergencyContactPhone         String?
+  emergencyContactAddressLine1  String?
+  emergencyContactAddressLine2  String?
+  emergencyContactCity          String?
+  emergencyContactPostcode      String?
   microchipNumber  String?
   color            String?
   runType          String?
@@ -309,8 +322,46 @@ model Dog {
   subscriptions      Subscription[]
   waitlistEntries    WaitlistEntry[]
   trialVisits        TrialVisit[]
+  medications        DogMedication[]
+  feedingItems       DogFeedingItem[]
 
   @@index([ownerId])
+}
+
+// A single dosing line in a dog's medical history — a name/amount plus either
+// a recurring AM/PM schedule or one specific time of day (mutually exclusive,
+// enforced by the form UI, not the DB).
+model DogMedication {
+  id           String   @id @default(cuid())
+  dogId        String
+  dog          Dog      @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  name         String
+  amount       String?
+  am           Boolean  @default(false)
+  pm           Boolean  @default(false)
+  specificTime String?
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([dogId])
+}
+
+// A single feeding line — a food item/amount plus either a recurring AM/PM
+// schedule or one specific time of day (mutually exclusive, enforced by the
+// form UI, not the DB). Mirrors DogMedication.
+model DogFeedingItem {
+  id           String   @id @default(cuid())
+  dogId        String
+  dog          Dog      @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  item         String
+  amount       String?
+  am           Boolean  @default(false)
+  pm           Boolean  @default(false)
+  specificTime String?
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([dogId])
 }
 
 model VaccinationRecord {
@@ -359,6 +410,10 @@ model KennelOccupancy {
 
 model Booking {
   id                 String              @id @default(cuid())
+  // Sequential, customer-facing reference (displayed as "Booking 001") —
+  // same pattern as User.customerNumber/Dog.dogNumber, see the migration
+  // that added those for the backfill approach this one mirrors.
+  bookingNumber      Int                 @unique @default(autoincrement())
   customerId         String
   customer           User                @relation(fields: [customerId], references: [id])
   serviceId          String
@@ -381,6 +436,14 @@ model Booking {
   // Day Care dates in one pass — each date is still its own Booking row, this
   // just lets emails/UI find the sibling dates. Null for everything else.
   batchId            String?
+  // Admin-set time-of-day ("HH:mm") and staff member for bookings that don't
+  // otherwise carry scheduling info — e.g. Meet & Greet, Secure Forest Walks.
+  // Dog Walking (Van Collection) bookings already get both from their
+  // VanRun/VanRunStop instead; the admin Scheduled Services table falls back
+  // to these fields only when there's no van run stop to read from.
+  scheduledTime      String?
+  assignedStaffId    String?
+  assignedStaff      User?               @relation("BookingAssignedStaff", fields: [assignedStaffId], references: [id])
 
   bookingDogs       BookingDog[]
   bookingAddons     BookingAddon[]
@@ -399,6 +462,7 @@ model Booking {
   @@index([status])
   @@index([kennelUnitId, startDate, endDate])
   @@index([batchId])
+  @@index([assignedStaffId])
 }
 
 model BookingDog {
@@ -675,6 +739,22 @@ model SentEmail {
   @@index([sentAt])
 }
 
+// Admin-editable subject/body for a small set of email types (see
+// EMAIL_TEMPLATE_DEFS in src/lib/email-template-store.ts for the full
+// registry). `type` is one of those registry keys (e.g.
+// "PAYMENT_RECEIPT") — no row means the type still uses its hardcoded
+// default, so this table only ever holds overrides, not every email type.
+// `bodyHtml` may contain "{{mergeField}}" placeholders substituted at send
+// time; some of those are opaque system-rendered blocks (e.g. the invoice's
+// line-items table) rather than freely-editable text — see the registry.
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  type      String   @unique
+  subject   String
+  bodyHtml  String
+  updatedAt DateTime @updatedAt
+}
+
 // ---------------------------------------------------------------------------
 // Extended features (§13.4)
 // ---------------------------------------------------------------------------
@@ -793,23 +873,21 @@ model DogFlag {
 model Agreement {
   id          String   @id @default(cuid())
   version     String
-  text        String
+  // Legacy versions (before the admin agreement page moved to PDF uploads)
+  // held the full terms as rich text here — kept nullable rather than
+  // dropped so those old rows (and any SignedAgreement pointing at them)
+  // don't lose their content. Every version published going forward leaves
+  // this null and uses documentUrl instead.
+  text        String?
+  // Public R2 URL of the uploaded PDF — the actual terms document shown to
+  // (and agreed to by) customers. Required for every version published via
+  // publishAgreement; nullable here only for the same legacy-row reason as
+  // text above.
+  documentUrl String?
   publishedAt DateTime @default(now())
   active      Boolean  @default(true)
 
   signedAgreements SignedAgreement[]
-}
-
-// Named, ordered building blocks an admin composes into a new Agreement
-// version when they publish (see publishAgreement) — editing a section here
-// doesn't change what's currently signed; only publishing does.
-model AgreementSection {
-  id        String   @id @default(cuid())
-  name      String
-  text      String
-  sortOrder Int      @default(0)
-  active    Boolean  @default(true)
-  updatedAt DateTime @updatedAt
 }
 
 model SignedAgreement {

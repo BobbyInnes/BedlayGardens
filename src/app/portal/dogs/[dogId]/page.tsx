@@ -18,7 +18,10 @@ export default async function EditDogPage({
 }) {
   const { dogId } = await params
   const session = await auth()
-  const dog = await prisma.dog.findUnique({ where: { id: dogId } })
+  const dog = await prisma.dog.findUnique({
+    where: { id: dogId },
+    include: { medications: { orderBy: { sortOrder: "asc" } } },
+  })
 
   if (!dog || dog.ownerId !== session!.user.id) {
     notFound()

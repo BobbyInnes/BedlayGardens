@@ -47,7 +47,19 @@ const dogSchema = z.object({
   behaviourNotes: z.string().trim().max(2000).optional(),
   vetName: z.string().trim().max(200).optional(),
   vetPhone: z.string().trim().max(50).optional(),
-  emergencyContact: z.string().trim().max(200).optional(),
+  vetPracticeName: z.string().trim().max(200).optional(),
+  vetAddressLine1: z.string().trim().max(200).optional(),
+  vetAddressLine2: z.string().trim().max(200).optional(),
+  vetCity: z.string().trim().max(100).optional(),
+  vetPostcode: z.string().trim().max(20).optional(),
+  vetEmail: z.string().trim().max(200).email("Enter a valid email").optional().or(z.literal("")),
+  allergies: z.string().trim().max(2000).optional(),
+  emergencyContactName: z.string().trim().max(200).optional(),
+  emergencyContactPhone: z.string().trim().max(50).optional(),
+  emergencyContactAddressLine1: z.string().trim().max(200).optional(),
+  emergencyContactAddressLine2: z.string().trim().max(200).optional(),
+  emergencyContactCity: z.string().trim().max(100).optional(),
+  emergencyContactPostcode: z.string().trim().max(20).optional(),
   microchipNumber: z.string().trim().max(50).optional(),
   color: z.string().trim().max(100).optional(),
   // runType, temperament, and groupPlayApproved are deliberately not
@@ -68,7 +80,19 @@ export type DogFieldValues = {
   behaviourNotes: string
   vetName: string
   vetPhone: string
-  emergencyContact: string
+  vetPracticeName: string
+  vetAddressLine1: string
+  vetAddressLine2: string
+  vetCity: string
+  vetPostcode: string
+  vetEmail: string
+  allergies: string
+  emergencyContactName: string
+  emergencyContactPhone: string
+  emergencyContactAddressLine1: string
+  emergencyContactAddressLine2: string
+  emergencyContactCity: string
+  emergencyContactPostcode: string
   microchipNumber: string
   color: string
 }
@@ -96,7 +120,19 @@ function extractDogFormValues(formData: FormData): DogFieldValues {
     behaviourNotes: String(formData.get("behaviourNotes") ?? ""),
     vetName: String(formData.get("vetName") ?? ""),
     vetPhone: String(formData.get("vetPhone") ?? ""),
-    emergencyContact: String(formData.get("emergencyContact") ?? ""),
+    vetPracticeName: String(formData.get("vetPracticeName") ?? ""),
+    vetAddressLine1: String(formData.get("vetAddressLine1") ?? ""),
+    vetAddressLine2: String(formData.get("vetAddressLine2") ?? ""),
+    vetCity: String(formData.get("vetCity") ?? ""),
+    vetPostcode: String(formData.get("vetPostcode") ?? ""),
+    vetEmail: String(formData.get("vetEmail") ?? ""),
+    allergies: String(formData.get("allergies") ?? ""),
+    emergencyContactName: String(formData.get("emergencyContactName") ?? ""),
+    emergencyContactPhone: String(formData.get("emergencyContactPhone") ?? ""),
+    emergencyContactAddressLine1: String(formData.get("emergencyContactAddressLine1") ?? ""),
+    emergencyContactAddressLine2: String(formData.get("emergencyContactAddressLine2") ?? ""),
+    emergencyContactCity: String(formData.get("emergencyContactCity") ?? ""),
+    emergencyContactPostcode: String(formData.get("emergencyContactPostcode") ?? ""),
     microchipNumber: String(formData.get("microchipNumber") ?? ""),
     color: String(formData.get("color") ?? ""),
   }
@@ -110,6 +146,71 @@ async function readDogFields(formData: FormData) {
     weightKg: values.weightKg || "",
   })
   return { parsed, values }
+}
+
+type MedicationRowInput = {
+  name: string
+  amount: string | null
+  am: boolean
+  pm: boolean
+  specificTime: string | null
+  sortOrder: number
+}
+
+// Medical history rows are submitted as indexed fields (med-name-0, med-amount-0, …)
+// rather than a JSON blob, following the form's existing plain-FormData conventions.
+// AM, PM, and a specific time are independent peer inputs — the time field is only
+// present in the DOM (and thus submitted) when its "Specific time" checkbox is on.
+function extractMedicationRows(formData: FormData): MedicationRowInput[] {
+  const count = Number(formData.get("med-count") ?? 0)
+  const rows: MedicationRowInput[] = []
+  for (let i = 0; i < count; i++) {
+    const name = String(formData.get(`med-name-${i}`) ?? "").trim()
+    if (!name) continue
+    const amount = String(formData.get(`med-amount-${i}`) ?? "").trim()
+    const specificTime = String(formData.get(`med-time-${i}`) ?? "").trim()
+    rows.push({
+      name: name.slice(0, 200),
+      amount: amount ? amount.slice(0, 100) : null,
+      am: formData.get(`med-am-${i}`) === "on",
+      pm: formData.get(`med-pm-${i}`) === "on",
+      specificTime: specificTime ? specificTime.slice(0, 10) : null,
+      sortOrder: rows.length,
+    })
+  }
+  return rows
+}
+
+type FeedingRowInput = {
+  item: string
+  amount: string | null
+  am: boolean
+  pm: boolean
+  specificTime: string | null
+  sortOrder: number
+}
+
+// Feeding rows follow the exact same indexed-field convention as medication
+// rows above (feed-item-0, feed-amount-0, …), including AM/PM/specific-time
+// being independent peer inputs.
+function extractFeedingRows(formData: FormData): FeedingRowInput[] {
+  const count = Number(formData.get("feed-count") ?? 0)
+  const rows: FeedingRowInput[] = []
+  for (let i = 0; i < count; i++) {
+    const item = String(formData.get(`feed-item-${i}`) ?? "").trim()
+    if (!item) continue
+    const amount = String(formData.get(`feed-amount-${i}`) ?? "").trim()
+    const specificTime = String(formData.get(`feed-time-${i}`) ?? "").trim()
+    rows.push({
+      item: item.slice(0, 200),
+      amount: amount ? amount.slice(0, 100) : null,
+      am: formData.get(`feed-am-${i}`) === "on",
+      pm: formData.get(`feed-pm-${i}`) === "on",
+      specificTime: specificTime ? specificTime.slice(0, 10) : null,
+      sortOrder: rows.length,
+    })
+  }
+  return rows
 }
 
 async function requireOwnerSession() {
@@ -134,6 +235,8 @@ export async function createDog(
   }
 
   const data = parsed.data
+  const medicationRows = extractMedicationRows(formData)
+  const feedingRows = extractFeedingRows(formData)
   const dog = await prisma.dog.create({
     data: {
       ownerId: session.user.id,
@@ -149,9 +252,23 @@ export async function createDog(
       behaviourNotes: data.behaviourNotes || null,
       vetName: data.vetName || null,
       vetPhone: data.vetPhone || null,
-      emergencyContact: data.emergencyContact || null,
+      vetPracticeName: data.vetPracticeName || null,
+      vetAddressLine1: data.vetAddressLine1 || null,
+      vetAddressLine2: data.vetAddressLine2 || null,
+      vetCity: data.vetCity || null,
+      vetPostcode: data.vetPostcode || null,
+      vetEmail: data.vetEmail || null,
+      allergies: data.allergies || null,
+      emergencyContactName: data.emergencyContactName || null,
+      emergencyContactPhone: data.emergencyContactPhone || null,
+      emergencyContactAddressLine1: data.emergencyContactAddressLine1 || null,
+      emergencyContactAddressLine2: data.emergencyContactAddressLine2 || null,
+      emergencyContactCity: data.emergencyContactCity || null,
+      emergencyContactPostcode: data.emergencyContactPostcode || null,
       microchipNumber: data.microchipNumber || null,
       color: data.color || null,
+      medications: medicationRows.length > 0 ? { create: medicationRows } : undefined,
+      feedingItems: feedingRows.length > 0 ? { create: feedingRows } : undefined,
     },
   })
 
@@ -206,6 +323,8 @@ export async function updateDog(
   }
 
   const data = parsed.data
+  const medicationRows = extractMedicationRows(formData)
+  const feedingRows = extractFeedingRows(formData)
   let photoUrl = dog.photoUrl
   const photo = formData.get("photo")
   if (photo instanceof File && photo.size > 0) {
@@ -224,18 +343,49 @@ export async function updateDog(
     size: data.size || null,
     neutered: !!data.neutered,
     weightKg: data.weightKg === "" || data.weightKg === undefined ? null : data.weightKg,
-    feedingNotes: data.feedingNotes || null,
-    medicationNotes: data.medicationNotes || null,
+    // feedingNotes and medicationNotes are no longer form fields (their free-text
+    // boxes were removed in favour of the structured Feeding instructions / Medical
+    // history lists) — preserve whatever's on record rather than silently wiping it
+    // since the form can no longer submit them.
+    feedingNotes: dog.feedingNotes,
+    medicationNotes: dog.medicationNotes,
     behaviourNotes: data.behaviourNotes || null,
     vetName: data.vetName || null,
     vetPhone: data.vetPhone || null,
-    emergencyContact: data.emergencyContact || null,
+    vetPracticeName: data.vetPracticeName || null,
+    vetAddressLine1: data.vetAddressLine1 || null,
+    vetAddressLine2: data.vetAddressLine2 || null,
+    vetCity: data.vetCity || null,
+    vetPostcode: data.vetPostcode || null,
+    vetEmail: data.vetEmail || null,
+    allergies: data.allergies || null,
+    emergencyContactName: data.emergencyContactName || null,
+    emergencyContactPhone: data.emergencyContactPhone || null,
+    emergencyContactAddressLine1: data.emergencyContactAddressLine1 || null,
+    emergencyContactAddressLine2: data.emergencyContactAddressLine2 || null,
+    emergencyContactCity: data.emergencyContactCity || null,
+    emergencyContactPostcode: data.emergencyContactPostcode || null,
     microchipNumber: data.microchipNumber || null,
     color: data.color || null,
     photoUrl,
   }
 
-  const updatedDog = await prisma.dog.update({ where: { id: dogId }, data: after })
+  const updatedDog = await prisma.dog.update({
+    where: { id: dogId },
+    // Medical history is a full replace, not a diff against existing rows —
+    // simplest correct approach for a variable-length, freely reordered list.
+    data: {
+      ...after,
+      medications: {
+        deleteMany: {},
+        create: medicationRows,
+      },
+      feedingItems: {
+        deleteMany: {},
+        create: feedingRows,
+      },
+    },
+  })
 
   await logEntityChange({
     actorId: session.user.id,
@@ -258,7 +408,19 @@ export async function updateDog(
       behaviourNotes: "Behaviour notes",
       vetName: "Vet name",
       vetPhone: "Vet phone",
-      emergencyContact: "Emergency contact",
+      vetPracticeName: "Vet practice name",
+      vetAddressLine1: "Vet address line 1",
+      vetAddressLine2: "Vet address line 2",
+      vetCity: "Vet town/city",
+      vetPostcode: "Vet postcode",
+      vetEmail: "Vet email",
+      allergies: "Allergies",
+      emergencyContactName: "Emergency contact name",
+      emergencyContactPhone: "Emergency contact phone",
+      emergencyContactAddressLine1: "Emergency contact address line 1",
+      emergencyContactAddressLine2: "Emergency contact address line 2",
+      emergencyContactCity: "Emergency contact town/city",
+      emergencyContactPostcode: "Emergency contact postcode",
       microchipNumber: "Microchip number",
       color: "Colour",
       photoUrl: "Photo",

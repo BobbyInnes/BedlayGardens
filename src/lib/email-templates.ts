@@ -1,6 +1,7 @@
 import { formatPence } from "@/lib/format"
-import { getSiteUrl } from "@/lib/stripe"
-import { formatCustomerNumber, formatDogNumber } from "@/lib/customer-dog-numbers"
+import { formatCustomerNumber, formatDogNumber, formatBookingNumber } from "@/lib/customer-dog-numbers"
+import { splitGrossForVat } from "@/lib/vat"
+import { resolveEmailTemplate, renderMergeFields, EMAIL_TEMPLATE_DEFS } from "@/lib/email-template-store"
 
 export type EmailBranding = {
   business_name?: string
@@ -9,6 +10,38 @@ export type EmailBranding = {
   business_address_line1?: string
   business_address_line2?: string
   business_postcode?: string
+  // Every email's closing disclosure (see closingBlock below) uses these if
+  // set via Settings — updateInvoiceLegalSettings in admin/content/actions.ts
+  // — falling back to DEFAULT_COMPANY_REG_NO/DEFAULT_DIRECTORS otherwise.
+  business_company_reg_no?: string
+  business_directors?: string
+}
+
+// Standing fallback for the sign-off's company-law disclosure line, used
+// whenever Settings (business_company_reg_no / business_directors) haven't
+// been set to something else — see the closing block in layout() below.
+// Deliberately real values, not placeholders, per Bobby's 2026-08-23 request
+// that every email close with this exact disclosure.
+const DEFAULT_COMPANY_REG_NO = "SC732228"
+const DEFAULT_DIRECTORS = "Mrs Diane Kiernan & Miss Kelsey Kiernan"
+
+// Every email closes with the same sign-off and company-law disclosure —
+// added here once rather than per-template, so it's guaranteed on every
+// email type, not just the admin-editable invoice-style ones (which also
+// have their own optional {{legalFooterBlock}} merge field for placing a
+// copy earlier in the body; this is the one that always renders at the end).
+function closingBlock(branding: EmailBranding): string {
+  const businessName = branding.business_name ?? "Bedlay Gardens LTD"
+  const regNo = branding.business_company_reg_no || DEFAULT_COMPANY_REG_NO
+  const directors = branding.business_directors || DEFAULT_DIRECTORS
+  return `
+    <p style="margin: 24px 0 0;">Warm regards,<br />The Team at ${businessName}</p>
+    <p style="margin: 16px 0 0; font-size: 11px; color: #999;">
+      ${businessName} is a registered company in the United Kingdom.<br />
+      Company Registration No: ${regNo}<br />
+      Directors: ${directors}
+    </p>
+  `
 }
 
 function layout(branding: EmailBranding, title: string, bodyHtml: string): string {
@@ -24,7 +57,7 @@ function layout(branding: EmailBranding, title: string, bodyHtml: string): strin
   return `
     <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto; color: #2b2b25;">
       <div style="padding: 24px 0; border-bottom: 2px solid #3f5a3a;">
-        <img src="${getSiteUrl()}/images/logo.png" alt="${businessName}" style="height: 40px; margin-bottom: 8px;" />
+        <img src="cid:logo" alt="${businessName}" style="height: 40px; margin-bottom: 8px;" />
         <h1 style="margin: 0; font-size: 20px; color: #3f5a3a;">${businessName}</h1>
       </div>
       <div style="padding: 24px 0;">
@@ -36,12 +69,31 @@ function layout(branding: EmailBranding, title: string, bodyHtml: string): strin
         <p style="margin: 0;">
           ${branding.business_phone ?? ""}${branding.business_phone && branding.business_email ? " · " : ""}${branding.business_email ?? ""}
         </p>
+        ${closingBlock(branding)}
       </div>
     </div>
   `
 }
 
 type BookingSummary = {
+  // Only used by paymentReceiptEmail's {{customerName}}/summary-table merge
+  // fields — every other BookingSummary-typed email (balance-due reminder,
+  // check-in reminder, cancellation, etc.) doesn't need these, so they're
+  // optional here rather than forcing every call site to pass them.
+  customerName?: string
+  // Used to derive the receipt's bookingMetaBlock (Invoice Number/Booking
+  // Ref). Optional like the fields above (BookingSummary is shared by
+  // emails that don't need it) — every real paymentReceiptEmail call site
+  // does pass both, though, since they all already have the real Booking
+  // row in hand.
+  bookingId?: string
+  bookingNumber?: number
+  // The stay's actual balance-due date, shown on the receipt's summary
+  // table when a deposit payment still leaves a balance owing. Distinct
+  // from the reminder/gate logic elsewhere — this is purely display.
+  balanceDueDate?: Date | null
+  // Shown on the receipt's summary table — optional, same reasoning as above.
+  dogNames?: string[]
   serviceName: string
   startDate: Date
   endDate: Date
@@ -51,6 +103,128 @@ type BookingSummary = {
   // batch, so an email about one date can mention the rest.
   otherDaycareDates?: Date[]
   customerNumber?: number
+}
+
+// The rate/number bookingConfirmationEmail's invoice needs — deliberately
+// its own small type rather than importing VatSettings from lib/vat, since
+// the email only ever needs these two fields.
+export type InvoiceVatDetails = {
+  enabled: boolean
+  ratePercent: number
+  number: string
+}
+
+export type InvoiceAddon = {
+  name: string
+  quantity: number
+  // The line's total for this addon (already quantity × unit price — see
+  // BookingAddon.pricePence), not a per-unit price.
+  totalPence: number
+}
+
+export type InvoiceBookingDetails = {
+  // Used to build the invoice number: INV-<last 6 of id, uppercased>.
+  bookingId: string
+  // The sequential customer-facing reference (Booking.bookingNumber),
+  // shown as "Booking Ref: Booking 001" — distinct from the invoice number
+  // above, which is derived from the id rather than being its own sequence.
+  bookingNumber: number
+  customerName: string
+  serviceSlug: string
+  serviceName: string
+  // INVOICE_AFTER bookings get a real Stripe-hosted invoice + its own native
+  // Stripe invoice email later (at check-out, via sendBookingInvoice/
+  // createBookingInvoice) — this confirmation fires at booking creation,
+  // before that invoice exists, so it shows "invoiced at check-out" instead
+  // of a due date or portal pay link for those.
+  paymentTiming: "FULL_UPFRONT" | "DEPOSIT_THEN_BALANCE" | "INVOICE_AFTER"
+  startDate: Date
+  endDate: Date
+  totalPence: number
+  depositPence: number
+  balanceDueDate: Date | null
+  dogNames: string[]
+  customerNumber?: number
+  otherDaycareDates?: Date[]
+  addons: InvoiceAddon[]
+}
+
+// Boarding is priced (and shown here) per night; every other service is one
+// session/day per booking row, so quantity is just 1.
+function invoiceQuantity(serviceSlug: string, startDate: Date, endDate: Date): number {
+  if (serviceSlug !== "overnight-boarding") return 1
+  const nights = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+  return Math.max(1, nights)
+}
+
+function invoiceLineItemsTable(booking: InvoiceBookingDetails, vat: InvoiceVatDetails): string {
+  const period = dateRange(booking.startDate, booking.endDate)
+  const addonsTotalPence = booking.addons.reduce((sum, a) => sum + a.totalPence, 0)
+  const items: { description: string; qty: number; totalPence: number }[] = [
+    {
+      description: booking.serviceName,
+      qty: invoiceQuantity(booking.serviceSlug, booking.startDate, booking.endDate),
+      // The booking's grand total already includes addons — subtract them
+      // back out so the base service gets its own correctly-priced row.
+      totalPence: booking.totalPence - addonsTotalPence,
+    },
+    ...booking.addons.map((a) => ({ description: a.name, qty: a.quantity, totalPence: a.totalPence })),
+  ]
+  const effectiveRatePercent = vat.enabled ? vat.ratePercent : 0
+
+  // Sum the same per-line net/VAT figures the rows display, rather than
+  // re-splitting booking.totalPence independently — splitting a total
+  // directly can round to a different penny than summing its already-
+  // rounded parts, which would make "Summary Totals" not match the columns
+  // above it even though both individually still add up to the same total.
+  let totalNetPence = 0
+  let totalVatPence = 0
+  const rows = items
+    .map((item) => {
+      const { netPence, vatPence } = splitGrossForVat(item.totalPence, vat)
+      totalNetPence += netPence
+      totalVatPence += vatPence
+      return `
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.description}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #eee;">${period}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.qty}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${formatPence(netPence)}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${effectiveRatePercent}%</td>
+          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${formatPence(vatPence)}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${formatPence(item.totalPence)}</td>
+        </tr>
+      `
+    })
+    .join("")
+
+  return `
+    <table style="width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px;">
+      <thead>
+        <tr style="background: #f4f4f0;">
+          <th style="padding: 8px; text-align: left;">Service Description</th>
+          <th style="padding: 8px; text-align: left;">Dates / Period</th>
+          <th style="padding: 8px; text-align: center;">Qty</th>
+          <th style="padding: 8px; text-align: right;">Net Price</th>
+          <th style="padding: 8px; text-align: right;">VAT Rate</th>
+          <th style="padding: 8px; text-align: right;">VAT Amount</th>
+          <th style="padding: 8px; text-align: right;">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+      <tfoot>
+        <tr style="font-weight: bold;">
+          <td style="padding: 8px;" colspan="3">Summary Totals</td>
+          <td style="padding: 8px; text-align: right;">${formatPence(totalNetPence)}</td>
+          <td style="padding: 8px;"></td>
+          <td style="padding: 8px; text-align: right;">${formatPence(totalVatPence)}</td>
+          <td style="padding: 8px; text-align: right;">${formatPence(booking.totalPence)}</td>
+        </tr>
+      </tfoot>
+    </table>
+  `
 }
 
 function dateRange(startDate: Date, endDate: Date): string {
@@ -192,7 +366,19 @@ type NewDogDetails = {
   neutered: boolean
   vetName: string | null
   vetPhone: string | null
-  emergencyContact: string | null
+  vetPracticeName: string | null
+  vetAddressLine1: string | null
+  vetAddressLine2: string | null
+  vetCity: string | null
+  vetPostcode: string | null
+  vetEmail: string | null
+  allergies: string | null
+  emergencyContactName: string | null
+  emergencyContactPhone: string | null
+  emergencyContactAddressLine1: string | null
+  emergencyContactAddressLine2: string | null
+  emergencyContactCity: string | null
+  emergencyContactPostcode: string | null
   feedingNotes: string | null
   medicationNotes: string | null
   behaviourNotes: string | null
@@ -202,7 +388,18 @@ function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
 }
 
+function joinAddress(parts: (string | null)[]): string {
+  return parts.filter(Boolean).join(", ")
+}
+
 function dogDetailRows(dog: NewDogDetails): [string, string][] {
+  const vetAddress = joinAddress([dog.vetAddressLine1, dog.vetAddressLine2, dog.vetCity, dog.vetPostcode])
+  const emergencyAddress = joinAddress([
+    dog.emergencyContactAddressLine1,
+    dog.emergencyContactAddressLine2,
+    dog.emergencyContactCity,
+    dog.emergencyContactPostcode,
+  ])
   return [
     ["Dog reference", formatDogNumber(dog.dogNumber)],
     ["Breed", dog.breed],
@@ -220,7 +417,19 @@ function dogDetailRows(dog: NewDogDetails): [string, string][] {
     ["Neutered / spayed", dog.neutered ? "Yes" : "No"],
     ...(dog.vetName ? ([["Vet name", dog.vetName]] as [string, string][]) : []),
     ...(dog.vetPhone ? ([["Vet phone", dog.vetPhone]] as [string, string][]) : []),
-    ...(dog.emergencyContact ? ([["Emergency contact", dog.emergencyContact]] as [string, string][]) : []),
+    ...(dog.vetPracticeName ? ([["Vet practice", dog.vetPracticeName]] as [string, string][]) : []),
+    ...(vetAddress ? ([["Vet practice address", vetAddress]] as [string, string][]) : []),
+    ...(dog.vetEmail ? ([["Vet practice email", dog.vetEmail]] as [string, string][]) : []),
+    ...(dog.allergies ? ([["Allergies", dog.allergies]] as [string, string][]) : []),
+    ...(dog.emergencyContactName
+      ? ([["Emergency contact", dog.emergencyContactName]] as [string, string][])
+      : []),
+    ...(dog.emergencyContactPhone
+      ? ([["Emergency contact phone", dog.emergencyContactPhone]] as [string, string][])
+      : []),
+    ...(emergencyAddress
+      ? ([["Emergency contact address", emergencyAddress]] as [string, string][])
+      : []),
     ...(dog.feedingNotes ? ([["Feeding instructions", dog.feedingNotes]] as [string, string][]) : []),
     ...(dog.medicationNotes ? ([["Medication", dog.medicationNotes]] as [string, string][]) : []),
     ...(dog.behaviourNotes ? ([["Behavioural notes", dog.behaviourNotes]] as [string, string][]) : []),
@@ -280,56 +489,391 @@ export function dogUpdatedEmail(
   }
 }
 
-export function bookingConfirmationEmail(
+// Computes every merge-field value for the post-payment invoice template
+// from real (or, from preview, synthetic) booking data — shared by the real
+// send (bookingConfirmationEmail, which resolves the admin-editable
+// template against a live DB row) and the admin preview (which renders
+// whatever the admin currently has typed, unsaved, against sample data).
+// Keeping this one function as the single source of "what these fields
+// mean" is what keeps the preview honest.
+// Shared by every invoice-style email (post-payment invoice, and the
+// pre-payment deposit invoice below) — empty unless a company registration
+// number is on file (see EmailBranding.business_company_reg_no).
+function buildLegalFooterBlock(branding: EmailBranding, vat: InvoiceVatDetails): string {
+  if (!branding.business_company_reg_no) return ""
+  const businessName = branding.business_name ?? "Bedlay Gardens LTD"
+  return `
+    <p style="margin: 16px 0 0; font-size: 11px; color: #999;">
+      ${businessName} is a registered company in the United Kingdom.<br />
+      Company Registration No: ${branding.business_company_reg_no}
+      ${vat.enabled && vat.number ? `<br />VAT No: ${vat.number}` : ""}
+      ${branding.business_directors ? `<br />Directors: ${branding.business_directors}` : ""}
+    </p>
+  `
+}
+
+function buildInvoiceEmailVars(
   branding: EmailBranding,
-  booking: BookingSummary
-): { subject: string; html: string } {
+  booking: InvoiceBookingDetails,
+  vat: InvoiceVatDetails,
+  portalBookingsUrl: string
+): Record<string, string> {
+  const businessName = branding.business_name ?? "Bedlay Gardens LTD"
+  const invoiceNumber = `INV-${booking.bookingId.slice(-6).toUpperCase()}`
+  const invoiceDate = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
   const balancePence = booking.totalPence - booking.depositPence
+  const dogLabel = booking.dogNames.length > 0 ? booking.dogNames.join(", ") : "your dog"
+  const isInvoiceAfter = booking.paymentTiming === "INVOICE_AFTER"
+
+  const payLink =
+    !isInvoiceAfter && balancePence > 0 ? { href: portalBookingsUrl, label: "View & pay this booking →" } : null
+
+  const paymentStatusLine = isInvoiceAfter
+    ? "Payment: You'll receive an invoice by email at check-out."
+    : balancePence > 0
+      ? `Payment Due Date: ${booking.balanceDueDate ? booking.balanceDueDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "On receipt"}`
+      : "Payment Status: Paid in full."
+
   return {
-    subject: `Booking confirmed — ${booking.serviceName}`,
+    customerName: booking.customerName,
+    businessName,
+    dogLabel,
+    invoiceNumber,
+    invoiceDate,
+    otherDaycareDatesBlock: otherDaycareDatesLine(booking.otherDaycareDates),
+    paymentStatusLine,
+    lineItemsTable: invoiceLineItemsTable(booking, vat),
+    payLinkBlock: payLink
+      ? `<p style="margin: 16px 0;">You can securely pay your invoice online via credit or debit card using our Stripe payment link below:</p>
+         <p style="margin: 16px 0;"><a href="${payLink.href}" style="color: #3f5a3a; font-weight: bold;">${payLink.label}</a></p>`
+      : "",
+    customerReferenceBlock: booking.customerNumber
+      ? `<p style="color: #666; font-size: 12px;">Your customer reference: ${formatCustomerNumber(booking.customerNumber)}</p>`
+      : "",
+    legalFooterBlock: buildLegalFooterBlock(branding, vat),
+  }
+}
+
+// The "your booking is confirmed" email — formatted as an invoice (line
+// items with a net/VAT/gross split, a payment due date, and a pay link)
+// rather than a short confirmation note. `portalBookingsUrl` is where the
+// "view & pay" link goes for anything that isn't an INVOICE_AFTER booking
+// with the portal booking-page link (there's no persistent Stripe pay link
+// for anything except INVOICE_AFTER, which doesn't show one here at all —
+// see paymentTiming above). Subject/surrounding text are admin-editable
+// (EMAIL_TEMPLATE_DEFS.BOOKING_CONFIRMATION_INVOICE); the line-items table
+// and every other conditional block stay system-generated — see
+// buildInvoiceEmailVars.
+export async function bookingConfirmationEmail(
+  branding: EmailBranding,
+  booking: InvoiceBookingDetails,
+  vat: InvoiceVatDetails,
+  portalBookingsUrl: string
+): Promise<{ subject: string; html: string }> {
+  const vars = buildInvoiceEmailVars(branding, booking, vat, portalBookingsUrl)
+  const tpl = await resolveEmailTemplate("BOOKING_CONFIRMATION_INVOICE", vars)
+  return {
+    subject: tpl.subject,
+    html: layout(branding, EMAIL_TEMPLATE_DEFS.BOOKING_CONFIRMATION_INVOICE.heading, tpl.bodyHtml),
+  }
+}
+
+// Renders the given (possibly unsaved) subject/body against realistic
+// sample data — used by the admin template editor's live preview, without
+// writing anything to the database or requiring a real booking to exist.
+export function previewBookingConfirmationInvoiceEmail(
+  branding: EmailBranding,
+  subjectTemplate: string,
+  bodyTemplate: string
+): { subject: string; html: string } {
+  const sampleBooking: InvoiceBookingDetails = {
+    bookingId: "sample000booking",
+    bookingNumber: 1,
+    customerName: "Jane Smith",
+    serviceSlug: "overnight-boarding",
+    serviceName: "Home Boarding",
+    paymentTiming: "DEPOSIT_THEN_BALANCE",
+    startDate: new Date("2026-09-01"),
+    endDate: new Date("2026-09-05"),
+    totalPence: 35000,
+    depositPence: 8750,
+    balanceDueDate: new Date("2026-08-29"),
+    dogNames: ["Bingo"],
+    customerNumber: 42,
+    addons: [{ name: "Extra walk", quantity: 2, totalPence: 2000 }],
+  }
+  const sampleVat: InvoiceVatDetails = { enabled: true, ratePercent: 20, number: "GB123456789" }
+  const vars = buildInvoiceEmailVars(branding, sampleBooking, sampleVat, "https://example.com/portal/bookings")
+  return {
+    subject: renderMergeFields(subjectTemplate, vars),
     html: layout(
       branding,
-      "Your booking is confirmed",
-      `
-        <p>Thanks — your ${booking.serviceName} booking for ${dateRange(booking.startDate, booking.endDate)} is confirmed.</p>
-        ${otherDaycareDatesLine(booking.otherDaycareDates)}
-        <p style="margin: 16px 0;">
-          Total: <strong>${formatPence(booking.totalPence)}</strong><br />
-          Deposit paid: ${formatPence(booking.depositPence)}<br />
-          Balance due: ${formatPence(balancePence)}
-        </p>
-        <p>You can view or manage this booking any time from your account.</p>
-        ${booking.customerNumber ? `<p style="color: #666; font-size: 12px;">Your customer reference: ${formatCustomerNumber(booking.customerNumber)}</p>` : ""}
-      `
+      EMAIL_TEMPLATE_DEFS.BOOKING_CONFIRMATION_INVOICE.heading,
+      renderMergeFields(bodyTemplate, vars)
     ),
   }
 }
 
-export function paymentReceiptEmail(
+// Sent immediately at booking creation for DEPOSIT_THEN_BALANCE services —
+// before any payment — unlike bookingConfirmationEmail above, which fires
+// only once the deposit has actually cleared. Explicitly breaks out the
+// deposit due now and the remaining balance/due date, rather than the single
+// paymentStatusLine the post-payment invoice uses (there, only one of
+// "due"/"paid in full"/"invoiced at check-out" ever applies at once; here,
+// deposit-now and balance-later are both always true at the same time, so
+// they need their own separate fields rather than one status line).
+// Shared by every invoice/receipt-style email that shows this identity
+// block (deposit invoice, and the deposit payment receipt below) — one
+// combined block rather than separate placeable lines, since Invoice
+// Number/Date/Booking Ref/Dates/Customer Ref always appear together.
+// Customer Ref is the only conditional line (omitted when the customer has
+// no reference number). Keeping this in one place is what guarantees both
+// emails always show the *same* Booking Ref for the same booking, rather
+// than each growing its own numbering scheme over time.
+function buildBookingMetaBlock(params: {
+  bookingId?: string
+  bookingNumber?: number
+  startDate: Date
+  endDate: Date
+  customerNumber?: number
+}): { bookingMetaBlock: string; invoiceNumber: string; invoiceDate: string; bookingRef: string } {
+  const invoiceNumber = params.bookingId ? `INV-${params.bookingId.slice(-6).toUpperCase()}` : "—"
+  const invoiceDate = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+  const bookingRef = params.bookingNumber ? formatBookingNumber(params.bookingNumber) : "—"
+  const bookingDates = dateRange(params.startDate, params.endDate)
+
+  const metaLines = [
+    `Invoice Number: <strong>${invoiceNumber}</strong>`,
+    `Invoice Date: ${invoiceDate}`,
+    `Booking Ref: <strong>${bookingRef}</strong>`,
+    `Booking Dates: ${bookingDates}`,
+    ...(params.customerNumber ? [`Customer Ref: ${formatCustomerNumber(params.customerNumber)}`] : []),
+  ]
+  return {
+    bookingMetaBlock: `<p style="margin: 16px 0;">${metaLines.join("<br />\n  ")}</p>`,
+    invoiceNumber,
+    invoiceDate,
+    bookingRef,
+  }
+}
+
+function buildDepositInvoiceVars(
+  branding: EmailBranding,
+  booking: InvoiceBookingDetails,
+  vat: InvoiceVatDetails,
+  depositPayUrl: string
+): Record<string, string> {
+  const businessName = branding.business_name ?? "Bedlay Gardens LTD"
+  const { bookingMetaBlock, invoiceNumber, invoiceDate, bookingRef } = buildBookingMetaBlock(booking)
+  const bookingDates = dateRange(booking.startDate, booking.endDate)
+  const balancePence = booking.totalPence - booking.depositPence
+  const dogLabel = booking.dogNames.length > 0 ? booking.dogNames.join(", ") : "your dog"
+
+  return {
+    customerName: booking.customerName,
+    businessName,
+    dogLabel,
+    serviceName: booking.serviceName,
+    dateRange: bookingDates,
+    invoiceNumber,
+    invoiceDate,
+    bookingRef,
+    depositAmount: formatPence(booking.depositPence),
+    balanceAmount: formatPence(balancePence),
+    balanceDueDate: booking.balanceDueDate
+      ? booking.balanceDueDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+      : "on receipt",
+    bookingMetaBlock,
+    otherDaycareDatesBlock: otherDaycareDatesLine(booking.otherDaycareDates),
+    lineItemsTable: invoiceLineItemsTable(booking, vat),
+    payLinkBlock: `<p style="margin: 16px 0;">You can securely pay your deposit online via credit or debit card using our Stripe payment link below:</p>
+         <p style="margin: 16px 0;"><a href="${depositPayUrl}" style="color: #3f5a3a; font-weight: bold;">Pay deposit now →</a></p>`,
+    legalFooterBlock: buildLegalFooterBlock(branding, vat),
+  }
+}
+
+// `depositPayUrl` is where "Pay deposit now" goes — the booking's own
+// confirmation page, which already shows a Pay Deposit button and degrades
+// gracefully (explanatory text, no broken button) if Stripe isn't
+// configured, so this link is always safe to include.
+export async function bookingConfirmationDepositInvoiceEmail(
+  branding: EmailBranding,
+  booking: InvoiceBookingDetails,
+  vat: InvoiceVatDetails,
+  depositPayUrl: string
+): Promise<{ subject: string; html: string }> {
+  const vars = buildDepositInvoiceVars(branding, booking, vat, depositPayUrl)
+  const tpl = await resolveEmailTemplate("BOOKING_CONFIRMATION_DEPOSIT_INVOICE", vars)
+  return {
+    subject: tpl.subject,
+    html: layout(branding, EMAIL_TEMPLATE_DEFS.BOOKING_CONFIRMATION_DEPOSIT_INVOICE.heading, tpl.bodyHtml),
+  }
+}
+
+// Same sample-data preview convenience as previewBookingConfirmationInvoiceEmail.
+export function previewBookingConfirmationDepositInvoiceEmail(
+  branding: EmailBranding,
+  subjectTemplate: string,
+  bodyTemplate: string
+): { subject: string; html: string } {
+  const sampleBooking: InvoiceBookingDetails = {
+    bookingId: "sample000booking",
+    bookingNumber: 1,
+    customerName: "Jane Smith",
+    serviceSlug: "overnight-boarding",
+    serviceName: "Home Boarding",
+    paymentTiming: "DEPOSIT_THEN_BALANCE",
+    startDate: new Date("2026-09-01"),
+    endDate: new Date("2026-09-05"),
+    totalPence: 35000,
+    depositPence: 8750,
+    balanceDueDate: new Date("2026-08-29"),
+    dogNames: ["Bingo"],
+    customerNumber: 42,
+    addons: [{ name: "Extra walk", quantity: 2, totalPence: 2000 }],
+  }
+  const sampleVat: InvoiceVatDetails = { enabled: true, ratePercent: 20, number: "GB123456789" }
+  const vars = buildDepositInvoiceVars(branding, sampleBooking, sampleVat, "https://example.com/book/confirmation/sample000booking")
+  return {
+    subject: renderMergeFields(subjectTemplate, vars),
+    html: layout(
+      branding,
+      EMAIL_TEMPLATE_DEFS.BOOKING_CONFIRMATION_DEPOSIT_INVOICE.heading,
+      renderMergeFields(bodyTemplate, vars)
+    ),
+  }
+}
+
+function buildPaymentReceiptVars(
   branding: EmailBranding,
   booking: BookingSummary,
   amountPence: number,
-  paymentType: "DEPOSIT" | "BALANCE" | "INVOICE"
-): { subject: string; html: string } {
+  // "FULL" is a deposit+balance both settled in one go (e.g. redeeming
+  // enough credit/voucher to cover the whole booking upfront) — same
+  // "nothing more to do" copy as BALANCE, just a different label since no
+  // deposit/balance split actually happened.
+  paymentType: "DEPOSIT" | "BALANCE" | "INVOICE" | "FULL",
+  portalBookingsUrl: string,
+  vat: InvoiceVatDetails
+): Record<string, string> {
+  const dogLabel = booking.dogNames && booking.dogNames.length > 0 ? booking.dogNames.join(", ") : "your dog"
   const label =
-    paymentType === "DEPOSIT" ? "deposit" : paymentType === "BALANCE" ? "balance" : "invoice"
+    paymentType === "DEPOSIT"
+      ? "deposit"
+      : paymentType === "BALANCE"
+        ? "balance"
+        : paymentType === "FULL"
+          ? "full"
+          : "invoice"
+  const balancePence = booking.totalPence - booking.depositPence
+  // Only a DEPOSIT payment can leave a balance still owing — a BALANCE
+  // payment is what clears it, so "remaining" would be wrong there (it'd
+  // show the old figure as if this payment hadn't just paid it off).
+  const balanceStillOwed = paymentType === "DEPOSIT" && balancePence > 0
+
+  // No "we'll auto-charge" line any more when a balance remains — the
+  // payLinkBlock below carries that message instead, as a link the
+  // customer acts on rather than a passive statement.
+  const followUpBlock = balanceStillOwed
+    ? ""
+    : paymentType === "INVOICE"
+      ? `<p>That settles your booking in full — thank you!</p>`
+      : `<p>Your booking is fully paid — nothing more to do before your stay.</p>`
+
+  const payLinkBlock = balanceStillOwed
+    ? `<p style="margin: 16px 0;">To pay the balance of this booking:</p>
+       <p style="margin: 16px 0;"><a href="${portalBookingsUrl}" style="color: #3f5a3a; font-weight: bold;">View and pay the balance of this booking before your stay →</a></p>`
+    : ""
+
+  // Booking No./Dates/Customer Reference dropped from here — they now live
+  // in the bookingMetaBlock above instead (Booking Ref/Booking Dates/
+  // Customer Ref), so this table stays focused on the payment itself
+  // rather than repeating booking-identity fields already shown once.
+  const rows: [string, string][] = [
+    ["Dog(s)", dogLabel],
+    ["Service", booking.serviceName],
+    ["Amount Paid", `${formatPence(amountPence)} (${label})`],
+    ["Total Booking Cost", formatPence(booking.totalPence)],
+  ]
+  if (balanceStillOwed) {
+    rows.push(["Balance Remaining", formatPence(balancePence)])
+    rows.push([
+      "Balance Due",
+      booking.balanceDueDate
+        ? booking.balanceDueDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+        : "On receipt",
+    ])
+  }
+
+  const { bookingMetaBlock, invoiceNumber, invoiceDate, bookingRef } = buildBookingMetaBlock(booking)
+
   return {
-    subject: `Payment received — ${booking.serviceName}`,
-    html: layout(
-      branding,
-      "Payment received",
-      `
-        <p>We've received your ${label} payment of <strong>${formatPence(amountPence)}</strong> for your ${booking.serviceName} booking (${dateRange(booking.startDate, booking.endDate)}).</p>
-        ${otherDaycareDatesLine(booking.otherDaycareDates)}
-        ${
-          paymentType === "DEPOSIT" && booking.totalPence - booking.depositPence > 0
-            ? `<p>Balance of ${formatPence(booking.totalPence - booking.depositPence)} is due before your stay.</p>`
-            : paymentType === "INVOICE"
-              ? `<p>That settles your booking in full — thank you!</p>`
-              : `<p>Your booking is fully paid — nothing more to do before your stay.</p>`
-        }
-      `
-    ),
+    customerName: booking.customerName ?? "",
+    serviceName: booking.serviceName,
+    dogLabel,
+    dateRange: dateRange(booking.startDate, booking.endDate),
+    paymentTypeLabel: label,
+    amount: formatPence(amountPence),
+    invoiceNumber,
+    invoiceDate,
+    bookingRef,
+    bookingMetaBlock,
+    summaryTable: detailsTable(rows),
+    otherDaycareDatesBlock: otherDaycareDatesLine(booking.otherDaycareDates),
+    followUpBlock,
+    payLinkBlock,
+    legalFooterBlock: buildLegalFooterBlock(branding, vat),
+  }
+}
+
+// Subject/surrounding text are admin-editable (EMAIL_TEMPLATE_DEFS.
+// PAYMENT_RECEIPT) — see buildPaymentReceiptVars for what each merge field
+// resolves to. `portalBookingsUrl` is where payLinkBlock's "pay the
+// balance" link goes when this payment leaves a balance owing.
+export async function paymentReceiptEmail(
+  branding: EmailBranding,
+  booking: BookingSummary,
+  amountPence: number,
+  paymentType: "DEPOSIT" | "BALANCE" | "INVOICE" | "FULL",
+  portalBookingsUrl: string,
+  vat: InvoiceVatDetails
+): Promise<{ subject: string; html: string }> {
+  const vars = buildPaymentReceiptVars(branding, booking, amountPence, paymentType, portalBookingsUrl, vat)
+  const tpl = await resolveEmailTemplate("PAYMENT_RECEIPT", vars)
+  return { subject: tpl.subject, html: layout(branding, EMAIL_TEMPLATE_DEFS.PAYMENT_RECEIPT.heading, tpl.bodyHtml) }
+}
+
+// Same sample-data preview convenience as previewBookingConfirmationInvoiceEmail.
+export function previewPaymentReceiptEmail(
+  branding: EmailBranding,
+  subjectTemplate: string,
+  bodyTemplate: string
+): { subject: string; html: string } {
+  const sampleBooking: BookingSummary = {
+    bookingId: "sample000booking",
+    bookingNumber: 1,
+    customerName: "Jane Smith",
+    serviceName: "Home Boarding",
+    startDate: new Date("2026-09-01"),
+    endDate: new Date("2026-09-05"),
+    totalPence: 35000,
+    depositPence: 8750,
+    balanceDueDate: new Date("2026-08-29"),
+    dogNames: ["Bingo"],
+    customerNumber: 42,
+  }
+  const sampleVat: InvoiceVatDetails = { enabled: true, ratePercent: 20, number: "GB123456789" }
+  const vars = buildPaymentReceiptVars(
+    branding,
+    sampleBooking,
+    8750,
+    "DEPOSIT",
+    "https://example.com/portal/bookings",
+    sampleVat
+  )
+  return {
+    subject: renderMergeFields(subjectTemplate, vars),
+    html: layout(branding, EMAIL_TEMPLATE_DEFS.PAYMENT_RECEIPT.heading, renderMergeFields(bodyTemplate, vars)),
   }
 }
 

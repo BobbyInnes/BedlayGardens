@@ -1,5 +1,4 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib"
-import { htmlToPlainText } from "@/lib/sanitize-html"
 
 const PAGE_WIDTH = 595
 const PAGE_HEIGHT = 842
@@ -25,10 +24,17 @@ function wrapText(text: string, font: { widthOfTextAtSize: (t: string, s: number
   return lines
 }
 
+// The terms themselves now live in the uploaded PDF at documentUrl (see
+// Agreement.documentUrl) rather than as text this function renders — this
+// generates the customer's signature record instead: which version they
+// signed, a link back to the exact document they agreed to, and who/when/
+// from where. Kept as a separate PDF (rather than, say, stamping a
+// signature page onto the uploaded document itself) so the original terms
+// PDF an admin uploaded is never modified after the fact.
 export async function generateAgreementPdf(options: {
   businessName: string
   version: string
-  text: string
+  documentUrl: string
   signedName: string
   signedAt: Date
   ipAddress: string
@@ -55,12 +61,19 @@ export async function generateAgreementPdf(options: {
     y -= LINE_HEIGHT
   }
 
-  drawLine(`${options.businessName} — Boarding Agreement`, { bold: true, size: 16 })
+  drawLine(`${options.businessName} — Our Terms and Conditions`, { bold: true, size: 16 })
   y -= 6
   drawLine(`Version: ${options.version}`)
   y -= 10
 
-  for (const line of wrapText(htmlToPlainText(options.text), font, PAGE_WIDTH - MARGIN * 2)) {
+  for (const line of wrapText(
+    `This confirms agreement to Our Terms and Conditions (version ${options.version}) available at:`,
+    font,
+    PAGE_WIDTH - MARGIN * 2
+  )) {
+    drawLine(line)
+  }
+  for (const line of wrapText(options.documentUrl, font, PAGE_WIDTH - MARGIN * 2)) {
     drawLine(line)
   }
 

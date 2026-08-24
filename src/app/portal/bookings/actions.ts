@@ -5,7 +5,8 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { logAudit, describeBooking } from "@/lib/audit"
 import { getSetting, getSettings } from "@/lib/settings"
-import { stripe } from "@/lib/stripe"
+import { getVatSettings } from "@/lib/vat"
+import { stripe, getSiteUrl } from "@/lib/stripe"
 import { formatPence } from "@/lib/format"
 import { sendEmail } from "@/lib/email"
 import { cancellationConfirmationEmail, bookingConfirmationEmail, paymentReceiptEmail } from "@/lib/email-templates"
@@ -140,7 +141,14 @@ export type RedeemCreditResult = { status: "success"; message: string } | { stat
 
 export async function redeemCreditForPayment(
   bookingId: string,
-  type: "DEPOSIT" | "BALANCE",
+  // "FULL" covers the deposit AND the balance in one redemption — only
+  // valid pre-deposit (same window as "DEPOSIT"), for a customer who'd
+  // rather settle a deposit-then-balance booking in one go than come back
+  // for the balance later. Recorded as two Payment rows (DEPOSIT + BALANCE)
+  // since the rest of the app reads "paid" as a boolean per type, not a
+  // running total — mirrors how FULL_UPFRONT services already just set
+  // depositPence to the full total rather than needing a third Payment type.
+  type: "DEPOSIT" | "BALANCE" | "FULL",
   code: string
 ): Promise<RedeemCreditResult> {
   const session = await auth()
@@ -153,35 +161,52 @@ export async function redeemCreditForPayment(
       service: true,
       customer: true,
       bookingDogs: { include: { dog: true } },
+      bookingAddons: { include: { addon: true } },
     },
   })
   if (!booking || booking.customerId !== session.user.id) {
     return { status: "error", message: "Booking not found." }
   }
 
-  const alreadyPaid = booking.payments.some((p) => p.type === type && p.status === "SUCCEEDED")
-  if (alreadyPaid) return { status: "error", message: "This has already been paid." }
-  if (type === "BALANCE" && booking.status !== "CONFIRMED") {
-    return { status: "error", message: "The deposit must be paid before the balance." }
+  const depositPaid = booking.payments.some((p) => p.type === "DEPOSIT" && p.status === "SUCCEEDED")
+  const balancePaid = booking.payments.some((p) => p.type === "BALANCE" && p.status === "SUCCEEDED")
+  if (type === "BALANCE") {
+    if (balancePaid) return { status: "error", message: "This has already been paid." }
+    if (booking.status !== "CONFIRMED") {
+      return { status: "error", message: "The deposit must be paid before the balance." }
+    }
+  } else {
+    // DEPOSIT and FULL both need the deposit stage still open.
+    if (depositPaid) return { status: "error", message: "This has already been paid." }
   }
 
-  const amountDuePence = type === "DEPOSIT" ? booking.depositPence : booking.totalPence - booking.depositPence
+  const balancePence = booking.totalPence - booking.depositPence
+  const amountDuePence =
+    type === "DEPOSIT" ? booking.depositPence : type === "BALANCE" ? balancePence : booking.totalPence
   if (amountDuePence <= 0) return { status: "error", message: "Nothing due." }
 
   const result = await redeemForCharge(session.user.id, booking.id, amountDuePence, code.trim() || undefined)
   if (!result.ok) return { status: "error", message: result.message }
 
-  const becameConfirmed = type === "DEPOSIT" && booking.status === "PENDING_PAYMENT"
+  const becameConfirmed = type !== "BALANCE" && booking.status === "PENDING_PAYMENT"
+  const now = new Date()
   await prisma.$transaction([
     prisma.payment.create({
       data: {
         bookingId: booking.id,
-        type,
-        amountPence: result.appliedPence,
+        type: type === "FULL" ? "DEPOSIT" : type,
+        amountPence: type === "FULL" ? booking.depositPence : result.appliedPence,
         status: "SUCCEEDED",
-        succeededAt: new Date(),
+        succeededAt: now,
       },
     }),
+    ...(type === "FULL" && balancePence > 0
+      ? [
+          prisma.payment.create({
+            data: { bookingId: booking.id, type: "BALANCE", amountPence: balancePence, status: "SUCCEEDED", succeededAt: now },
+          }),
+        ]
+      : []),
     ...(becameConfirmed ? [prisma.booking.update({ where: { id: booking.id }, data: { status: "CONFIRMED" } })] : []),
   ])
 
@@ -194,21 +219,64 @@ export async function redeemCreditForPayment(
   })
 
   const settings = await getSettings()
+  const vat = await getVatSettings()
   const bookingSummary = {
+    bookingId: booking.id,
+    bookingNumber: booking.bookingNumber,
+    customerName: booking.customer.name,
     serviceName: booking.service.name,
     startDate: booking.startDate,
     endDate: booking.endDate,
     totalPence: booking.totalPence,
     depositPence: booking.depositPence,
+    balanceDueDate: booking.balanceDueDate,
+    dogNames: booking.bookingDogs.map((bd) => bd.dog.name),
     customerNumber: booking.customer.customerNumber,
   }
-  const receipt = paymentReceiptEmail(settings, bookingSummary, result.appliedPence, type)
+  const receipt = await paymentReceiptEmail(
+    settings,
+    bookingSummary,
+    result.appliedPence,
+    type,
+    `${getSiteUrl()}/portal/bookings`,
+    vat
+  )
   await sendEmail({ to: booking.customer.email, subject: receipt.subject, html: receipt.html })
-  if (becameConfirmed) {
-    const confirmation = bookingConfirmationEmail(settings, bookingSummary)
+  // DEPOSIT_THEN_BALANCE bookings already got the deposit-invoice email at
+  // creation — see the matching guard in payments.ts.
+  if (becameConfirmed && booking.service.paymentTiming !== "DEPOSIT_THEN_BALANCE") {
+    const confirmation = await bookingConfirmationEmail(
+      settings,
+      {
+        bookingId: booking.id,
+        bookingNumber: booking.bookingNumber,
+        customerName: booking.customer.name,
+        serviceSlug: booking.service.slug,
+        serviceName: booking.service.name,
+        paymentTiming: booking.service.paymentTiming,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        totalPence: booking.totalPence,
+        depositPence: booking.depositPence,
+        balanceDueDate: booking.balanceDueDate,
+        dogNames: booking.bookingDogs.map((bd) => bd.dog.name),
+        customerNumber: booking.customer.customerNumber,
+        addons: booking.bookingAddons.map((ba) => ({
+          name: ba.addon.name,
+          quantity: ba.quantity,
+          totalPence: ba.pricePence,
+        })),
+      },
+      vat,
+      `${getSiteUrl()}/portal/bookings`
+    )
     await sendEmail({ to: booking.customer.email, subject: confirmation.subject, html: confirmation.html })
   }
 
   revalidatePath("/portal/bookings")
-  return { status: "success", message: "Payment covered by your credit/voucher." }
+  return {
+    status: "success",
+    message:
+      type === "FULL" ? "Booking paid in full with your credit/voucher." : "Payment covered by your credit/voucher.",
+  }
 }

@@ -6,12 +6,13 @@ import { z } from "zod"
 import { auth } from "@/auth"
 import { Prisma } from "@/generated/prisma/client"
 import { prisma } from "@/lib/prisma"
-import { stripe } from "@/lib/stripe"
+import { stripe, getSiteUrl } from "@/lib/stripe"
 import { startOfDay, nightsBetween } from "@/lib/dates"
 import { findAvailableKennelUnit, isDaycareAvailable } from "@/lib/availability"
 import { computeBookingPrice } from "@/lib/booking-pricing"
 import { paymentFieldsFor } from "@/lib/payment-timing"
 import { getSetting, getSettings } from "@/lib/settings"
+import { getVatSettings } from "@/lib/vat"
 import { sendEmail } from "@/lib/email"
 import { cancellationConfirmationEmail, bookingConfirmationEmail, paymentReceiptEmail } from "@/lib/email-templates"
 import { logAudit, logEntityChange, describeBooking } from "@/lib/audit"
@@ -53,13 +54,16 @@ export async function signAgreementForPhoneCustomer(
   if (!agreement) {
     return { status: "error", message: "No agreement is currently published." }
   }
+  if (!agreement.documentUrl) {
+    return { status: "error", message: "No agreement document is currently published." }
+  }
 
   const signedAt = new Date()
   const businessName = await getSetting("business_name", "Bedlay Gardens LTD")
   const pdfBuffer = await generateAgreementPdf({
     businessName,
     version: agreement.version,
-    text: agreement.text,
+    documentUrl: agreement.documentUrl,
     signedName: signedName.trim(),
     signedAt,
     ipAddress: `phone booking — witnessed by staff (${session.user.email})`,
@@ -730,6 +734,7 @@ export async function recordManualPayment(
       service: true,
       customer: true,
       bookingDogs: { include: { dog: true } },
+      bookingAddons: { include: { addon: true } },
     },
   })
   if (!booking) return { status: "error", message: "Booking not found." }
@@ -781,17 +786,24 @@ export async function recordManualPayment(
     })
 
     const settings = await getSettings()
-    const receipt = paymentReceiptEmail(
+    const vat = await getVatSettings()
+    const receipt = await paymentReceiptEmail(
       settings,
       {
+        bookingId: booking.id,
+        bookingNumber: booking.bookingNumber,
+        customerName: booking.customer.name,
         serviceName: booking.service.name,
         startDate: booking.startDate,
         endDate: booking.endDate,
         totalPence: booking.totalPence,
         depositPence: booking.depositPence,
+        dogNames: booking.bookingDogs.map((bd) => bd.dog.name),
       },
       invoicePayment.amountPence,
-      "INVOICE"
+      "INVOICE",
+      `${getSiteUrl()}/portal/bookings`,
+      vat
     )
     await sendEmail({ to: booking.customer.email, subject: receipt.subject, html: receipt.html })
 
@@ -823,22 +835,112 @@ export async function recordManualPayment(
   })
 
   const settings = await getSettings()
+  const vat = await getVatSettings()
   const bookingSummary = {
+    bookingId: booking.id,
+    bookingNumber: booking.bookingNumber,
+    customerName: booking.customer.name,
     serviceName: booking.service.name,
     startDate: booking.startDate,
     endDate: booking.endDate,
     totalPence: booking.totalPence,
     depositPence: booking.depositPence,
+    balanceDueDate: booking.balanceDueDate,
+    dogNames: booking.bookingDogs.map((bd) => bd.dog.name),
     customerNumber: booking.customer.customerNumber,
   }
-  const receipt = paymentReceiptEmail(settings, bookingSummary, amountPence, type)
+  const receipt = await paymentReceiptEmail(
+    settings,
+    bookingSummary,
+    amountPence,
+    type,
+    `${getSiteUrl()}/portal/bookings`,
+    vat
+  )
   await sendEmail({ to: booking.customer.email, subject: receipt.subject, html: receipt.html })
-  if (becameConfirmed) {
-    const confirmation = bookingConfirmationEmail(settings, bookingSummary)
+  // DEPOSIT_THEN_BALANCE bookings already got the deposit-invoice email at
+  // creation — see the matching guard in payments.ts.
+  if (becameConfirmed && booking.service.paymentTiming !== "DEPOSIT_THEN_BALANCE") {
+    const confirmation = await bookingConfirmationEmail(
+      settings,
+      {
+        bookingId: booking.id,
+        bookingNumber: booking.bookingNumber,
+        customerName: booking.customer.name,
+        serviceSlug: booking.service.slug,
+        serviceName: booking.service.name,
+        paymentTiming: booking.service.paymentTiming,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        totalPence: booking.totalPence,
+        depositPence: booking.depositPence,
+        balanceDueDate: booking.balanceDueDate,
+        dogNames: booking.bookingDogs.map((bd) => bd.dog.name),
+        customerNumber: booking.customer.customerNumber,
+        addons: booking.bookingAddons.map((ba) => ({
+          name: ba.addon.name,
+          quantity: ba.quantity,
+          totalPence: ba.pricePence,
+        })),
+      },
+      vat,
+      `${getSiteUrl()}/portal/bookings`
+    )
     await sendEmail({ to: booking.customer.email, subject: confirmation.subject, html: confirmation.html })
   }
 
   revalidatePath(`/admin/bookings/${bookingId}`)
   revalidatePath("/admin/bookings")
   return { status: "idle", message: "Payment recorded." }
+}
+
+export type UpdateBookingScheduleResult = { status: "idle" | "error"; message?: string }
+
+// Time-of-day + staff assignment for bookings that don't otherwise carry
+// scheduling info (Meet & Greet, Secure Forest Walks, etc.) — the admin
+// dashboard's Scheduled Services table reads these directly. Dog Walking
+// (Van Collection) bookings get both from their VanRun instead, assigned on
+// the Van Runs pages, so this isn't offered there (see the page component).
+export async function updateBookingSchedule(
+  bookingId: string,
+  scheduledTime: string,
+  assignedStaffId: string | null
+): Promise<UpdateBookingScheduleResult> {
+  const session = await requireAdmin()
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { service: true, customer: true },
+  })
+  if (!booking) return { status: "error", message: "Booking not found." }
+
+  let staffName = "(unassigned)"
+  if (assignedStaffId) {
+    const staff = await prisma.user.findUnique({ where: { id: assignedStaffId } })
+    if (!staff || !["STAFF", "ADMIN"].includes(staff.role) || !staff.active) {
+      return { status: "error", message: "That staff member is no longer available." }
+    }
+    staffName = staff.name
+  }
+
+  const trimmedTime = scheduledTime.trim()
+  await prisma.booking.update({
+    where: { id: bookingId },
+    data: {
+      scheduledTime: trimmedTime || null,
+      assignedStaffId: assignedStaffId || null,
+    },
+  })
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_BOOKING_SCHEDULE",
+    entity: "Booking",
+    entityId: bookingId,
+    meta: `${booking.service.name} — ${booking.customer.name} — time: ${trimmedTime || "(none)"} — staff: ${staffName}`,
+  })
+
+  revalidatePath(`/admin/bookings/${bookingId}`)
+  revalidatePath("/admin")
+  return { status: "idle", message: "Schedule updated." }
 }

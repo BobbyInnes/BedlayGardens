@@ -73,3 +73,16 @@ export function parseDateParam(dateParam: string | undefined): Date {
 export function isSameDay(a: Date, b: Date): boolean {
   return toDateInputValue(a) === toDateInputValue(b)
 }
+
+// Day Care half-day AM sessions run in the morning — once it's this late in
+// the day, "AM" no longer describes a real window for a same-day booking, so
+// the half-day slot is forced to PM past this point. Only matters for a
+// booking dated today; a future date is unaffected regardless of the time
+// right now. Shared by the booking wizard's UI (which locks the AM/PM select
+// to PM) and resolveBookingCreation's server-side check.
+const DAYCARE_HALF_DAY_AM_CUTOFF_MINUTES = 12 * 60 + 30 // 12:30pm
+
+export function isPastDaycareHalfDayAmCutoff(date: Date, now: Date = new Date()): boolean {
+  if (!isSameDay(date, now)) return false
+  return now.getHours() * 60 + now.getMinutes() >= DAYCARE_HALF_DAY_AM_CUTOFF_MINUTES
+}

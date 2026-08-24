@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { isPastDaycareHalfDayAmCutoff } from "@/lib/dates"
 import {
   Select,
   SelectContent,
@@ -84,6 +85,17 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
   const isDateBased = isDaycare || isMeetGreet
   const isForestWalk = serviceSlug === "secure-forest-walks"
   const isDogWalking = serviceSlug === "dog-walking"
+
+  // Matches the booking wizard's lock and the server-side check in
+  // resolveBookingCreation — past the AM cutoff for a date that's today,
+  // neither Full Day nor AM describe a real remaining window: Full Day is
+  // locked out entirely (forcing Half Day) and the half-day slot is locked
+  // to PM. Derived rather than synced into state via an effect, so it can't
+  // ever be one render stale for validation/submission.
+  const todayPastHalfDayCutoff = isDaycare && isPastDaycareHalfDayAmCutoff(new Date(`${date}T00:00:00`))
+  const effectiveDaycareDuration = todayPastHalfDayCutoff ? "HALF_DAY" : daycareDuration
+  const halfDayAmLocked = todayPastHalfDayCutoff
+  const effectiveHalfDaySlot = halfDayAmLocked ? "PM" : daycareHalfDaySlot
 
   async function runSearch(value: string) {
     setQuery(value)
@@ -176,9 +188,9 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
         startDate: isBoarding ? startDate : undefined,
         endDate: isBoarding ? endDate : undefined,
         date: isDateBased ? date : undefined,
-        daycareDuration: isDaycare ? daycareDuration : undefined,
+        daycareDuration: isDaycare ? effectiveDaycareDuration : undefined,
         daycareHalfDaySlot:
-          isDaycare && daycareDuration === "HALF_DAY" && daycareHalfDaySlot ? daycareHalfDaySlot : undefined,
+          isDaycare && effectiveDaycareDuration === "HALF_DAY" && effectiveHalfDaySlot ? effectiveHalfDaySlot : undefined,
         walkSlotId: isForestWalk ? selectedSlotId : undefined,
         vanRunId: isDogWalking ? selectedRunId : undefined,
         pickupAddress: isDogWalking ? pickupAddress : undefined,
@@ -216,7 +228,7 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
     (isBoarding
       ? !!startDate && !!endDate
       : isDateBased
-        ? !!date && (!isDaycare || daycareDuration === "FULL_DAY" || !!daycareHalfDaySlot)
+        ? !!date && (!isDaycare || effectiveDaycareDuration === "FULL_DAY" || !!effectiveHalfDaySlot)
         : isForestWalk
           ? !!selectedSlotId
           : isDogWalking
@@ -479,29 +491,36 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
                 <div className="flex gap-2">
                   <Button
                     type="button"
-                    variant={daycareDuration === "FULL_DAY" ? "default" : "outline"}
+                    variant={effectiveDaycareDuration === "FULL_DAY" ? "default" : "outline"}
                     onClick={() => setDaycareDuration("FULL_DAY")}
+                    disabled={todayPastHalfDayCutoff}
                   >
                     Full Day
                   </Button>
                   <Button
                     type="button"
-                    variant={daycareDuration === "HALF_DAY" ? "default" : "outline"}
+                    variant={effectiveDaycareDuration === "HALF_DAY" ? "default" : "outline"}
                     onClick={() => setDaycareDuration("HALF_DAY")}
                   >
                     Half Day
                   </Button>
                 </div>
+                {todayPastHalfDayCutoff && (
+                  <p className="text-xs text-muted-foreground">
+                    It&rsquo;s the afternoon, so today&rsquo;s Day Care is Half Day (PM) only.
+                  </p>
+                )}
               </div>
 
-              {daycareDuration === "HALF_DAY" && (
+              {effectiveDaycareDuration === "HALF_DAY" && (
                 <div className="space-y-2">
                   <Label htmlFor="halfDaySlot">Half day session</Label>
                   <select
                     id="halfDaySlot"
-                    value={daycareHalfDaySlot}
+                    value={effectiveHalfDaySlot}
                     onChange={(e) => setDaycareHalfDaySlot(e.target.value as "AM" | "PM")}
-                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                    disabled={halfDayAmLocked}
+                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm disabled:opacity-70"
                   >
                     <option value="">Select AM or PM</option>
                     <option value="AM">AM</option>
@@ -622,7 +641,7 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
           {requiresAgreement && (
             <div className="space-y-2 rounded-md border border-border bg-muted/50 p-3">
               <p className="text-xs text-muted-foreground">
-                Read the boarding agreement to the customer, get their verbal consent, then type their
+                Read Our Terms and Conditions to the customer, get their verbal consent, then type their
                 name to record it on their behalf.
               </p>
               <div className="flex flex-wrap items-end gap-2">

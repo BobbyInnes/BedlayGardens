@@ -6,7 +6,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { getSettings } from "@/lib/settings"
 import { hasCurrentSignedAgreement } from "@/lib/agreement"
-import { checkTrialGate } from "@/lib/trial"
+import { checkTrialGate, formatTrialGateMessage } from "@/lib/trial"
 import { BookingWizard } from "@/components/marketing/booking-wizard"
 import { Button } from "@/components/ui/button"
 
@@ -82,11 +82,7 @@ export default async function BookServicePage({
           </h1>
           <div className="flex items-start gap-3 rounded-xl border border-destructive bg-destructive/10 p-4 text-destructive sm:items-center">
             <AlertTriangle className="mt-0.5 size-5 shrink-0 sm:mt-0" aria-hidden="true" />
-            <p className="text-sm font-bold sm:text-base">
-              {missingTrial.join(", ")} {missingTrial.length === 1 ? "hasn't" : "haven't"} had a
-              Meet &amp; Greet evaluation yet. This is mandatory before {missingTrial.length === 1 ? "it" : "they"}{" "}
-              can book any service.
-            </p>
+            <p className="text-sm font-bold sm:text-base">{formatTrialGateMessage(missingTrial)}</p>
           </div>
           {meetGreetService && (
             <Button className="mt-6" asChild>

@@ -89,6 +89,7 @@ export default async function AdminCustomerDetailPage({
             flags: true,
             vaccinationRecords: { orderBy: { expiryDate: "desc" } },
             trialVisits: { orderBy: { completedAt: "desc" }, take: 1, where: { outcome: { not: null } } },
+            medications: { orderBy: { sortOrder: "asc" } },
           },
         },
         bookings: {
@@ -260,8 +261,45 @@ export default async function AdminCustomerDetailPage({
                           </dd>
                         </div>
                         <div className="sm:col-span-3">
+                          <dt className="text-xs">Vet practice</dt>
+                          <dd className="text-foreground">
+                            {dog.vetPracticeName || "—"}
+                            {[dog.vetAddressLine1, dog.vetAddressLine2, dog.vetCity, dog.vetPostcode]
+                              .filter(Boolean)
+                              .join(", ") &&
+                              ` — ${[dog.vetAddressLine1, dog.vetAddressLine2, dog.vetCity, dog.vetPostcode]
+                                .filter(Boolean)
+                                .join(", ")}`}
+                            {dog.vetEmail ? ` (${dog.vetEmail})` : ""}
+                          </dd>
+                        </div>
+                        {dog.allergies && (
+                          <div className="sm:col-span-3">
+                            <dt className="text-xs">Allergies</dt>
+                            <dd className="text-foreground">{dog.allergies}</dd>
+                          </div>
+                        )}
+                        <div className="sm:col-span-3">
                           <dt className="text-xs">Emergency contact</dt>
-                          <dd className="text-foreground">{dog.emergencyContact || "—"}</dd>
+                          <dd className="text-foreground">
+                            {[dog.emergencyContactName, dog.emergencyContactPhone]
+                              .filter(Boolean)
+                              .join(" — ") || "—"}
+                            {[
+                              dog.emergencyContactAddressLine1,
+                              dog.emergencyContactAddressLine2,
+                              dog.emergencyContactCity,
+                              dog.emergencyContactPostcode,
+                            ].filter(Boolean).join(", ") &&
+                              `, ${[
+                                dog.emergencyContactAddressLine1,
+                                dog.emergencyContactAddressLine2,
+                                dog.emergencyContactCity,
+                                dog.emergencyContactPostcode,
+                              ]
+                                .filter(Boolean)
+                                .join(", ")}`}
+                          </dd>
                         </div>
                         {dog.feedingNotes && (
                           <div className="sm:col-span-3">
@@ -273,6 +311,27 @@ export default async function AdminCustomerDetailPage({
                           <div className="sm:col-span-3">
                             <dt className="text-xs">Medication</dt>
                             <dd className="text-foreground">{dog.medicationNotes}</dd>
+                          </div>
+                        )}
+                        {dog.medications.length > 0 && (
+                          <div className="sm:col-span-3">
+                            <dt className="text-xs">Medical history</dt>
+                            <dd className="text-foreground">
+                              <ul className="list-disc space-y-0.5 pl-4">
+                                {dog.medications.map((med) => (
+                                  <li key={med.id}>
+                                    {med.name}
+                                    {med.amount ? ` — ${med.amount}` : ""}
+                                    {" ("}
+                                    {med.specificTime
+                                      ? med.specificTime
+                                      : [med.am && "AM", med.pm && "PM"].filter(Boolean).join(" & ") ||
+                                        "no schedule set"}
+                                    {")"}
+                                  </li>
+                                ))}
+                              </ul>
+                            </dd>
                           </div>
                         )}
                         {dog.behaviourNotes && (

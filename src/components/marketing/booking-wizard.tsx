@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { formatPence } from "@/lib/format"
-import { isWeekend } from "@/lib/dates"
+import { isWeekend, isPastDaycareHalfDayAmCutoff } from "@/lib/dates"
 import { cn } from "@/lib/utils"
 import {
   createBooking,
@@ -107,6 +107,20 @@ export function BookingWizard({
 
   const dateError = isMeetGreet ? dateBasedDateError(date) : null
 
+  // Past the AM cutoff for a Day Care date that's today, neither "Full Day"
+  // nor "AM" describe a real remaining window — Full Day is locked out
+  // entirely (forcing Half Day) and the half-day slot is locked to PM. One
+  // shared duration/slot applies to every date in a batch, so this locks for
+  // the whole batch if today is among the selected dates (matches the
+  // server-side check in resolveBookingCreation). Derived rather than synced
+  // into state via an effect, so the lock can't ever be one render stale for
+  // the gating checks below or for submission.
+  const todayPastHalfDayCutoff =
+    isDaycare && daycareDates.some((d) => isPastDaycareHalfDayAmCutoff(new Date(`${d}T00:00:00`)))
+  const effectiveDaycareDuration = todayPastHalfDayCutoff ? "HALF_DAY" : daycareDuration
+  const halfDayAmLocked = todayPastHalfDayCutoff
+  const effectiveHalfDaySlot = halfDayAmLocked ? "PM" : daycareHalfDaySlot
+
   const [availabilityChecked, setAvailabilityChecked] = React.useState(false)
   const [available, setAvailable] = React.useState<boolean | null>(null)
   const [availabilityReason, setAvailabilityReason] = React.useState<string | null>(null)
@@ -128,6 +142,7 @@ export function BookingWizard({
   const [checkingVaccinations, setCheckingVaccinations] = React.useState(false)
   const [trialWarning, setTrialWarning] = React.useState<string[] | null>(null)
   const [checkingTrial, setCheckingTrial] = React.useState(false)
+  const [checkingConflicts, setCheckingConflicts] = React.useState(false)
 
   // Addons
   const [selectedAddonIds, setSelectedAddonIds] = React.useState<string[]>([])
@@ -237,6 +252,7 @@ export function BookingWizard({
     // A previous blocked/joined-waitlist state no longer applies once the
     // dog selection changes — force a fresh check on the next Continue.
     setVaccinationWarning(null)
+    setDuplicateServiceWarning(null)
     setJoinedWaitlist(false)
     setWaitlistMessage(null)
   }
@@ -245,6 +261,21 @@ export function BookingWizard({
     setSelectedAddonIds((prev) =>
       prev.includes(addonId) ? prev.filter((id) => id !== addonId) : [...prev, addonId]
     )
+  }
+
+  // One (start, end) pair per date that needs checking — a single range for
+  // boarding, one same-day pair per selected date for daycare (each becomes
+  // its own booking), one same-day pair for every other service.
+  function conflictCheckRanges(): { start: string; end: string }[] {
+    if (isBoarding) return startDate && endDate ? [{ start: startDate, end: endDate }] : []
+    if (isDaycare) return daycareDates.map((d) => ({ start: d, end: d }))
+    if (isMeetGreet) return date ? [{ start: date, end: date }] : []
+    if (isForestWalk) {
+      const d = walkSlots.find((s) => s.id === selectedSlotId)?.date
+      return d ? [{ start: d, end: d }] : []
+    }
+    const d = vanRuns.find((r) => r.id === selectedRunId)?.date
+    return d ? [{ start: d, end: d }] : []
   }
 
   async function goToReviewFromDogs() {
@@ -261,6 +292,28 @@ export function BookingWizard({
       }
     } finally {
       setCheckingTrial(false)
+    }
+
+    setDuplicateServiceWarning(null)
+    setCheckingConflicts(true)
+    try {
+      const ranges = conflictCheckRanges()
+      const results = await Promise.all(
+        ranges.map(async ({ start, end }) => {
+          const params = new URLSearchParams({ startDate: start, endDate: end })
+          for (const dogId of selectedDogIds) params.append("dogId", dogId)
+          const res = await fetch(`/api/book/conflict-check?${params}`)
+          const data = await res.json()
+          return data.conflicts ?? []
+        })
+      )
+      const conflicts = results.flat()
+      if (conflicts.length > 0) {
+        setDuplicateServiceWarning(conflicts)
+        return
+      }
+    } finally {
+      setCheckingConflicts(false)
     }
 
     const throughDate = isBoarding
@@ -305,7 +358,7 @@ export function BookingWizard({
   const nights = isBoarding ? nightsBetween(startDate, endDate) : 1
   const units = isBoarding ? nights : isDaycare ? Math.max(1, daycareDates.length) : 1
   const unitPricePence =
-    isDaycare && daycareDuration === "HALF_DAY" && service.halfDayPricePence != null
+    isDaycare && effectiveDaycareDuration === "HALF_DAY" && service.halfDayPricePence != null
       ? service.halfDayPricePence
       : service.basePricePence
   let basePreviewPence: number
@@ -338,8 +391,9 @@ export function BookingWizard({
         ? await createDaycareBookings(daycareDates, {
             dogIds: selectedDogIds,
             addons: selectedAddonIds.map((addonId) => ({ addonId, quantity: 1 })),
-            daycareDuration,
-            daycareHalfDaySlot: daycareDuration === "HALF_DAY" && daycareHalfDaySlot ? daycareHalfDaySlot : undefined,
+            daycareDuration: effectiveDaycareDuration,
+            daycareHalfDaySlot:
+              effectiveDaycareDuration === "HALF_DAY" && effectiveHalfDaySlot ? effectiveHalfDaySlot : undefined,
           })
         : await createBooking({
             serviceSlug: service.slug,
@@ -452,29 +506,36 @@ export function BookingWizard({
                 <div className="flex gap-2">
                   <Button
                     type="button"
-                    variant={daycareDuration === "FULL_DAY" ? "default" : "outline"}
+                    variant={effectiveDaycareDuration === "FULL_DAY" ? "default" : "outline"}
                     onClick={() => setDaycareDuration("FULL_DAY")}
+                    disabled={todayPastHalfDayCutoff}
                   >
                     Full Day
                   </Button>
                   <Button
                     type="button"
-                    variant={daycareDuration === "HALF_DAY" ? "default" : "outline"}
+                    variant={effectiveDaycareDuration === "HALF_DAY" ? "default" : "outline"}
                     onClick={() => setDaycareDuration("HALF_DAY")}
                   >
                     Half Day
                   </Button>
                 </div>
+                {todayPastHalfDayCutoff && (
+                  <p className="text-xs text-muted-foreground">
+                    It&rsquo;s the afternoon, so today&rsquo;s Day Care is Half Day (PM) only.
+                  </p>
+                )}
               </div>
 
-              {daycareDuration === "HALF_DAY" && (
+              {effectiveDaycareDuration === "HALF_DAY" && (
                 <div className="space-y-2">
                   <Label htmlFor="halfDaySlot">Half day session</Label>
                   <select
                     id="halfDaySlot"
-                    value={daycareHalfDaySlot}
+                    value={effectiveHalfDaySlot}
                     onChange={(e) => setDaycareHalfDaySlot(e.target.value as "AM" | "PM")}
-                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                    disabled={halfDayAmLocked}
+                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm disabled:opacity-70"
                   >
                     <option value="">Select AM or PM</option>
                     <option value="AM">AM</option>
@@ -636,7 +697,7 @@ export function BookingWizard({
               (isDateBased && !available) ||
               (isForestWalk && !selectedSlotId) ||
               (isDogWalking && (!selectedRunId || !pickupAddress || !postcode)) ||
-              (isDaycare && daycareDuration === "HALF_DAY" && !daycareHalfDaySlot)
+              (isDaycare && effectiveDaycareDuration === "HALF_DAY" && !effectiveHalfDaySlot)
             }
           >
             Continue
@@ -774,9 +835,9 @@ export function BookingWizard({
             ) : (
               <Button
                 onClick={goToReviewFromDogs}
-                disabled={selectedDogIds.length === 0 || checkingVaccinations || checkingTrial}
+                disabled={selectedDogIds.length === 0 || checkingVaccinations || checkingTrial || checkingConflicts}
               >
-                {checkingVaccinations || checkingTrial ? (
+                {checkingVaccinations || checkingTrial || checkingConflicts ? (
                   <>
                     <Loader2 className="size-4 animate-spin" /> Checking…
                   </>
@@ -834,8 +895,8 @@ export function BookingWizard({
               <span>
                 {service.name}
                 {isDaycare
-                  ? daycareDuration === "HALF_DAY"
-                    ? ` (Half Day${daycareHalfDaySlot ? ` – ${daycareHalfDaySlot}` : ""})`
+                  ? effectiveDaycareDuration === "HALF_DAY"
+                    ? ` (Half Day${effectiveHalfDaySlot ? ` – ${effectiveHalfDaySlot}` : ""})`
                     : " (Full Day)"
                   : ""}{" "}
                 × {dogCount} dog{dogCount > 1 ? "s" : ""}

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DeleteDogButton } from "@/components/portal/delete-dog-button"
 import { formatCustomerNumber, formatDogNumber } from "@/lib/customer-dog-numbers"
-import type { Dog, VaccinationRecord } from "@/generated/prisma/client"
+import type { Dog, DogMedication, VaccinationRecord } from "@/generated/prisma/client"
 
 export const metadata: Metadata = {
   title: "My Dogs",
@@ -64,12 +64,15 @@ export default async function DogsPage({
     prisma.dog.findMany({
       where: { ownerId: session!.user.id },
       orderBy: { name: "asc" },
-      include: { vaccinationRecords: true },
+      include: {
+        vaccinationRecords: true,
+        medications: { orderBy: { sortOrder: "asc" } },
+      },
     }),
   ])
 
   const selectedDog = (dogId ? dogs.find((dog) => dog.id === dogId) : dogs[0]) as
-    | (Dog & { vaccinationRecords: VaccinationRecord[] })
+    | (Dog & { vaccinationRecords: VaccinationRecord[]; medications: DogMedication[] })
     | undefined
 
   return (
@@ -219,9 +222,34 @@ export default async function DogsPage({
                   <dd className="font-medium">{selectedDog.vetName || "—"}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-2">
+                  <dt className="text-muted-foreground">Allergies:</dt>
+                  <dd className="font-medium">{selectedDog.allergies || "None"}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-2">
                   <dt className="text-muted-foreground">Medication:</dt>
                   <dd className="font-medium">{selectedDog.medicationNotes || "None"}</dd>
                 </div>
+                {selectedDog.medications.length > 0 && (
+                  <div>
+                    <dt className="mb-1 text-muted-foreground">Medical history:</dt>
+                    <dd>
+                      <ul className="list-disc space-y-0.5 pl-4 font-medium">
+                        {selectedDog.medications.map((med) => (
+                          <li key={med.id}>
+                            {med.name}
+                            {med.amount ? ` — ${med.amount}` : ""}
+                            {" ("}
+                            {med.specificTime
+                              ? med.specificTime
+                              : [med.am && "AM", med.pm && "PM"].filter(Boolean).join(" & ") ||
+                                "no schedule set"}
+                            {")"}
+                          </li>
+                        ))}
+                      </ul>
+                    </dd>
+                  </div>
+                )}
               </dl>
             </div>
 

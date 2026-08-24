@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
+import { deleteAllAuditLogs } from "./actions"
 
 export const metadata: Metadata = {
   title: "Audit Log | Admin",
@@ -135,6 +137,14 @@ export default async function AdminAuditLogPage({
             Export JSON
           </a>
         </Button>
+        {session.user.isSuperAdmin && (
+          <ConfirmDeleteButton
+            label="Delete all entries"
+            title="Delete the entire audit log?"
+            description="This permanently deletes every entry in the audit log, including everything shown by other filters. This cannot be undone — export a copy first if you need one."
+            onConfirm={deleteAllAuditLogs}
+          />
+        )}
       </div>
 
       {logs.length > 0 ? (

@@ -76,7 +76,7 @@ export default async function AccountPage() {
           <div>
             <h2 className="text-lg font-semibold">Billing</h2>
             <p className="text-sm text-muted-foreground">
-              View saved cards and payment history via Stripe.
+              View saved credit/debit cards and payment history via Stripe.
             </p>
           </div>
           <BillingPortalButton />

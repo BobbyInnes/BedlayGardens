@@ -7,14 +7,16 @@ import { z } from "zod"
 import { Prisma, type PaymentTiming } from "@/generated/prisma/client"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { nightsBetween, startOfDay } from "@/lib/dates"
+import { nightsBetween, startOfDay, isPastDaycareHalfDayAmCutoff } from "@/lib/dates"
 import { findAvailableKennelUnit, isDaycareAvailable, isMeetGreetAvailable } from "@/lib/availability"
 import { checkVaccinationGate } from "@/lib/vaccination-gate"
 import { computeBookingPrice } from "@/lib/booking-pricing"
 import { paymentFieldsFor } from "@/lib/payment-timing"
 import { getSetting, getSettings } from "@/lib/settings"
+import { getVatSettings } from "@/lib/vat"
 import { sendEmail } from "@/lib/email"
-import { bookingConfirmationEmail } from "@/lib/email-templates"
+import { getSiteUrl } from "@/lib/stripe"
+import { bookingConfirmationEmail, bookingConfirmationDepositInvoiceEmail } from "@/lib/email-templates"
 import { logAudit } from "@/lib/audit"
 import { GROUP_BLOCKING_FLAGS, SHARED_KENNEL_BLOCKING_FLAGS, DOG_FLAG_LABELS } from "@/lib/dog-flags"
 import { hasCurrentSignedAgreement } from "@/lib/agreement"
@@ -158,7 +160,7 @@ export async function resolveBookingCreation(
   if (!(await hasCurrentSignedAgreement(customerId))) {
     return {
       status: "error",
-      message: "Please read and sign our current boarding agreement before booking.",
+      message: "Please read and sign Our Terms and Conditions before booking.",
       requiresAgreement: true,
     }
   }
@@ -338,6 +340,22 @@ export async function resolveBookingCreation(
     const daycareDuration = data.daycareDuration ?? "FULL_DAY"
     if (daycareDuration === "HALF_DAY" && !data.daycareHalfDaySlot) {
       return { status: "error", message: "Select AM or PM for a half day booking." }
+    }
+    // Past the AM cutoff for a booking dated today, neither Full Day nor an
+    // AM half day describe a real remaining window.
+    if (isPastDaycareHalfDayAmCutoff(date)) {
+      if (daycareDuration === "FULL_DAY") {
+        return {
+          status: "error",
+          message: "It's the afternoon, so today's Day Care is Half Day (PM) only.",
+        }
+      }
+      if (data.daycareHalfDaySlot === "AM") {
+        return {
+          status: "error",
+          message: "It's the afternoon, so today's AM half day session is no longer available. Choose PM instead.",
+        }
+      }
     }
 
     const duplicateConflict = await checkForDuplicateServiceBooking(data.dogIds, date, date)
@@ -654,26 +672,56 @@ export async function resolveBookingCreation(
 
   // INVOICE_AFTER bookings are confirmed immediately and never reach the
   // payment webhook that sends the confirmation email for paid bookings, so
-  // send it at creation. A failed email must not fail the booking itself.
-  if (service.paymentTiming === "INVOICE_AFTER") {
+  // send it at creation. DEPOSIT_THEN_BALANCE bookings stay PENDING_PAYMENT
+  // here — nothing has been paid yet — so they get the deposit-invoice
+  // variant instead (full cost/VAT breakdown, deposit due now, balance due
+  // later); the post-payment bookingConfirmationEmail is deliberately *not*
+  // also sent once their deposit clears, to avoid two invoice-style emails
+  // for one booking — see the becameConfirmed branches in payments.ts,
+  // admin/bookings/actions.ts, and portal/bookings/actions.ts, each of
+  // which skips it for this same paymentTiming. FULL_UPFRONT gets neither
+  // email here — it still gets the existing post-payment confirmation once
+  // paid, same as before. A failed email must not fail the booking itself.
+  if (service.paymentTiming === "INVOICE_AFTER" || service.paymentTiming === "DEPOSIT_THEN_BALANCE") {
     try {
-      const [settings, customer, booking] = await Promise.all([
+      const [settings, vat, customer, booking] = await Promise.all([
         getSettings(),
+        getVatSettings(),
         prisma.user.findUniqueOrThrow({ where: { id: customerId } }),
         prisma.booking.findUniqueOrThrow({ where: { id: bookingId! } }),
       ])
-      const confirmation = bookingConfirmationEmail(settings, {
+      const invoiceBooking = {
+        bookingId: booking.id,
+        bookingNumber: booking.bookingNumber,
+        customerName: customer.name,
+        serviceSlug: service.slug,
         serviceName: service.name,
+        paymentTiming: service.paymentTiming,
         startDate: booking.startDate,
         endDate: booking.endDate,
         totalPence: booking.totalPence,
         depositPence: booking.depositPence,
-        otherDaycareDates: (options?.otherDaycareDates ?? []).map((d) => startOfDay(new Date(d))),
+        balanceDueDate: booking.balanceDueDate,
+        dogNames: dogs.map((dog) => dog.name),
         customerNumber: customer.customerNumber,
-      })
+        otherDaycareDates: (options?.otherDaycareDates ?? []).map((d) => startOfDay(new Date(d))),
+        addons: data.addons.map((a) => {
+          const addon = addonRecords.find((record) => record.id === a.addonId)!
+          return { name: addon.name, quantity: a.quantity, totalPence: addon.pricePence * a.quantity }
+        }),
+      }
+      const confirmation =
+        service.paymentTiming === "DEPOSIT_THEN_BALANCE"
+          ? await bookingConfirmationDepositInvoiceEmail(
+              settings,
+              invoiceBooking,
+              vat,
+              `${getSiteUrl()}/book/confirmation/${booking.id}`
+            )
+          : await bookingConfirmationEmail(settings, invoiceBooking, vat, `${getSiteUrl()}/portal/bookings`)
       await sendEmail({ to: customer.email, subject: confirmation.subject, html: confirmation.html })
     } catch (error) {
-      console.error("[booking] failed to send invoice-after confirmation email", error)
+      console.error("[booking] failed to send booking confirmation email", error)
     }
   }
 

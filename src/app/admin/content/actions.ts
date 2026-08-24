@@ -574,3 +574,47 @@ export async function updateVatSettings(
   revalidatePath("/admin/accounting")
   return { status: "idle", message: "VAT details updated." }
 }
+
+// Shown in the invoice-style booking confirmation email's legal footer
+// (see bookingConfirmationEmail in lib/email-templates.ts). Both optional —
+// leaving either blank omits that line from the email entirely rather than
+// showing a placeholder, since these are genuine UK company law disclosures
+// and a fake-looking placeholder in a real customer email would be worse
+// than just not mentioning it yet.
+const invoiceLegalSettingsSchema = z.object({
+  business_company_reg_no: z.string().trim().max(50),
+  business_directors: z.string().trim().max(300),
+})
+
+export async function updateInvoiceLegalSettings(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  const session = await requireAdmin()
+  const parsed = invoiceLegalSettingsSchema.safeParse({
+    business_company_reg_no: formData.get("business_company_reg_no"),
+    business_directors: formData.get("business_directors"),
+  })
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid submission." }
+  }
+
+  const entries = Object.entries(parsed.data)
+  for (const [key, value] of entries) {
+    await prisma.setting.upsert({
+      where: { key },
+      update: { value },
+      create: { key, value },
+    })
+  }
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_SETTING",
+    entity: "Setting",
+    entityId: "invoice_legal_details",
+    meta: `Company reg no: ${parsed.data.business_company_reg_no || "(none)"} — Directors: ${parsed.data.business_directors || "(none)"}`,
+  })
+
+  revalidatePath("/admin/content")
+  return { status: "idle", message: "Invoice legal details updated." }
+}

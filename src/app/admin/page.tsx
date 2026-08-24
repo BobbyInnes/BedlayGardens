@@ -4,6 +4,7 @@ import {
   AlertCircle,
   ArrowRight,
   BedDouble,
+  Building2,
   Check,
   ClipboardList,
   DoorClosed,
@@ -52,8 +53,18 @@ const scheduledServiceInclude = {
   service: true,
   bookingDogs: { include: { dog: true } },
   vanRunStops: { include: { vanRun: { include: { staff: true } } } },
+  assignedStaff: true,
 } satisfies Prisma.BookingInclude
 type ScheduledServiceBooking = Prisma.BookingGetPayload<{ include: typeof scheduledServiceInclude }>
+
+const occupantsInclude = {
+  customer: true,
+  service: true,
+  kennelUnit: true,
+  payments: true,
+  bookingDogs: { include: { dog: { include: { flags: true } } } },
+} satisfies Prisma.BookingInclude
+type OccupantBooking = Prisma.BookingGetPayload<{ include: typeof occupantsInclude }>
 
 type IconType = React.ComponentType<{ className?: string }>
 
@@ -111,6 +122,26 @@ function statusCell(booking: BookingListItem, direction: "in" | "out") {
     )
   }
   return <span className="text-xs text-muted-foreground">Not checked in</span>
+}
+
+// "N days till check-out" for the Occupants table, relative to the day
+// being viewed (not necessarily the real today) so it stays meaningful
+// when browsing forward/back with the date picker.
+function checkoutCountdownCell(booking: OccupantBooking, viewedDate: Date) {
+  if (isSameDay(booking.endDate, viewedDate)) {
+    return <span className="text-xs font-medium text-amber-600">Checking out today</span>
+  }
+  const days = Math.round((booking.endDate.getTime() - viewedDate.getTime()) / 86_400_000)
+  return (
+    <span className="text-xs text-muted-foreground">
+      {days} day{days === 1 ? "" : "s"} till check-out
+    </span>
+  )
+}
+
+function stayRangeLabel(booking: OccupantBooking): string {
+  const fmt = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+  return `${stayLabel(booking)} · ${fmt(booking.startDate)} – ${fmt(booking.endDate)}`
 }
 
 function paymentCell(booking: BookingListItem) {
@@ -326,7 +357,8 @@ export default async function AdminOverviewPage({
         startDate: { lte: date },
         endDate: { gt: date },
       },
-      include: { bookingDogs: { include: { dog: { include: { flags: true } } } } },
+      include: occupantsInclude,
+      orderBy: { endDate: "asc" },
     }),
     prisma.booking.findMany({
       where: {
@@ -581,6 +613,46 @@ export default async function AdminOverviewPage({
         direction="in"
       />
 
+      <TableCard
+        title="Occupants"
+        icon={Building2}
+        count={boardingOccupantsTonight.length}
+        emptyMessage="No dogs currently boarding."
+      >
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className={TABLE_HEAD_ROW}>
+              <th className={TABLE_CELL}>Type</th>
+              <th className={TABLE_CELL}>Customer</th>
+              <th className={TABLE_CELL}>Dog(s)</th>
+              <th className={TABLE_CELL}>Stay</th>
+              <th className={TABLE_CELL}>Location</th>
+              <th className={TABLE_CELL}>Status</th>
+              <th className={TABLE_CELL}>Paid</th>
+            </tr>
+          </thead>
+          <tbody>
+            {boardingOccupantsTonight.map((booking) => (
+              <tr key={`occupant-${booking.id}`} className={TABLE_ROW}>
+                <td className={TABLE_CELL}>
+                  <Badge variant="secondary">Home Boarding</Badge>
+                </td>
+                <td className={TABLE_CELL}>
+                  <Link href={`/admin/customers/${booking.customerId}`} className="font-medium hover:underline">
+                    {booking.customer.name}
+                  </Link>
+                </td>
+                <td className={TABLE_CELL}>{dogsCell(booking.bookingDogs)}</td>
+                <td className={TABLE_CELL}>{stayRangeLabel(booking)}</td>
+                <td className={TABLE_CELL}>{booking.kennelUnit?.name ?? "—"}</td>
+                <td className={TABLE_CELL}>{checkoutCountdownCell(booking, date)}</td>
+                <td className={TABLE_CELL}>{paymentCell(booking)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableCard>
+
       <BookingTable
         title="Checking Out Today"
         icon={DoorClosed}
@@ -620,8 +692,8 @@ export default async function AdminOverviewPage({
                   <td className={TABLE_CELL}>{booking.customer.name}</td>
                   <td className={TABLE_CELL}>{dogsCell(booking.bookingDogs)}</td>
                   <td className={TABLE_CELL}>{booking.service.name}</td>
-                  <td className={TABLE_CELL}>{stop?.vanRun.startTime ?? "—"}</td>
-                  <td className={TABLE_CELL}>{stop?.vanRun.staff?.name ?? "—"}</td>
+                  <td className={TABLE_CELL}>{stop?.vanRun.startTime ?? booking.scheduledTime ?? "—"}</td>
+                  <td className={TABLE_CELL}>{stop?.vanRun.staff?.name ?? booking.assignedStaff?.name ?? "—"}</td>
                   <td className={TABLE_CELL}>
                     <Badge variant="outline">{booking.status.replace(/_/g, " ")}</Badge>
                   </td>

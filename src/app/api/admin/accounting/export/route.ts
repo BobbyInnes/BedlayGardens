@@ -2,11 +2,23 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { getVatSettings, vatPeriodContaining, splitGrossForVat } from "@/lib/vat"
+import { formatCustomerNumber } from "@/lib/customer-dog-numbers"
 import type { PaymentStatus } from "@/generated/prisma/client"
 
 function csvField(value: string): string {
   if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`
   return value
+}
+
+// Pulls a customer number out of a search string typed as "CUST-00019",
+// "00019", or plain "19" — all extract to the same digits. Returns null for
+// a query with no digits at all, so a plain name/email search is untouched.
+// Kept in sync with the same helper in the accounting page.
+function digitsOf(value: string): number | null {
+  const digits = value.trim().replace(/\D/g, "")
+  if (!digits) return null
+  const parsed = Number(digits)
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 const MAX_EXPORT_ROWS = 5000
@@ -21,6 +33,7 @@ export async function GET(request: Request) {
   const periodParam = searchParams.get("period")
   const status = searchParams.get("status")
   const q = searchParams.get("q")?.trim()
+  const bookingNumber = searchParams.get("booking")?.trim()
 
   const vat = await getVatSettings()
   const referenceDate = periodParam ? new Date(periodParam) : new Date()
@@ -44,11 +57,13 @@ export async function GET(request: Request) {
                 OR: [
                   { name: { contains: q, mode: "insensitive" } },
                   { email: { contains: q, mode: "insensitive" } },
+                  ...(digitsOf(q) !== null ? [{ customerNumber: digitsOf(q)! }] : []),
                 ],
               },
             },
           }
         : {}),
+      ...(bookingNumber ? { bookingId: { endsWith: bookingNumber, mode: "insensitive" } } : {}),
     },
     include: {
       booking: {
@@ -68,6 +83,7 @@ export async function GET(request: Request) {
     "Date raised",
     "Date paid",
     "Customer",
+    "Customer number",
     "Email",
     "Dog(s)",
     "Service",
@@ -92,6 +108,7 @@ export async function GET(request: Request) {
       payment.createdAt.toISOString(),
       payment.succeededAt ? payment.succeededAt.toISOString() : "",
       payment.booking.customer.name,
+      formatCustomerNumber(payment.booking.customer.customerNumber),
       payment.booking.customer.email,
       payment.booking.bookingDogs.map((bd) => bd.dog.name).join(", "),
       payment.booking.service.name,

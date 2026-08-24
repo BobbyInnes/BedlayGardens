@@ -10,6 +10,7 @@ import { BookingDatesForm } from "@/components/admin/booking-dates-form"
 import { CancelBookingAdminButton } from "@/components/admin/cancel-booking-admin-button"
 import { ReassignKennelForm } from "@/components/admin/reassign-kennel-form"
 import { RecordManualPaymentForm } from "@/components/admin/record-manual-payment-form"
+import { BookingScheduleForm } from "@/components/admin/booking-schedule-form"
 import { SendInvoiceButton } from "@/components/admin/send-invoice-button"
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
@@ -70,6 +71,18 @@ export default async function AdminBookingDetailPage({
     ? await prisma.kennelUnit.findMany({
         where: { active: true, dogCapacity: { gte: booking.bookingDogs.length } },
         orderBy: { name: "asc" },
+      })
+    : []
+
+  // Dog Walking already gets its time/staff from the assigned VanRun instead
+  // (see the admin Van Runs pages) — a second, disconnected field here would
+  // just be confusing, so the generic schedule form is for everything else.
+  const showSchedule = booking.service.slug !== "dog-walking"
+  const staffOptions = showSchedule
+    ? await prisma.user.findMany({
+        where: { role: { in: ["STAFF", "ADMIN"] }, active: true },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
       })
     : []
 
@@ -161,6 +174,18 @@ export default async function AdminBookingDetailPage({
           )}
         </dl>
       </section>
+
+      {showSchedule && (
+        <section className="space-y-3 rounded-lg border border-border p-4">
+          <h2 className="text-sm font-semibold">Schedule</h2>
+          <BookingScheduleForm
+            bookingId={booking.id}
+            scheduledTime={booking.scheduledTime}
+            assignedStaffId={booking.assignedStaffId}
+            staffOptions={staffOptions}
+          />
+        </section>
+      )}
 
       <section className="space-y-3 rounded-lg border border-border p-4">
         <h2 className="text-sm font-semibold">Payment</h2>

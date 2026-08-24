@@ -29,7 +29,10 @@ export function SignAgreementForm({
 
       <label className="flex items-start gap-3 text-sm">
         <input type="checkbox" name="agree" className="mt-0.5 size-4 rounded border-input" required />
-        <span>I have read and agree to the boarding agreement above.</span>
+        <span>
+          By signing my name above and ticking this box, I acknowledge that I have read, understood and agree to Our
+          Terms and Conditions.
+        </span>
       </label>
 
       <Button type="submit" disabled={pending}>

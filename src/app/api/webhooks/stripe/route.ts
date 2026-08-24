@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
 import type Stripe from "stripe"
-import { stripe } from "@/lib/stripe"
+import { stripe, getSiteUrl } from "@/lib/stripe"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { getSettings } from "@/lib/settings"
+import { getVatSettings } from "@/lib/vat"
 import { formatPence } from "@/lib/format"
 import { paymentReceiptEmail, voucherDeliveryEmail } from "@/lib/email-templates"
 import { notifySubscriptionPaymentFailed } from "@/lib/subscriptions"
@@ -108,17 +109,24 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   })
 
   const settings = await getSettings()
-  const receipt = paymentReceiptEmail(
+  const vat = await getVatSettings()
+  const receipt = await paymentReceiptEmail(
     settings,
     {
+      bookingId: booking.id,
+      bookingNumber: booking.bookingNumber,
+      customerName: booking.customer.name,
       serviceName: booking.service.name,
       startDate: booking.startDate,
       endDate: booking.endDate,
       totalPence: booking.totalPence,
       depositPence: booking.depositPence,
+      dogNames: booking.bookingDogs.map((bd) => bd.dog.name),
     },
     payment.amountPence,
-    "INVOICE"
+    "INVOICE",
+    `${getSiteUrl()}/portal/bookings`,
+    vat
   )
   await sendEmail({ to: booking.customer.email, subject: receipt.subject, html: receipt.html })
 }

@@ -157,7 +157,12 @@ export default async function PortalBookingsPage({
                             fullWidth={false}
                           />
                         )}
-                        <RedeemCreditForm bookingId={booking.id} type="DEPOSIT" />
+                        <RedeemCreditForm
+                          bookingId={booking.id}
+                          type="DEPOSIT"
+                          depositPence={booking.depositPence}
+                          totalPence={booking.totalPence}
+                        />
                       </>
                     )}
                     {booking.status === "CONFIRMED" &&

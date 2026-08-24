@@ -21,6 +21,7 @@ import { TestimonialCreateForm } from "@/components/admin/testimonial-create-for
 import { TestimonialListItem } from "@/components/admin/testimonial-list-item"
 import { GoogleReviewUrlForm } from "@/components/admin/google-review-url-form"
 import { VatSettingsForm } from "@/components/admin/vat-settings-form"
+import { InvoiceLegalDetailsForm } from "@/components/admin/invoice-legal-details-form"
 
 export const metadata: Metadata = {
   title: "Content | Admin",
@@ -42,6 +43,8 @@ export default async function AdminContentPage() {
     termsConditions,
     vacancies,
     settings,
+    companyRegNo,
+    directors,
   ] = await Promise.all([
       auth(),
       getSetting("opening_hours", ""),
@@ -57,6 +60,8 @@ export default async function AdminContentPage() {
       getSetting("terms_conditions", ""),
       getSetting("vacancies", ""),
       getSettings(),
+      getSetting("business_company_reg_no", ""),
+      getSetting("business_directors", ""),
     ])
   const isSuperAdmin = session?.user.isSuperAdmin ?? false
 
@@ -203,6 +208,15 @@ export default async function AdminContentPage() {
           periodStartMonth={settings.vat_period_start_month ?? "1"}
           periodLength={settings.vat_period_length ?? "QUARTERLY"}
         />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Invoice legal details</h2>
+        <p className="text-sm text-muted-foreground">
+          Shown in the legal footer of the invoice-style booking confirmation email. Leave either
+          blank to omit that line entirely rather than showing a placeholder.
+        </p>
+        <InvoiceLegalDetailsForm companyRegNo={companyRegNo} directors={directors} />
       </section>
 
       <section className="space-y-3">

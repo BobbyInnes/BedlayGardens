@@ -25,6 +25,7 @@ import {
   Receipt,
   Mail,
   LayoutTemplate,
+  FileSignature,
   ChevronRight,
   type LucideIcon,
 } from "lucide-react"
@@ -47,12 +48,13 @@ const navItems: NavEntry[] = [
   { href: "/admin/bookings", label: "Bookings", icon: BookOpen },
   { href: "/admin/waitlist", label: "Waitlist", icon: ListOrdered },
   {
-    label: "Site Sections & Updates",
+    label: "Website Management",
     icon: LayoutTemplate,
     children: [
-      { href: "/admin/services", label: "Services", icon: Tag },
-      { href: "/admin/media", label: "Media", icon: ImageIcon },
-      { href: "/admin/content", label: "Content", icon: FileText },
+      { href: "/admin/services", label: "Services We Offer", icon: Tag },
+      { href: "/admin/media", label: "Media Control", icon: ImageIcon },
+      { href: "/admin/content", label: "Content Control", icon: FileText },
+      { href: "/admin/agreement", label: "Terms and Conditions", icon: FileSignature },
     ],
   },
   { href: "/admin/pricing", label: "Pricing & Capacity", icon: Settings },
@@ -62,6 +64,7 @@ const navItems: NavEntry[] = [
   { href: "/admin/reports", label: "Reports", icon: BarChart3 },
   { href: "/admin/accounting", label: "Accounting", icon: Receipt },
   { href: "/admin/emails", label: "Sent Emails", icon: Mail },
+  { href: "/admin/email-templates", label: "Email Templates", icon: LayoutTemplate },
   { href: "/admin/audit-log", label: "Audit Log", icon: ShieldCheck },
 ]
 

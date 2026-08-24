@@ -1,4 +1,5 @@
 import { getSettings } from "@/lib/settings"
+import { toDateInputValue } from "@/lib/dates"
 
 export type VatPeriodLength = "MONTHLY" | "QUARTERLY" | "ANNUALLY"
 
@@ -85,6 +86,12 @@ export function formatVatPeriod(period: VatPeriod): string {
   return `${period.start.toLocaleDateString("en-GB", opts)} – ${end.toLocaleDateString("en-GB", opts)}`
 }
 
+// `period.start` is built from local date components (see vatPeriodContaining),
+// so this must format it in local time too — a naive `toISOString().slice(0, 10)`
+// converts to UTC first and reads one day early whenever local time is ahead
+// of UTC (e.g. BST), which can corrupt the date enough to land in the wrong
+// period entirely once it's re-parsed. Same footgun toDateInputValue already
+// avoids, so it's reused here rather than duplicating the fix.
 export function vatPeriodParam(period: VatPeriod): string {
-  return period.start.toISOString().slice(0, 10)
+  return toDateInputValue(period.start)
 }
