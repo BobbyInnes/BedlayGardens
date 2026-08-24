@@ -1,6 +1,7 @@
 "use server"
 
 import { randomUUID } from "node:crypto"
+import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import bcrypt from "bcryptjs"
 import { z } from "zod"
@@ -80,6 +81,7 @@ export async function updateProfile(
     },
   })
 
+  revalidatePath("/portal/account")
   return { status: "success", message: "Details updated." }
 }
 
@@ -141,6 +143,7 @@ export async function updateEmergencyContact(
     },
   })
 
+  revalidatePath("/portal/account")
   return { status: "success", message: "Emergency contact updated." }
 }
 
@@ -210,6 +213,7 @@ export async function updateVetPractice(
     },
   })
 
+  revalidatePath("/portal/account")
   return { status: "success", message: "Vet practice updated." }
 }
 

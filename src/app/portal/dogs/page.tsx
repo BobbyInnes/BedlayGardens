@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { Fragment } from "react"
 import Link from "next/link"
 import { Plus, Check, TriangleAlert, Pencil } from "lucide-react"
 import { auth } from "@/auth"
@@ -7,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DeleteDogButton } from "@/components/portal/delete-dog-button"
 import { formatCustomerNumber, formatDogNumber } from "@/lib/customer-dog-numbers"
-import type { Dog, DogMedication, VaccinationRecord } from "@/generated/prisma/client"
+import type { Dog, DogFeedingItem, DogMedication, VaccinationRecord } from "@/generated/prisma/client"
 
 export const metadata: Metadata = {
   title: "My Dogs",
@@ -15,13 +16,26 @@ export const metadata: Metadata = {
 
 const EXPIRING_SOON_DAYS = 30
 
-function ageYears(dob: Date | null): number | null {
+function ageYearsMonths(dob: Date | null): { years: number; months: number } | null {
   if (!dob) return null
   const now = new Date()
-  let age = now.getFullYear() - dob.getFullYear()
-  const monthDiff = now.getMonth() - dob.getMonth()
-  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) age--
-  return age
+  let years = now.getFullYear() - dob.getFullYear()
+  let months = now.getMonth() - dob.getMonth()
+  if (now.getDate() < dob.getDate()) months--
+  if (months < 0) {
+    years--
+    months += 12
+  }
+  if (years < 0) return null
+  return { years, months }
+}
+
+function formatAge(age: { years: number; months: number } | null): string {
+  if (!age) return ""
+  const parts: string[] = []
+  if (age.years > 0) parts.push(`${age.years} Year${age.years === 1 ? "" : "s"}`)
+  if (age.months > 0 || age.years === 0) parts.push(`${age.months} Month${age.months === 1 ? "" : "s"}`)
+  return `${parts.join(" ")} Old `
 }
 
 function vaccineStatus(record: VaccinationRecord): { label: string; tone: "ok" | "warn" | "bad" } {
@@ -67,12 +81,17 @@ export default async function DogsPage({
       include: {
         vaccinationRecords: true,
         medications: { orderBy: { sortOrder: "asc" } },
+        feedingItems: { orderBy: { sortOrder: "asc" } },
       },
     }),
   ])
 
   const selectedDog = (dogId ? dogs.find((dog) => dog.id === dogId) : dogs[0]) as
-    | (Dog & { vaccinationRecords: VaccinationRecord[]; medications: DogMedication[] })
+    | (Dog & {
+        vaccinationRecords: VaccinationRecord[]
+        medications: DogMedication[]
+        feedingItems: DogFeedingItem[]
+      })
     | undefined
 
   return (
@@ -158,7 +177,7 @@ export default async function DogsPage({
                 )}
               </div>
               <p className="text-sm text-muted-foreground">
-                {ageYears(selectedDog.dob) !== null ? `${ageYears(selectedDog.dob)} Year Old ` : ""}
+                {formatAge(ageYearsMonths(selectedDog.dob))}
                 {selectedDog.sex
                   ? selectedDog.sex.charAt(0).toUpperCase() + selectedDog.sex.slice(1)
                   : "Unknown sex"}
@@ -181,25 +200,17 @@ export default async function DogsPage({
               <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 Physical Info
               </h3>
-              <dl className="space-y-1.5 text-sm">
-                <div className="flex items-center justify-between gap-2">
-                  <dt className="text-muted-foreground">Weight:</dt>
-                  <dd className="font-medium">{selectedDog.weightKg ? `${selectedDog.weightKg} kg` : "—"}</dd>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <dt className="text-muted-foreground">Color:</dt>
-                  <dd className="font-medium">{selectedDog.color || "—"}</dd>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <dt className="text-muted-foreground">Date of Birth:</dt>
-                  <dd className="font-medium">
-                    {selectedDog.dob ? selectedDog.dob.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "—"}
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <dt className="text-muted-foreground">Spayed/Neutered:</dt>
-                  <dd className="font-medium">{selectedDog.neutered ? "Yes" : "No"}</dd>
-                </div>
+              <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-sm">
+                <dt className="text-muted-foreground">Weight:</dt>
+                <dd className="font-medium">{selectedDog.weightKg ? `${selectedDog.weightKg} kg` : "—"}</dd>
+                <dt className="text-muted-foreground">Color:</dt>
+                <dd className="font-medium">{selectedDog.color || "—"}</dd>
+                <dt className="text-muted-foreground">Date of Birth:</dt>
+                <dd className="font-medium">
+                  {selectedDog.dob ? selectedDog.dob.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "—"}
+                </dd>
+                <dt className="text-muted-foreground">Spayed/Neutered:</dt>
+                <dd className="font-medium">{selectedDog.neutered ? "Yes" : "No"}</dd>
               </dl>
             </div>
 
@@ -207,32 +218,22 @@ export default async function DogsPage({
               <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 Medical Status
               </h3>
-              <dl className="space-y-1.5 text-sm">
+              <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-sm">
                 {selectedDog.vaccinationRecords.map((record) => {
                   const status = vaccineStatus(record)
                   return (
-                    <div key={record.id} className="flex items-center justify-between gap-2">
+                    <Fragment key={record.id}>
                       <dt className="text-muted-foreground">{record.type}:</dt>
                       <dd className={`font-medium ${TONE_TEXT_CLASSES[status.tone]}`}>{status.label}</dd>
-                    </div>
+                    </Fragment>
                   )
                 })}
-                <div className="flex items-center justify-between gap-2">
-                  <dt className="text-muted-foreground">Primary Vet:</dt>
-                  <dd className="font-medium">{user?.vetName || "—"}</dd>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <dt className="text-muted-foreground">Allergies:</dt>
-                  <dd className="font-medium">{selectedDog.allergies || "None"}</dd>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <dt className="text-muted-foreground">Medication:</dt>
-                  <dd className="font-medium">{selectedDog.medicationNotes || "None"}</dd>
-                </div>
+                <dt className="text-muted-foreground">Allergies:</dt>
+                <dd className="font-medium">{selectedDog.allergies || "None"}</dd>
                 {selectedDog.medications.length > 0 && (
-                  <div>
-                    <dt className="mb-1 text-muted-foreground">Medical history:</dt>
-                    <dd>
+                  <>
+                    <dt className="col-span-2 text-muted-foreground">Medical history:</dt>
+                    <dd className="col-span-2">
                       <ul className="list-disc space-y-0.5 pl-4 font-medium">
                         {selectedDog.medications.map((med) => (
                           <li key={med.id}>
@@ -248,7 +249,7 @@ export default async function DogsPage({
                         ))}
                       </ul>
                     </dd>
-                  </div>
+                  </>
                 )}
               </dl>
             </div>
@@ -257,11 +258,33 @@ export default async function DogsPage({
               <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 Boarding Requirements
               </h3>
-              <dl className="space-y-1.5 text-sm">
-                <div className="flex items-center justify-between gap-2">
-                  <dt className="text-muted-foreground">Feeding:</dt>
-                  <dd className="font-medium">{selectedDog.feedingNotes || "—"}</dd>
-                </div>
+              <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-sm">
+                {selectedDog.feedingItems.length > 0 ? (
+                  <>
+                    <dt className="col-span-2 text-muted-foreground">Feeding:</dt>
+                    <dd className="col-span-2">
+                      <ul className="list-disc space-y-0.5 pl-4 font-medium">
+                        {selectedDog.feedingItems.map((item) => (
+                          <li key={item.id}>
+                            {item.item}
+                            {item.amount ? ` — ${item.amount}` : ""}
+                            {" ("}
+                            {item.specificTime
+                              ? item.specificTime
+                              : [item.am && "AM", item.pm && "PM"].filter(Boolean).join(" & ") ||
+                                "no schedule set"}
+                            {")"}
+                          </li>
+                        ))}
+                      </ul>
+                    </dd>
+                  </>
+                ) : (
+                  <>
+                    <dt className="text-muted-foreground">Feeding:</dt>
+                    <dd className="font-medium">—</dd>
+                  </>
+                )}
               </dl>
             </div>
           </div>
