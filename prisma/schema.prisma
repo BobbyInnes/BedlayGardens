@@ -172,6 +172,23 @@ model User {
   adminNotes       String?
   createdAt        DateTime  @default(now())
 
+  // Vet practice and emergency contact — account-level (shared across all of
+  // this customer's dogs), set on the portal "Your Details" page.
+  vetName                      String?
+  vetPhone                     String?
+  vetPracticeName              String?
+  vetAddressLine1              String?
+  vetAddressLine2              String?
+  vetCity                      String?
+  vetPostcode                  String?
+  vetEmail                     String?
+  emergencyContactName         String?
+  emergencyContactPhone        String?
+  emergencyContactAddressLine1 String?
+  emergencyContactAddressLine2 String?
+  emergencyContactCity         String?
+  emergencyContactPostcode     String?
+
   accounts               Account[]
   sessions               Session[]
   dogs                   Dog[]
@@ -289,21 +306,7 @@ model Dog {
   feedingNotes     String?
   medicationNotes  String?
   behaviourNotes   String?
-  vetName          String?
-  vetPhone         String?
-  vetPracticeName  String?
-  vetAddressLine1  String?
-  vetAddressLine2  String?
-  vetCity          String?
-  vetPostcode      String?
-  vetEmail         String?
   allergies        String?
-  emergencyContactName          String?
-  emergencyContactPhone         String?
-  emergencyContactAddressLine1  String?
-  emergencyContactAddressLine2  String?
-  emergencyContactCity          String?
-  emergencyContactPostcode      String?
   microchipNumber  String?
   color            String?
   runType          String?

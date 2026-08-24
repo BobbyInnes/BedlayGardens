@@ -45,21 +45,7 @@ const dogSchema = z.object({
   feedingNotes: z.string().trim().max(2000).optional(),
   medicationNotes: z.string().trim().max(2000).optional(),
   behaviourNotes: z.string().trim().max(2000).optional(),
-  vetName: z.string().trim().max(200).optional(),
-  vetPhone: z.string().trim().max(50).optional(),
-  vetPracticeName: z.string().trim().max(200).optional(),
-  vetAddressLine1: z.string().trim().max(200).optional(),
-  vetAddressLine2: z.string().trim().max(200).optional(),
-  vetCity: z.string().trim().max(100).optional(),
-  vetPostcode: z.string().trim().max(20).optional(),
-  vetEmail: z.string().trim().max(200).email("Enter a valid email").optional().or(z.literal("")),
   allergies: z.string().trim().max(2000).optional(),
-  emergencyContactName: z.string().trim().max(200).optional(),
-  emergencyContactPhone: z.string().trim().max(50).optional(),
-  emergencyContactAddressLine1: z.string().trim().max(200).optional(),
-  emergencyContactAddressLine2: z.string().trim().max(200).optional(),
-  emergencyContactCity: z.string().trim().max(100).optional(),
-  emergencyContactPostcode: z.string().trim().max(20).optional(),
   microchipNumber: z.string().trim().max(50).optional(),
   color: z.string().trim().max(100).optional(),
   // runType, temperament, and groupPlayApproved are deliberately not
@@ -78,21 +64,7 @@ export type DogFieldValues = {
   feedingNotes: string
   medicationNotes: string
   behaviourNotes: string
-  vetName: string
-  vetPhone: string
-  vetPracticeName: string
-  vetAddressLine1: string
-  vetAddressLine2: string
-  vetCity: string
-  vetPostcode: string
-  vetEmail: string
   allergies: string
-  emergencyContactName: string
-  emergencyContactPhone: string
-  emergencyContactAddressLine1: string
-  emergencyContactAddressLine2: string
-  emergencyContactCity: string
-  emergencyContactPostcode: string
   microchipNumber: string
   color: string
 }
@@ -118,21 +90,7 @@ function extractDogFormValues(formData: FormData): DogFieldValues {
     feedingNotes: String(formData.get("feedingNotes") ?? ""),
     medicationNotes: String(formData.get("medicationNotes") ?? ""),
     behaviourNotes: String(formData.get("behaviourNotes") ?? ""),
-    vetName: String(formData.get("vetName") ?? ""),
-    vetPhone: String(formData.get("vetPhone") ?? ""),
-    vetPracticeName: String(formData.get("vetPracticeName") ?? ""),
-    vetAddressLine1: String(formData.get("vetAddressLine1") ?? ""),
-    vetAddressLine2: String(formData.get("vetAddressLine2") ?? ""),
-    vetCity: String(formData.get("vetCity") ?? ""),
-    vetPostcode: String(formData.get("vetPostcode") ?? ""),
-    vetEmail: String(formData.get("vetEmail") ?? ""),
     allergies: String(formData.get("allergies") ?? ""),
-    emergencyContactName: String(formData.get("emergencyContactName") ?? ""),
-    emergencyContactPhone: String(formData.get("emergencyContactPhone") ?? ""),
-    emergencyContactAddressLine1: String(formData.get("emergencyContactAddressLine1") ?? ""),
-    emergencyContactAddressLine2: String(formData.get("emergencyContactAddressLine2") ?? ""),
-    emergencyContactCity: String(formData.get("emergencyContactCity") ?? ""),
-    emergencyContactPostcode: String(formData.get("emergencyContactPostcode") ?? ""),
     microchipNumber: String(formData.get("microchipNumber") ?? ""),
     color: String(formData.get("color") ?? ""),
   }
@@ -250,21 +208,7 @@ export async function createDog(
       feedingNotes: data.feedingNotes || null,
       medicationNotes: data.medicationNotes || null,
       behaviourNotes: data.behaviourNotes || null,
-      vetName: data.vetName || null,
-      vetPhone: data.vetPhone || null,
-      vetPracticeName: data.vetPracticeName || null,
-      vetAddressLine1: data.vetAddressLine1 || null,
-      vetAddressLine2: data.vetAddressLine2 || null,
-      vetCity: data.vetCity || null,
-      vetPostcode: data.vetPostcode || null,
-      vetEmail: data.vetEmail || null,
       allergies: data.allergies || null,
-      emergencyContactName: data.emergencyContactName || null,
-      emergencyContactPhone: data.emergencyContactPhone || null,
-      emergencyContactAddressLine1: data.emergencyContactAddressLine1 || null,
-      emergencyContactAddressLine2: data.emergencyContactAddressLine2 || null,
-      emergencyContactCity: data.emergencyContactCity || null,
-      emergencyContactPostcode: data.emergencyContactPostcode || null,
       microchipNumber: data.microchipNumber || null,
       color: data.color || null,
       medications: medicationRows.length > 0 ? { create: medicationRows } : undefined,
@@ -350,21 +294,7 @@ export async function updateDog(
     feedingNotes: dog.feedingNotes,
     medicationNotes: dog.medicationNotes,
     behaviourNotes: data.behaviourNotes || null,
-    vetName: data.vetName || null,
-    vetPhone: data.vetPhone || null,
-    vetPracticeName: data.vetPracticeName || null,
-    vetAddressLine1: data.vetAddressLine1 || null,
-    vetAddressLine2: data.vetAddressLine2 || null,
-    vetCity: data.vetCity || null,
-    vetPostcode: data.vetPostcode || null,
-    vetEmail: data.vetEmail || null,
     allergies: data.allergies || null,
-    emergencyContactName: data.emergencyContactName || null,
-    emergencyContactPhone: data.emergencyContactPhone || null,
-    emergencyContactAddressLine1: data.emergencyContactAddressLine1 || null,
-    emergencyContactAddressLine2: data.emergencyContactAddressLine2 || null,
-    emergencyContactCity: data.emergencyContactCity || null,
-    emergencyContactPostcode: data.emergencyContactPostcode || null,
     microchipNumber: data.microchipNumber || null,
     color: data.color || null,
     photoUrl,
@@ -406,21 +336,7 @@ export async function updateDog(
       feedingNotes: "Feeding notes",
       medicationNotes: "Medication notes",
       behaviourNotes: "Behaviour notes",
-      vetName: "Vet name",
-      vetPhone: "Vet phone",
-      vetPracticeName: "Vet practice name",
-      vetAddressLine1: "Vet address line 1",
-      vetAddressLine2: "Vet address line 2",
-      vetCity: "Vet town/city",
-      vetPostcode: "Vet postcode",
-      vetEmail: "Vet email",
       allergies: "Allergies",
-      emergencyContactName: "Emergency contact name",
-      emergencyContactPhone: "Emergency contact phone",
-      emergencyContactAddressLine1: "Emergency contact address line 1",
-      emergencyContactAddressLine2: "Emergency contact address line 2",
-      emergencyContactCity: "Emergency contact town/city",
-      emergencyContactPostcode: "Emergency contact postcode",
       microchipNumber: "Microchip number",
       color: "Colour",
       photoUrl: "Photo",

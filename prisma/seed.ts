@@ -102,23 +102,23 @@ async function main() {
   });
 
   const alice = await prisma.user.create({
-    data: { email: 'alice@example.test', passwordHash, name: 'Alice Walker', phone: '07700900010', addressLine1: '10 Example Street', addressCity: 'Glasgow', addressPostcode: 'G1 1AA', role: 'CUSTOMER', active: true, stripeCustomerId: 'cus_test_alice' },
+    data: { email: 'alice@example.test', passwordHash, name: 'Alice Walker', phone: '07700900010', addressLine1: '10 Example Street', addressCity: 'Glasgow', addressPostcode: 'G1 1AA', role: 'CUSTOMER', active: true, stripeCustomerId: 'cus_test_alice', vetName: 'Dr. Fiona Reid', vetPhone: '01417001234', vetPracticeName: 'Chryston Vets', vetAddressLine1: '12 Main Street', vetCity: 'Chryston', vetPostcode: 'G69 9AB', vetEmail: 'info@chrystonvets.co.uk', emergencyContactName: 'Alice Walker', emergencyContactPhone: '07700900010', emergencyContactAddressLine1: '4 Orchard Road', emergencyContactCity: 'Glasgow', emergencyContactPostcode: 'G33 1AB' },
   });
 
   const bob = await prisma.user.create({
-    data: { email: 'bob@example.test', passwordHash, name: 'Bob Fraser', phone: '07700900011', addressLine1: '22 Example Street', addressCity: 'Glasgow', addressPostcode: 'G2 2BB', role: 'CUSTOMER', active: true, stripeCustomerId: 'cus_test_bob' },
+    data: { email: 'bob@example.test', passwordHash, name: 'Bob Fraser', phone: '07700900011', addressLine1: '22 Example Street', addressCity: 'Glasgow', addressPostcode: 'G2 2BB', role: 'CUSTOMER', active: true, stripeCustomerId: 'cus_test_bob', vetName: 'Dr. James Wood', vetPhone: '01417005678', vetPracticeName: 'Glasgow Vet Clinic', vetAddressLine1: '88 Cathedral Street', vetCity: 'Glasgow', vetPostcode: 'G1 2QX', vetEmail: 'reception@glasgowvetclinic.co.uk', emergencyContactName: 'Bob Fraser', emergencyContactPhone: '07700900011' },
   });
 
   const carol = await prisma.user.create({
-    data: { email: 'carol@example.test', passwordHash, name: 'Carol Mitchell', phone: '07700900012', addressLine1: '5 Example Road', addressCity: 'Chryston', addressPostcode: 'G69 9AA', role: 'CUSTOMER', active: true },
+    data: { email: 'carol@example.test', passwordHash, name: 'Carol Mitchell', phone: '07700900012', addressLine1: '5 Example Road', addressCity: 'Chryston', addressPostcode: 'G69 9AA', role: 'CUSTOMER', active: true, vetName: 'Dr. Fiona Reid', vetPhone: '01417001234', vetPracticeName: 'Chryston Vets', vetAddressLine1: '12 Main Street', vetCity: 'Chryston', vetPostcode: 'G69 9AB', vetEmail: 'info@chrystonvets.co.uk', emergencyContactName: 'Carol Mitchell', emergencyContactPhone: '07700900012' },
   });
 
   const dave = await prisma.user.create({
-    data: { email: 'dave@example.test', passwordHash, name: 'Dave Thomson', phone: '07700900013', addressLine1: '99 Outside Area Lane', addressCity: 'Edinburgh', addressPostcode: 'EH1 1AA', role: 'CUSTOMER', active: true }, // EH postcode: outside service area on purpose
+    data: { email: 'dave@example.test', passwordHash, name: 'Dave Thomson', phone: '07700900013', addressLine1: '99 Outside Area Lane', addressCity: 'Edinburgh', addressPostcode: 'EH1 1AA', role: 'CUSTOMER', active: true, vetName: 'Dr. Ian Ross', vetPhone: '01315559999', vetPracticeName: 'Edinburgh Vets', vetCity: 'Edinburgh', vetPostcode: 'EH1 1AA', emergencyContactName: 'Dave Thomson', emergencyContactPhone: '07700900013' }, // EH postcode: outside service area on purpose
   });
 
   const erin = await prisma.user.create({
-    data: { email: 'erin@example.test', passwordHash, name: 'Erin Campbell', phone: '07700900014', addressLine1: '3 Example Crescent', addressCity: 'Muirhead', addressPostcode: 'G69 9XY', role: 'CUSTOMER', active: true, stripeCustomerId: 'cus_test_erin' },
+    data: { email: 'erin@example.test', passwordHash, name: 'Erin Campbell', phone: '07700900014', addressLine1: '3 Example Crescent', addressCity: 'Muirhead', addressPostcode: 'G69 9XY', role: 'CUSTOMER', active: true, stripeCustomerId: 'cus_test_erin', vetName: 'Dr. Sarah Kerr', vetPhone: '01417009999', vetPracticeName: 'Muirhead Vets', vetCity: 'Muirhead', vetPostcode: 'G69 9DL', emergencyContactName: 'Erin Campbell', emergencyContactPhone: '07700900014' },
   });
 
   // A soft-deleted / GDPR-deleted account, to test account deletion still
@@ -157,11 +157,11 @@ async function main() {
   // ---------------------------------------------------------------------
   // DOGS
   // ---------------------------------------------------------------------
-  const aliceDog = await prisma.dog.create({ data: { ownerId: alice.id, name: 'Bramble', breed: 'Cockapoo', dob: new Date(2021, 3, 12), sex: 'FEMALE', neutered: true, weightKg: 9.5, feedingNotes: 'Half cup dry food twice a day', allergies: 'Chicken', vetName: 'Dr. Fiona Reid', vetPhone: '01417001234', vetPracticeName: 'Chryston Vets', vetAddressLine1: '12 Main Street', vetCity: 'Chryston', vetPostcode: 'G69 9AB', vetEmail: 'info@chrystonvets.co.uk', emergencyContactName: 'Alice Walker', emergencyContactPhone: '07700900010', emergencyContactAddressLine1: '4 Orchard Road', emergencyContactCity: 'Glasgow', emergencyContactPostcode: 'G33 1AB' } });
-  const bobDog = await prisma.dog.create({ data: { ownerId: bob.id, name: 'Max', breed: 'Labrador', dob: new Date(2019, 7, 1), sex: 'MALE', neutered: true, weightKg: 28, feedingNotes: 'One and a half cups twice daily', vetName: 'Dr. James Wood', vetPhone: '01417005678', vetPracticeName: 'Glasgow Vet Clinic', vetAddressLine1: '88 Cathedral Street', vetCity: 'Glasgow', vetPostcode: 'G1 2QX', vetEmail: 'reception@glasgowvetclinic.co.uk', emergencyContactName: 'Bob Fraser', emergencyContactPhone: '07700900011' } });
-  const carolDog = await prisma.dog.create({ data: { ownerId: carol.id, name: 'Poppy', breed: 'Spaniel', dob: new Date(2022, 1, 20), sex: 'FEMALE', neutered: false, weightKg: 12, vetName: 'Dr. Fiona Reid', vetPhone: '01417001234', vetPracticeName: 'Chryston Vets', vetAddressLine1: '12 Main Street', vetCity: 'Chryston', vetPostcode: 'G69 9AB', vetEmail: 'info@chrystonvets.co.uk', emergencyContactName: 'Carol Mitchell', emergencyContactPhone: '07700900012' } });
-  const daveDog = await prisma.dog.create({ data: { ownerId: dave.id, name: 'Rex', breed: 'German Shepherd', dob: new Date(2020, 5, 5), sex: 'MALE', neutered: true, weightKg: 34, behaviourNotes: 'Reactive to unfamiliar dogs — see compatibility flags', vetName: 'Dr. Ian Ross', vetPhone: '01315559999', vetPracticeName: 'Edinburgh Vets', vetCity: 'Edinburgh', vetPostcode: 'EH1 1AA', emergencyContactName: 'Dave Thomson', emergencyContactPhone: '07700900013' } });
-  const erinDog = await prisma.dog.create({ data: { ownerId: erin.id, name: 'Luna', breed: 'Border Collie', dob: new Date(2021, 9, 9), sex: 'FEMALE', neutered: true, weightKg: 18, allergies: 'Grass pollen (mild, seasonal)', vetName: 'Dr. Sarah Kerr', vetPhone: '01417009999', vetPracticeName: 'Muirhead Vets', vetCity: 'Muirhead', vetPostcode: 'G69 9DL', emergencyContactName: 'Erin Campbell', emergencyContactPhone: '07700900014' } });
+  const aliceDog = await prisma.dog.create({ data: { ownerId: alice.id, name: 'Bramble', breed: 'Cockapoo', dob: new Date(2021, 3, 12), sex: 'FEMALE', neutered: true, weightKg: 9.5, feedingNotes: 'Half cup dry food twice a day', allergies: 'Chicken' } });
+  const bobDog = await prisma.dog.create({ data: { ownerId: bob.id, name: 'Max', breed: 'Labrador', dob: new Date(2019, 7, 1), sex: 'MALE', neutered: true, weightKg: 28, feedingNotes: 'One and a half cups twice daily' } });
+  const carolDog = await prisma.dog.create({ data: { ownerId: carol.id, name: 'Poppy', breed: 'Spaniel', dob: new Date(2022, 1, 20), sex: 'FEMALE', neutered: false, weightKg: 12 } });
+  const daveDog = await prisma.dog.create({ data: { ownerId: dave.id, name: 'Rex', breed: 'German Shepherd', dob: new Date(2020, 5, 5), sex: 'MALE', neutered: true, weightKg: 34, behaviourNotes: 'Reactive to unfamiliar dogs — see compatibility flags' } });
+  const erinDog = await prisma.dog.create({ data: { ownerId: erin.id, name: 'Luna', breed: 'Border Collie', dob: new Date(2021, 9, 9), sex: 'FEMALE', neutered: true, weightKg: 18, allergies: 'Grass pollen (mild, seasonal)' } });
 
   // ---------------------------------------------------------------------
   // VACCINATION RECORDS

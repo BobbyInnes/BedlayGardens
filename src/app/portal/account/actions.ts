@@ -83,6 +83,136 @@ export async function updateProfile(
   return { status: "success", message: "Details updated." }
 }
 
+const emergencyContactSchema = z.object({
+  emergencyContactName: z.string().trim().max(200).optional().or(z.literal("")),
+  emergencyContactPhone: z.string().trim().max(50).optional().or(z.literal("")),
+  emergencyContactAddressLine1: z.string().trim().max(200).optional().or(z.literal("")),
+  emergencyContactAddressLine2: z.string().trim().max(200).optional().or(z.literal("")),
+  emergencyContactCity: z.string().trim().max(100).optional().or(z.literal("")),
+  emergencyContactPostcode: z.string().trim().max(20).optional().or(z.literal("")),
+})
+
+export async function updateEmergencyContact(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const session = await auth()
+  if (!session?.user) return { status: "error", message: "Unauthorized" }
+
+  const parsed = emergencyContactSchema.safeParse({
+    emergencyContactName: formData.get("emergencyContactName"),
+    emergencyContactPhone: formData.get("emergencyContactPhone"),
+    emergencyContactAddressLine1: formData.get("emergencyContactAddressLine1"),
+    emergencyContactAddressLine2: formData.get("emergencyContactAddressLine2"),
+    emergencyContactCity: formData.get("emergencyContactCity"),
+    emergencyContactPostcode: formData.get("emergencyContactPostcode"),
+  })
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
+  }
+
+  const before = await prisma.user.findUniqueOrThrow({ where: { id: session.user.id } })
+  const after = {
+    emergencyContactName: parsed.data.emergencyContactName || null,
+    emergencyContactPhone: parsed.data.emergencyContactPhone || null,
+    emergencyContactAddressLine1: parsed.data.emergencyContactAddressLine1 || null,
+    emergencyContactAddressLine2: parsed.data.emergencyContactAddressLine2 || null,
+    emergencyContactCity: parsed.data.emergencyContactCity || null,
+    emergencyContactPostcode: parsed.data.emergencyContactPostcode || null,
+  }
+
+  await prisma.user.update({ where: { id: session.user.id }, data: after })
+
+  await logEntityChange({
+    actorId: session.user.id,
+    action: "UPDATE_EMERGENCY_CONTACT",
+    entity: "User",
+    entityId: session.user.id,
+    context: `customer ${before.name} <${before.email}> (self-service)`,
+    before,
+    after,
+    labels: {
+      emergencyContactName: "Emergency contact name",
+      emergencyContactPhone: "Emergency contact phone",
+      emergencyContactAddressLine1: "Emergency contact address line 1",
+      emergencyContactAddressLine2: "Emergency contact address line 2",
+      emergencyContactCity: "Emergency contact town/city",
+      emergencyContactPostcode: "Emergency contact postcode",
+    },
+  })
+
+  return { status: "success", message: "Emergency contact updated." }
+}
+
+const vetPracticeSchema = z.object({
+  vetName: z.string().trim().max(200).optional().or(z.literal("")),
+  vetPhone: z.string().trim().max(50).optional().or(z.literal("")),
+  vetPracticeName: z.string().trim().max(200).optional().or(z.literal("")),
+  vetAddressLine1: z.string().trim().max(200).optional().or(z.literal("")),
+  vetAddressLine2: z.string().trim().max(200).optional().or(z.literal("")),
+  vetCity: z.string().trim().max(100).optional().or(z.literal("")),
+  vetPostcode: z.string().trim().max(20).optional().or(z.literal("")),
+  vetEmail: z.string().trim().max(200).email("Enter a valid email").optional().or(z.literal("")),
+})
+
+export async function updateVetPractice(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const session = await auth()
+  if (!session?.user) return { status: "error", message: "Unauthorized" }
+
+  const parsed = vetPracticeSchema.safeParse({
+    vetName: formData.get("vetName"),
+    vetPhone: formData.get("vetPhone"),
+    vetPracticeName: formData.get("vetPracticeName"),
+    vetAddressLine1: formData.get("vetAddressLine1"),
+    vetAddressLine2: formData.get("vetAddressLine2"),
+    vetCity: formData.get("vetCity"),
+    vetPostcode: formData.get("vetPostcode"),
+    vetEmail: formData.get("vetEmail"),
+  })
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
+  }
+
+  const before = await prisma.user.findUniqueOrThrow({ where: { id: session.user.id } })
+  const after = {
+    vetName: parsed.data.vetName || null,
+    vetPhone: parsed.data.vetPhone || null,
+    vetPracticeName: parsed.data.vetPracticeName || null,
+    vetAddressLine1: parsed.data.vetAddressLine1 || null,
+    vetAddressLine2: parsed.data.vetAddressLine2 || null,
+    vetCity: parsed.data.vetCity || null,
+    vetPostcode: parsed.data.vetPostcode || null,
+    vetEmail: parsed.data.vetEmail || null,
+  }
+
+  await prisma.user.update({ where: { id: session.user.id }, data: after })
+
+  await logEntityChange({
+    actorId: session.user.id,
+    action: "UPDATE_VET_PRACTICE",
+    entity: "User",
+    entityId: session.user.id,
+    context: `customer ${before.name} <${before.email}> (self-service)`,
+    before,
+    after,
+    labels: {
+      vetName: "Consultant's name",
+      vetPhone: "Phone",
+      vetPracticeName: "Practice name",
+      vetAddressLine1: "Vet address line 1",
+      vetAddressLine2: "Vet address line 2",
+      vetCity: "Vet town/city",
+      vetPostcode: "Vet postcode",
+      vetEmail: "Practice email",
+    },
+  })
+
+  return { status: "success", message: "Vet practice updated." }
+}
+
 const passwordSchema = z
   .object({
     currentPassword: z.string().min(1, "Enter your current password"),
@@ -204,6 +334,20 @@ export async function deleteAccount() {
           addressLine2: null,
           addressCity: null,
           addressPostcode: null,
+          vetName: null,
+          vetPhone: null,
+          vetPracticeName: null,
+          vetAddressLine1: null,
+          vetAddressLine2: null,
+          vetCity: null,
+          vetPostcode: null,
+          vetEmail: null,
+          emergencyContactName: null,
+          emergencyContactPhone: null,
+          emergencyContactAddressLine1: null,
+          emergencyContactAddressLine2: null,
+          emergencyContactCity: null,
+          emergencyContactPostcode: null,
           active: false,
         },
       })

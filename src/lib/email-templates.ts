@@ -364,21 +364,7 @@ type NewDogDetails = {
   weightKg: number | null
   size: string | null
   neutered: boolean
-  vetName: string | null
-  vetPhone: string | null
-  vetPracticeName: string | null
-  vetAddressLine1: string | null
-  vetAddressLine2: string | null
-  vetCity: string | null
-  vetPostcode: string | null
-  vetEmail: string | null
   allergies: string | null
-  emergencyContactName: string | null
-  emergencyContactPhone: string | null
-  emergencyContactAddressLine1: string | null
-  emergencyContactAddressLine2: string | null
-  emergencyContactCity: string | null
-  emergencyContactPostcode: string | null
   feedingNotes: string | null
   medicationNotes: string | null
   behaviourNotes: string | null
@@ -388,18 +374,7 @@ function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
 }
 
-function joinAddress(parts: (string | null)[]): string {
-  return parts.filter(Boolean).join(", ")
-}
-
 function dogDetailRows(dog: NewDogDetails): [string, string][] {
-  const vetAddress = joinAddress([dog.vetAddressLine1, dog.vetAddressLine2, dog.vetCity, dog.vetPostcode])
-  const emergencyAddress = joinAddress([
-    dog.emergencyContactAddressLine1,
-    dog.emergencyContactAddressLine2,
-    dog.emergencyContactCity,
-    dog.emergencyContactPostcode,
-  ])
   return [
     ["Dog reference", formatDogNumber(dog.dogNumber)],
     ["Breed", dog.breed],
@@ -415,21 +390,7 @@ function dogDetailRows(dog: NewDogDetails): [string, string][] {
     ...(dog.weightKg ? ([["Weight", `${dog.weightKg}kg`]] as [string, string][]) : []),
     ...(dog.size ? ([["Size", titleCase(dog.size)]] as [string, string][]) : []),
     ["Neutered / spayed", dog.neutered ? "Yes" : "No"],
-    ...(dog.vetName ? ([["Vet name", dog.vetName]] as [string, string][]) : []),
-    ...(dog.vetPhone ? ([["Vet phone", dog.vetPhone]] as [string, string][]) : []),
-    ...(dog.vetPracticeName ? ([["Vet practice", dog.vetPracticeName]] as [string, string][]) : []),
-    ...(vetAddress ? ([["Vet practice address", vetAddress]] as [string, string][]) : []),
-    ...(dog.vetEmail ? ([["Vet practice email", dog.vetEmail]] as [string, string][]) : []),
     ...(dog.allergies ? ([["Allergies", dog.allergies]] as [string, string][]) : []),
-    ...(dog.emergencyContactName
-      ? ([["Emergency contact", dog.emergencyContactName]] as [string, string][])
-      : []),
-    ...(dog.emergencyContactPhone
-      ? ([["Emergency contact phone", dog.emergencyContactPhone]] as [string, string][])
-      : []),
-    ...(emergencyAddress
-      ? ([["Emergency contact address", emergencyAddress]] as [string, string][])
-      : []),
     ...(dog.feedingNotes ? ([["Feeding instructions", dog.feedingNotes]] as [string, string][]) : []),
     ...(dog.medicationNotes ? ([["Medication", dog.medicationNotes]] as [string, string][]) : []),
     ...(dog.behaviourNotes ? ([["Behavioural notes", dog.behaviourNotes]] as [string, string][]) : []),

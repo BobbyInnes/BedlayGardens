@@ -2,6 +2,8 @@ import type { Metadata } from "next"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { ProfileForm } from "@/components/portal/profile-form"
+import { EmergencyContactForm } from "@/components/portal/emergency-contact-form"
+import { VetPracticeForm } from "@/components/portal/vet-practice-form"
 import { PasswordForm } from "@/components/portal/password-form"
 import { DeleteAccountDialog } from "@/components/portal/delete-account-dialog"
 import { BillingPortalButton } from "@/components/portal/billing-portal-button"
@@ -50,6 +52,42 @@ export default async function AccountPage() {
             addressLine2={user?.addressLine2 ?? ""}
             addressCity={user?.addressCity ?? ""}
             addressPostcode={user?.addressPostcode ?? ""}
+          />
+        </section>
+
+        <section className="space-y-4 rounded-lg border border-gray-200 bg-gray-100 p-4">
+          <div>
+            <h2 className="text-lg font-semibold">Emergency contact</h2>
+            <p className="text-sm text-muted-foreground">
+              Shared across all of your dogs — who we should contact if we can&apos;t reach you.
+            </p>
+          </div>
+          <EmergencyContactForm
+            name={user?.emergencyContactName ?? ""}
+            phone={user?.emergencyContactPhone ?? ""}
+            addressLine1={user?.emergencyContactAddressLine1 ?? ""}
+            addressLine2={user?.emergencyContactAddressLine2 ?? ""}
+            addressCity={user?.emergencyContactCity ?? ""}
+            addressPostcode={user?.emergencyContactPostcode ?? ""}
+          />
+        </section>
+
+        <section className="space-y-4 rounded-lg border border-gray-200 bg-gray-100 p-4">
+          <div>
+            <h2 className="text-lg font-semibold">Vet practice</h2>
+            <p className="text-sm text-muted-foreground">
+              Shared across all of your dogs.
+            </p>
+          </div>
+          <VetPracticeForm
+            practiceName={user?.vetPracticeName ?? ""}
+            practiceEmail={user?.vetEmail ?? ""}
+            consultantName={user?.vetName ?? ""}
+            phone={user?.vetPhone ?? ""}
+            addressLine1={user?.vetAddressLine1 ?? ""}
+            addressLine2={user?.vetAddressLine2 ?? ""}
+            addressCity={user?.vetCity ?? ""}
+            addressPostcode={user?.vetPostcode ?? ""}
           />
         </section>
 

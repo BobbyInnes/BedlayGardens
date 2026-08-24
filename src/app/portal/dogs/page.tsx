@@ -219,7 +219,7 @@ export default async function DogsPage({
                 })}
                 <div className="flex items-center justify-between gap-2">
                   <dt className="text-muted-foreground">Primary Vet:</dt>
-                  <dd className="font-medium">{selectedDog.vetName || "—"}</dd>
+                  <dd className="font-medium">{user?.vetName || "—"}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <dt className="text-muted-foreground">Allergies:</dt>

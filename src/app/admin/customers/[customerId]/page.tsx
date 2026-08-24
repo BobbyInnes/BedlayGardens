@@ -175,6 +175,54 @@ export default async function AdminCustomerDetailPage({
           </section>
 
           <section className="space-y-3 rounded-lg border border-gray-200 bg-gray-100 p-4">
+            <h2 className="text-sm font-semibold">Vet &amp; emergency contact</h2>
+            <dl className="grid gap-x-4 gap-y-1 text-sm text-muted-foreground sm:grid-cols-3">
+              <div>
+                <dt className="text-xs">Vet</dt>
+                <dd className="text-foreground">
+                  {customer.vetName || "—"}
+                  {customer.vetPhone ? ` (${customer.vetPhone})` : ""}
+                </dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-xs">Vet practice</dt>
+                <dd className="text-foreground">
+                  {customer.vetPracticeName || "—"}
+                  {[customer.vetAddressLine1, customer.vetAddressLine2, customer.vetCity, customer.vetPostcode]
+                    .filter(Boolean)
+                    .join(", ") &&
+                    ` — ${[customer.vetAddressLine1, customer.vetAddressLine2, customer.vetCity, customer.vetPostcode]
+                      .filter(Boolean)
+                      .join(", ")}`}
+                  {customer.vetEmail ? ` (${customer.vetEmail})` : ""}
+                </dd>
+              </div>
+              <div className="sm:col-span-3">
+                <dt className="text-xs">Emergency contact</dt>
+                <dd className="text-foreground">
+                  {[customer.emergencyContactName, customer.emergencyContactPhone]
+                    .filter(Boolean)
+                    .join(" — ") || "—"}
+                  {[
+                    customer.emergencyContactAddressLine1,
+                    customer.emergencyContactAddressLine2,
+                    customer.emergencyContactCity,
+                    customer.emergencyContactPostcode,
+                  ].filter(Boolean).join(", ") &&
+                    `, ${[
+                      customer.emergencyContactAddressLine1,
+                      customer.emergencyContactAddressLine2,
+                      customer.emergencyContactCity,
+                      customer.emergencyContactPostcode,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}`}
+                </dd>
+              </div>
+            </dl>
+          </section>
+
+          <section className="space-y-3 rounded-lg border border-gray-200 bg-gray-100 p-4">
             <h2 className="text-sm font-semibold">
               Notes <span className="font-normal text-muted-foreground">(not visible to customer)</span>
             </h2>
@@ -253,54 +301,12 @@ export default async function AdminCustomerDetailPage({
                           <dt className="text-xs">Neutered / spayed</dt>
                           <dd className="text-foreground">{dog.neutered ? "Yes" : "No"}</dd>
                         </div>
-                        <div>
-                          <dt className="text-xs">Vet</dt>
-                          <dd className="text-foreground">
-                            {dog.vetName || "—"}
-                            {dog.vetPhone ? ` (${dog.vetPhone})` : ""}
-                          </dd>
-                        </div>
-                        <div className="sm:col-span-3">
-                          <dt className="text-xs">Vet practice</dt>
-                          <dd className="text-foreground">
-                            {dog.vetPracticeName || "—"}
-                            {[dog.vetAddressLine1, dog.vetAddressLine2, dog.vetCity, dog.vetPostcode]
-                              .filter(Boolean)
-                              .join(", ") &&
-                              ` — ${[dog.vetAddressLine1, dog.vetAddressLine2, dog.vetCity, dog.vetPostcode]
-                                .filter(Boolean)
-                                .join(", ")}`}
-                            {dog.vetEmail ? ` (${dog.vetEmail})` : ""}
-                          </dd>
-                        </div>
                         {dog.allergies && (
                           <div className="sm:col-span-3">
                             <dt className="text-xs">Allergies</dt>
                             <dd className="text-foreground">{dog.allergies}</dd>
                           </div>
                         )}
-                        <div className="sm:col-span-3">
-                          <dt className="text-xs">Emergency contact</dt>
-                          <dd className="text-foreground">
-                            {[dog.emergencyContactName, dog.emergencyContactPhone]
-                              .filter(Boolean)
-                              .join(" — ") || "—"}
-                            {[
-                              dog.emergencyContactAddressLine1,
-                              dog.emergencyContactAddressLine2,
-                              dog.emergencyContactCity,
-                              dog.emergencyContactPostcode,
-                            ].filter(Boolean).join(", ") &&
-                              `, ${[
-                                dog.emergencyContactAddressLine1,
-                                dog.emergencyContactAddressLine2,
-                                dog.emergencyContactCity,
-                                dog.emergencyContactPostcode,
-                              ]
-                                .filter(Boolean)
-                                .join(", ")}`}
-                          </dd>
-                        </div>
                         {dog.feedingNotes && (
                           <div className="sm:col-span-3">
                             <dt className="text-xs">Feeding instructions</dt>
