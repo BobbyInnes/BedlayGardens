@@ -347,7 +347,7 @@ export function vaccinationReviewDigestEmail(
       branding,
       "Vaccination certificates awaiting review",
       `
-        <p>The following ${records.length === 1 ? "certificate is" : "certificates are"} still awaiting verification:</p>
+        <p>The following ${records.length === 1 ? "certificate is" : "certificates are"} still awaiting verification from an approved member of staff: Please expedite this approval</p>
         ${detailsTable(rows)}
         <p>Review them from Admin → Vaccinations.</p>
       `
