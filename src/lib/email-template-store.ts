@@ -87,11 +87,6 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateType, EmailTemplateDef> = 
           "\"View and pay the balance of this booking\" link — only shown when a deposit payment leaves a balance owing",
         kind: "block",
       },
-      {
-        key: "legalFooterBlock",
-        description: "Company registration / VAT / directors line — empty unless those Settings are filled in",
-        kind: "block",
-      },
     ],
   },
   BOOKING_CONFIRMATION_INVOICE: {
@@ -133,11 +128,6 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateType, EmailTemplateDef> = 
       {
         key: "customerReferenceBlock",
         description: "The customer reference line — empty if the customer has no reference number",
-        kind: "block",
-      },
-      {
-        key: "legalFooterBlock",
-        description: "Company registration / VAT / directors line — empty unless those Settings are filled in",
         kind: "block",
       },
     ],
@@ -185,11 +175,6 @@ export const EMAIL_TEMPLATE_DEFS: Record<EmailTemplateType, EmailTemplateDef> = 
       },
       { key: "lineItemsTable", description: "The Net/VAT/Total line-items table — always system-generated", kind: "block" },
       { key: "payLinkBlock", description: "The \"pay your deposit now\" link", kind: "block" },
-      {
-        key: "legalFooterBlock",
-        description: "Company registration / VAT / directors line — empty unless those Settings are filled in",
-        kind: "block",
-      },
     ],
   },
 }

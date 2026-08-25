@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { TRIAL_OUTCOME_LABELS } from "@/lib/trial-outcome"
 import { formatDogNumber } from "@/lib/customer-dog-numbers"
+import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
   title: "Dogs | Admin",
@@ -26,7 +27,8 @@ export default async function AdminDogsPage({
         ? {
             owner: {
               OR: [
-                { name: { contains: owner.trim(), mode: "insensitive" } },
+                { forename: { contains: owner.trim(), mode: "insensitive" } },
+                { surname: { contains: owner.trim(), mode: "insensitive" } },
                 { email: { contains: owner.trim(), mode: "insensitive" } },
               ],
             },
@@ -97,7 +99,7 @@ export default async function AdminDogsPage({
                       </span>
                     </p>
                     <p className="text-muted-foreground">
-                      Owner: {dog.owner.name} ({dog.owner.email})
+                      Owner: {fullName(dog.owner)} ({dog.owner.email})
                     </p>
                     <p className="text-muted-foreground">
                       Added {dog.createdAt.toLocaleDateString("en-GB")}

@@ -6,11 +6,15 @@ import { Input } from "@/components/ui/input"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { Label } from "@/components/ui/label"
 import { updateProfile, type ActionState } from "@/app/portal/account/actions"
+import { SALUTATIONS } from "@/lib/salutations"
 
 const initialState: ActionState = { status: "idle" }
 
 export function ProfileForm({
-  name,
+  salutation,
+  forename,
+  surname,
+  homePhone,
   phone,
   workPhone,
   addressLine1,
@@ -18,7 +22,10 @@ export function ProfileForm({
   addressCity,
   addressPostcode,
 }: {
-  name: string
+  salutation: string
+  forename: string
+  surname: string
+  homePhone: string
   phone: string
   workPhone: string
   addressLine1: string
@@ -30,17 +37,43 @@ export function ProfileForm({
 
   return (
     <form action={formAction} className="max-w-md space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="name">Name</Label>
-        <Input id="name" name="name" defaultValue={name} required />
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 grid-cols-[100px_1fr_1fr]">
         <div className="space-y-2">
-          <Label htmlFor="phone">Telephone number</Label>
+          <Label htmlFor="salutation">Salutation</Label>
+          <select
+            id="salutation"
+            name="salutation"
+            defaultValue={salutation}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+          >
+            <option value="">—</option>
+            {SALUTATIONS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="forename">Forename</Label>
+          <Input id="forename" name="forename" defaultValue={forename} required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="surname">Surname</Label>
+          <Input id="surname" name="surname" defaultValue={surname} required />
+        </div>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="space-y-2">
+          <Label htmlFor="homePhone">Home Telephone No</Label>
+          <PhoneInput id="homePhone" name="homePhone" defaultValue={homePhone} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="phone">Mobile Telephone No</Label>
           <PhoneInput id="phone" name="phone" defaultValue={phone} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="workPhone">Work phone number</Label>
+          <Label htmlFor="workPhone">Works Telephone No</Label>
           <PhoneInput id="workPhone" name="workPhone" defaultValue={workPhone} />
         </div>
       </div>

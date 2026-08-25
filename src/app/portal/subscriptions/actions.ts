@@ -7,6 +7,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { stripe, getSiteUrl } from "@/lib/stripe"
 import { pauseSubscription as pauseSubscriptionLib, parseWeekdays } from "@/lib/subscriptions"
+import { fullName } from "@/lib/format"
 
 export type SubscriptionActionState = { status: "idle" | "error"; message?: string }
 
@@ -33,7 +34,7 @@ async function ensureStripeCustomer(userId: string): Promise<string> {
   }
   const customer = await stripe!.customers.create({
     email: user.email,
-    name: user.name,
+    name: fullName(user),
     address: { country: "GB" },
     metadata: { userId },
   })

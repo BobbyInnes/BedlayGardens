@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { fullName } from "@/lib/format"
 
 /**
  * "<Service>, <dates> — dogs: <names> — owner <name> <email>" — the
@@ -9,7 +10,7 @@ import { prisma } from "@/lib/prisma"
  */
 export function describeBooking(booking: {
   service: { name: string }
-  customer: { name: string; email: string }
+  customer: { forename: string; surname: string; email: string }
   startDate: Date
   endDate: Date
   bookingDogs: { dog: { name: string } }[]
@@ -19,7 +20,7 @@ export function describeBooking(booking: {
       ? booking.startDate.toLocaleDateString("en-GB")
       : `${booking.startDate.toLocaleDateString("en-GB")} – ${booking.endDate.toLocaleDateString("en-GB")}`
   const dogNames = booking.bookingDogs.map((bd) => bd.dog.name).join(", ") || "no dogs on file"
-  return `${booking.service.name}, ${dateLabel} — dogs: ${dogNames} — owner ${booking.customer.name} <${booking.customer.email}>`
+  return `${booking.service.name}, ${dateLabel} — dogs: ${dogNames} — owner ${fullName(booking.customer)} <${booking.customer.email}>`
 }
 
 export async function logAudit(options: {

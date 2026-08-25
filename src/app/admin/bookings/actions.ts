@@ -16,7 +16,7 @@ import { getVatSettings } from "@/lib/vat"
 import { sendEmail } from "@/lib/email"
 import { cancellationConfirmationEmail, bookingConfirmationEmail, paymentReceiptEmail } from "@/lib/email-templates"
 import { logAudit, logEntityChange, describeBooking } from "@/lib/audit"
-import { formatPence } from "@/lib/format"
+import { formatPence, fullName } from "@/lib/format"
 import { resolveBookingCreation, type BookingCreationResult } from "@/app/(marketing)/book/actions"
 import { createBookingInvoice } from "@/lib/invoicing"
 import { getActiveAgreement } from "@/lib/agreement"
@@ -95,11 +95,12 @@ export async function searchCustomers(query: string) {
       role: "CUSTOMER",
       OR: [
         { email: { contains: trimmed, mode: "insensitive" } },
-        { name: { contains: trimmed, mode: "insensitive" } },
+        { forename: { contains: trimmed, mode: "insensitive" } },
+        { surname: { contains: trimmed, mode: "insensitive" } },
       ],
     },
-    select: { id: true, name: true, email: true, phone: true },
-    orderBy: { name: "asc" },
+    select: { id: true, forename: true, surname: true, email: true, phone: true },
+    orderBy: [{ surname: "asc" }, { forename: "asc" }],
     take: 10,
   })
 }
@@ -115,7 +116,8 @@ export async function getCustomerDogs(customerId: string) {
 
 const quickCustomerSchema = z
   .object({
-    name: z.string().trim().min(1, "Name is required").max(200),
+    forename: z.string().trim().min(1, "Forename is required").max(100),
+    surname: z.string().trim().min(1, "Surname is required").max(100),
     email: z.string().trim().email("Enter a valid email address").max(200),
     phone: z.string().trim().max(50).optional().or(z.literal("")),
     workPhone: z.string().trim().max(50).optional().or(z.literal("")),
@@ -130,11 +132,12 @@ const quickCustomerSchema = z
   })
 
 export type QuickCustomerResult = AdminActionState & {
-  customer?: { id: string; name: string; email: string; phone: string | null }
+  customer?: { id: string; forename: string; surname: string; email: string; phone: string | null }
 }
 
 export async function createQuickCustomer(input: {
-  name: string
+  forename: string
+  surname: string
   email: string
   phone?: string
   workPhone?: string
@@ -156,7 +159,8 @@ export async function createQuickCustomer(input: {
 
   const customer = await prisma.user.create({
     data: {
-      name: parsed.data.name,
+      forename: parsed.data.forename,
+      surname: parsed.data.surname,
       email: parsed.data.email,
       phone: parsed.data.phone || null,
       workPhone: parsed.data.workPhone || null,
@@ -166,7 +170,7 @@ export async function createQuickCustomer(input: {
       addressPostcode: parsed.data.addressPostcode || null,
       role: "CUSTOMER",
     },
-    select: { id: true, name: true, email: true, phone: true },
+    select: { id: true, forename: true, surname: true, email: true, phone: true },
   })
 
   await logAudit({
@@ -174,7 +178,7 @@ export async function createQuickCustomer(input: {
     action: "CREATE_CUSTOMER",
     entity: "User",
     entityId: customer.id,
-    meta: `${customer.name} <${customer.email}>`,
+    meta: `${fullName(customer)} <${customer.email}>`,
   })
 
   return { status: "idle", customer }
@@ -214,7 +218,7 @@ export async function createQuickDog(input: {
     action: "CREATE_DOG",
     entity: "Dog",
     entityId: dog.id,
-    meta: `${dog.name} (${dog.breed}) — owner ${owner.name}`,
+    meta: `${dog.name} (${dog.breed}) — owner ${fullName(owner)}`,
   })
 
   return { status: "idle", dog }
@@ -424,7 +428,7 @@ export async function modifyBookingDates(
     action: "MODIFY_BOOKING_DATES",
     entity: "Booking",
     entityId: bookingId,
-    context: `booking ${bookingId} — ${booking.service.name} for ${booking.customer.name} <${booking.customer.email}>`,
+    context: `booking ${bookingId} — ${booking.service.name} for ${fullName(booking.customer)} <${booking.customer.email}>`,
     before: { startDate: booking.startDate, endDate: booking.endDate },
     after: afterDates ?? {},
     labels: { startDate: "Start date", endDate: "End date" },
@@ -497,7 +501,7 @@ export async function reassignKennel(
     action: "REASSIGN_KENNEL",
     entity: "Booking",
     entityId: bookingId,
-    context: `booking ${bookingId} — ${booking.service.name} for ${booking.customer.name} <${booking.customer.email}>`,
+    context: `booking ${bookingId} — ${booking.service.name} for ${fullName(booking.customer)} <${booking.customer.email}>`,
     before: { kennelUnitId: oldKennel?.name ?? booking.kennelUnitId },
     after: { kennelUnitId: newKennel.name },
     labels: { kennelUnitId: "Accommodation" },
@@ -576,7 +580,7 @@ export async function cancelBookingAdmin(
     action: "CANCEL_BOOKING",
     entity: "Booking",
     entityId: bookingId,
-    meta: `${booking.service.name} — ${trimmedReason} — owner ${booking.customer.name} <${booking.customer.email}>`,
+    meta: `${booking.service.name} — ${trimmedReason} — owner ${fullName(booking.customer)} <${booking.customer.email}>`,
   })
 
   const settings = await getSettings()
@@ -642,7 +646,7 @@ export async function deleteBookingAdmin(bookingId: string) {
     action: "DELETE_BOOKING",
     entity: "Booking",
     entityId: bookingId,
-    meta: `${booking.service.name} — ${booking.customer.name} <${booking.customer.email}>`,
+    meta: `${booking.service.name} — ${fullName(booking.customer)} <${booking.customer.email}>`,
   })
 
   revalidatePath("/admin/bookings")
@@ -792,7 +796,7 @@ export async function recordManualPayment(
       {
         bookingId: booking.id,
         bookingNumber: booking.bookingNumber,
-        customerName: booking.customer.name,
+        customerName: fullName(booking.customer),
         serviceName: booking.service.name,
         startDate: booking.startDate,
         endDate: booking.endDate,
@@ -839,7 +843,7 @@ export async function recordManualPayment(
   const bookingSummary = {
     bookingId: booking.id,
     bookingNumber: booking.bookingNumber,
-    customerName: booking.customer.name,
+    customerName: fullName(booking.customer),
     serviceName: booking.service.name,
     startDate: booking.startDate,
     endDate: booking.endDate,
@@ -866,7 +870,7 @@ export async function recordManualPayment(
       {
         bookingId: booking.id,
         bookingNumber: booking.bookingNumber,
-        customerName: booking.customer.name,
+        customerName: fullName(booking.customer),
         serviceSlug: booking.service.slug,
         serviceName: booking.service.name,
         paymentTiming: booking.service.paymentTiming,
@@ -920,7 +924,7 @@ export async function updateBookingSchedule(
     if (!staff || !["STAFF", "ADMIN"].includes(staff.role) || !staff.active) {
       return { status: "error", message: "That staff member is no longer available." }
     }
-    staffName = staff.name
+    staffName = fullName(staff)
   }
 
   const trimmedTime = scheduledTime.trim()
@@ -937,7 +941,7 @@ export async function updateBookingSchedule(
     action: "UPDATE_BOOKING_SCHEDULE",
     entity: "Booking",
     entityId: bookingId,
-    meta: `${booking.service.name} — ${booking.customer.name} — time: ${trimmedTime || "(none)"} — staff: ${staffName}`,
+    meta: `${booking.service.name} — ${fullName(booking.customer)} — time: ${trimmedTime || "(none)"} — staff: ${staffName}`,
   })
 
   revalidatePath(`/admin/bookings/${bookingId}`)

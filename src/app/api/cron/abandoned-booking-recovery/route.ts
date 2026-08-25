@@ -7,6 +7,7 @@ import { abandonedBookingReminderEmail, cancellationConfirmationEmail } from "@/
 import { isOptedOut } from "@/lib/notification-preferences"
 import { logAudit } from "@/lib/audit"
 import { offerNextInLine } from "@/lib/waitlist"
+import { fullName } from "@/lib/format"
 
 // Releases the kennel/walk-slot/van-run-stop rows an abandoned PENDING_PAYMENT
 // booking is still holding, so it stops permanently blocking capacity for
@@ -22,7 +23,7 @@ async function autoCancelAbandonedBooking(
     serviceId: string
     startDate: Date
     service: { name: string }
-    customer: { id: string; email: string; name: string }
+    customer: { id: string; email: string; forename: string; surname: string }
     totalPence: number
     depositPence: number
     endDate: Date
@@ -51,7 +52,7 @@ async function autoCancelAbandonedBooking(
     action: "CANCEL_BOOKING",
     entity: "Booking",
     entityId: booking.id,
-    meta: `${booking.service.name} — ${reason} — owner ${booking.customer.name} <${booking.customer.email}>`,
+    meta: `${booking.service.name} — ${reason} — owner ${fullName(booking.customer)} <${booking.customer.email}>`,
   })
 
   const email = cancellationConfirmationEmail(

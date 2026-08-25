@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
-import { formatPence } from "@/lib/format"
+import { formatPence, fullName } from "@/lib/format"
 import { CheckOutForm } from "@/components/staff/check-out-form"
 
 export const metadata: Metadata = {
@@ -38,7 +38,7 @@ export default async function StaffCheckOutPage({
           Check out — {booking.bookingDogs.map((bd) => bd.dog.name).join(", ")}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {booking.customer.name} — {booking.service.name}
+          {fullName(booking.customer)} — {booking.service.name}
         </p>
       </div>
 

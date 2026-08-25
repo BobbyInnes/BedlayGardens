@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { expireStaleOffers } from "@/lib/waitlist"
 import { WaitlistRow } from "@/components/admin/waitlist-row"
 import { offerToNextInLine } from "@/app/admin/waitlist/actions"
+import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
   title: "Waitlist | Admin",
@@ -74,7 +75,7 @@ export default async function AdminWaitlistPage() {
                       key={entry.id}
                       entryId={entry.id}
                       position={i + 1}
-                      customerName={entry.customer.name}
+                      customerName={fullName(entry.customer)}
                       dogName={entry.dog.name}
                       status={entry.status}
                       reason={entry.reason}

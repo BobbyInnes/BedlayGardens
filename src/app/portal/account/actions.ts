@@ -11,6 +11,8 @@ import { prisma } from "@/lib/prisma"
 import { stripe, getSiteUrl } from "@/lib/stripe"
 import { setOptOut } from "@/lib/notification-preferences"
 import { logEntityChange } from "@/lib/audit"
+import { fullName } from "@/lib/format"
+import { SALUTATIONS } from "@/lib/salutations"
 
 export type ActionState = { status: "idle" | "success" | "error"; message?: string }
 
@@ -21,7 +23,10 @@ export type NotificationActionState = ActionState & { channel?: NotificationChan
 
 const profileSchema = z
   .object({
-    name: z.string().trim().min(1, "Name is required").max(200),
+    salutation: z.enum(SALUTATIONS).optional().or(z.literal("")),
+    forename: z.string().trim().min(1, "Forename is required").max(100),
+    surname: z.string().trim().min(1, "Surname is required").max(100),
+    homePhone: z.string().trim().max(50).optional().or(z.literal("")),
     phone: z.string().trim().max(50).optional().or(z.literal("")),
     workPhone: z.string().trim().max(50).optional().or(z.literal("")),
     addressLine1: z.string().trim().min(1, "Address line 1 is required").max(200),
@@ -29,8 +34,8 @@ const profileSchema = z
     addressCity: z.string().trim().max(100).optional().or(z.literal("")),
     addressPostcode: z.string().trim().max(20).optional().or(z.literal("")),
   })
-  .refine((data) => !!data.phone || !!data.workPhone, {
-    message: "Enter a telephone number or a work phone number.",
+  .refine((data) => !!data.homePhone || !!data.phone || !!data.workPhone, {
+    message: "Enter at least one phone number (Home, Mobile, or Works).",
     path: ["phone"],
   })
 
@@ -42,7 +47,10 @@ export async function updateProfile(
   if (!session?.user) return { status: "error", message: "Unauthorized" }
 
   const parsed = profileSchema.safeParse({
-    name: formData.get("name"),
+    salutation: formData.get("salutation"),
+    forename: formData.get("forename"),
+    surname: formData.get("surname"),
+    homePhone: formData.get("homePhone"),
     phone: formData.get("phone"),
     workPhone: formData.get("workPhone"),
     addressLine1: formData.get("addressLine1"),
@@ -56,7 +64,10 @@ export async function updateProfile(
 
   const before = await prisma.user.findUniqueOrThrow({ where: { id: session.user.id } })
   const after = {
-    name: parsed.data.name,
+    salutation: parsed.data.salutation || null,
+    forename: parsed.data.forename,
+    surname: parsed.data.surname,
+    homePhone: parsed.data.homePhone || null,
     phone: parsed.data.phone || null,
     workPhone: parsed.data.workPhone || null,
     addressLine1: parsed.data.addressLine1,
@@ -72,13 +83,16 @@ export async function updateProfile(
     action: "UPDATE_CUSTOMER_PROFILE",
     entity: "User",
     entityId: session.user.id,
-    context: `customer ${before.name} <${before.email}> (self-service)`,
+    context: `customer ${fullName(before)} <${before.email}> (self-service)`,
     before,
     after,
     labels: {
-      name: "Name",
-      phone: "Phone",
-      workPhone: "Work phone",
+      salutation: "Salutation",
+      forename: "Forename",
+      surname: "Surname",
+      homePhone: "Home phone",
+      phone: "Mobile phone",
+      workPhone: "Works phone",
       addressLine1: "Address line 1",
       addressLine2: "Address line 2",
       addressCity: "City",
@@ -135,7 +149,7 @@ export async function updateEmergencyContact(
     action: "UPDATE_EMERGENCY_CONTACT",
     entity: "User",
     entityId: session.user.id,
-    context: `customer ${before.name} <${before.email}> (self-service)`,
+    context: `customer ${fullName(before)} <${before.email}> (self-service)`,
     before,
     after,
     labels: {
@@ -203,7 +217,7 @@ export async function updateVetPractice(
     action: "UPDATE_VET_PRACTICE",
     entity: "User",
     entityId: session.user.id,
-    context: `customer ${before.name} <${before.email}> (self-service)`,
+    context: `customer ${fullName(before)} <${before.email}> (self-service)`,
     before,
     after,
     labels: {
@@ -336,7 +350,8 @@ export async function deleteAccount() {
       await prisma.user.update({
         where: { id: session.user.id },
         data: {
-          name: "Deleted user",
+          forename: "Deleted",
+          surname: "user",
           email: `deleted-${randomUUID()}@bedlaygardens.invalid`,
           passwordHash: null,
           phone: null,

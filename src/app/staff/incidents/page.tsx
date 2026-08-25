@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { prisma } from "@/lib/prisma"
 import { Badge } from "@/components/ui/badge"
 import { IncidentForm } from "@/components/staff/incident-form"
+import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
   title: "Incidents | Staff",
@@ -27,7 +28,7 @@ export default async function StaffIncidentsPage() {
       dogId: bd.dogId,
       dogName: bd.dog.name,
       bookingId: booking.id,
-      customerName: booking.customer.name,
+      customerName: fullName(booking.customer),
     }))
   )
 
@@ -57,7 +58,7 @@ export default async function StaffIncidentsPage() {
                 </div>
                 <p className="text-muted-foreground">{incident.description}</p>
                 <p className="text-xs text-muted-foreground">
-                  {incident.reportedBy.name} — {incident.createdAt.toLocaleDateString("en-GB")}
+                  {fullName(incident.reportedBy)} — {incident.createdAt.toLocaleDateString("en-GB")}
                 </p>
               </li>
             ))}

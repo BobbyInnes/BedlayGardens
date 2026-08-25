@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { VanRunForm } from "@/components/admin/van-run-form"
 import { VanRunStopsList } from "@/components/admin/van-run-stops-list"
 import { updateVanRun } from "@/app/admin/van-runs/actions"
+import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
   title: "Edit Van Run | Admin",
@@ -20,11 +21,13 @@ export default async function EditVanRunPage({
       where: { id: vanRunId },
       include: { stops: { include: { dog: true }, orderBy: { sortOrder: "asc" } } },
     }),
-    prisma.user.findMany({
-      where: { role: { in: ["STAFF", "ADMIN"] }, active: true },
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
+    prisma.user
+      .findMany({
+        where: { role: { in: ["STAFF", "ADMIN"] }, active: true },
+        orderBy: [{ surname: "asc" }, { forename: "asc" }],
+        select: { id: true, forename: true, surname: true },
+      })
+      .then((users) => users.map((u) => ({ id: u.id, name: fullName(u) }))),
   ])
   if (!vanRun) notFound()
 

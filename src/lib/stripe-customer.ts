@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import { stripe } from "@/lib/stripe"
+import { fullName } from "@/lib/format"
 
 export async function ensureStripeCustomer(userId: string): Promise<string> {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } })
@@ -18,7 +19,7 @@ export async function ensureStripeCustomer(userId: string): Promise<string> {
   try {
     customer = await stripe!.customers.create({
       email: user.email,
-      name: user.name,
+      name: fullName(user),
       // Defaults the Checkout billing-address country to GB (and with it,
       // the postal code field label to "Postcode" instead of "ZIP") — we
       // only operate in the UK, so there's no reason to make customers

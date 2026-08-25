@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
+import { fullName } from "@/lib/format"
 import { toDateInputValue, parseMonthParam, monthParamFor } from "@/lib/dates"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -137,7 +138,7 @@ export default async function AdminOccupancyPage({
   }
 
   const daycareDogIds = [...dogsById.entries()]
-    .filter(([, { dog, owner }]) => matchesFilter(dog.name, owner.name, owner.email))
+    .filter(([, { dog, owner }]) => matchesFilter(dog.name, fullName(owner), owner.email))
     .map(([dogId]) => dogId)
     .sort((a, b) => (dogsById.get(a)!.dog.name < dogsById.get(b)!.dog.name ? -1 : 1))
 
@@ -242,12 +243,12 @@ export default async function AdminOccupancyPage({
                       const color = colorForDogSize(size)
                       const label = dogs.map((d) => d.name).join(", ")
                       const owner = seg.occ.booking.customer
-                      const matches = dogs.some((d) => matchesFilter(d.name, owner.name, owner.email))
+                      const matches = dogs.some((d) => matchesFilter(d.name, fullName(owner), owner.email))
                       return (
                         <td key={seg.startDay} colSpan={seg.span} className="border-b border-border p-0">
                           <Link
                             href={`/admin/bookings/${seg.occ.bookingId}`}
-                            title={`${owner.name} — ${label}${size ? ` (${DOG_SIZE_LABELS[size]})` : ""}`}
+                            title={`${fullName(owner)} — ${label}${size ? ` (${DOG_SIZE_LABELS[size]})` : ""}`}
                             className={`flex h-9 items-center justify-center truncate px-1 text-[10px] font-medium text-white hover:opacity-90 ${color} ${
                               matches ? "" : "opacity-25"
                             }`}
@@ -325,10 +326,10 @@ export default async function AdminOccupancyPage({
                       <td key={`seg-${seg.startDay}`} colSpan={seg.span} className="border-b border-border p-0">
                         <Link
                           href={`/admin/bookings/${seg.bookings[0].id}`}
-                          title={`${owner.name} — ${dog.name} (${dog.breed})`}
+                          title={`${fullName(owner)} — ${dog.name} (${dog.breed})`}
                           className={`flex h-9 items-center justify-center truncate px-1 text-[10px] font-medium text-white hover:opacity-90 ${size}`}
                         >
-                          {dog.name} — {owner.name}
+                          {dog.name} — {fullName(owner)}
                         </Link>
                       </td>
                     )
@@ -342,7 +343,7 @@ export default async function AdminOccupancyPage({
                   return (
                     <tr key={dogId}>
                       <td className="sticky left-0 z-10 whitespace-nowrap border-r border-b border-border bg-background p-2 font-medium">
-                        {dog.name} <span className="font-normal text-muted-foreground">— {owner.name}</span>
+                        {dog.name} <span className="font-normal text-muted-foreground">— {fullName(owner)}</span>
                       </td>
                       {cells}
                     </tr>

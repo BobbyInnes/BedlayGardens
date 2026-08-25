@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { formatCustomerNumber } from "@/lib/customer-dog-numbers"
+import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
   title: "Customers | Admin",
@@ -24,7 +25,8 @@ export default async function AdminCustomersPage({
       ...(q.trim()
         ? {
             OR: [
-              { name: { contains: q.trim(), mode: "insensitive" } },
+              { forename: { contains: q.trim(), mode: "insensitive" } },
+              { surname: { contains: q.trim(), mode: "insensitive" } },
               { email: { contains: q.trim(), mode: "insensitive" } },
             ],
           }
@@ -59,7 +61,7 @@ export default async function AdminCustomersPage({
               >
                 <div>
                   <p className="font-medium">
-                    {customer.name}{" "}
+                    {fullName(customer)}{" "}
                     <span className="font-normal text-muted-foreground">
                       ({formatCustomerNumber(customer.customerNumber)})
                     </span>

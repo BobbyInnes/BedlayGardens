@@ -45,7 +45,10 @@ export default async function AccountPage() {
         <section className="space-y-4 rounded-lg border border-gray-200 bg-gray-100 p-4">
           <h2 className="text-lg font-semibold">Contact details</h2>
           <ProfileForm
-            name={user?.name ?? ""}
+            salutation={user?.salutation ?? ""}
+            forename={user?.forename ?? ""}
+            surname={user?.surname ?? ""}
+            homePhone={user?.homePhone ?? ""}
             phone={user?.phone ?? ""}
             workPhone={user?.workPhone ?? ""}
             addressLine1={user?.addressLine1 ?? ""}

@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma"
 import { logAudit, logEntityChange } from "@/lib/audit"
 import { sendEmail } from "@/lib/email"
 import { getSettings } from "@/lib/settings"
-import { formatPence } from "@/lib/format"
+import { formatPence, fullName } from "@/lib/format"
 import { canManageAdmins } from "@/lib/admin-permissions"
 import { deleteCustomerAndAllData } from "@/lib/delete-customer"
 import { saveUpload } from "@/lib/storage"
@@ -42,7 +42,7 @@ export async function updateCustomerNotes(
     action: "UPDATE_CUSTOMER_NOTES",
     entity: "User",
     entityId: customerId,
-    context: `customer ${before.name} <${before.email}>`,
+    context: `customer ${fullName(before)} <${before.email}>`,
     before,
     after,
     labels: { adminNotes: "Admin notes" },
@@ -58,14 +58,16 @@ export async function updateCustomerContactDetails(
   formData: FormData
 ): Promise<AdminActionState> {
   const session = await requireAdmin()
-  const name = ((formData.get("name") as string | null) ?? "").trim()
-  if (!name) {
-    return { status: "error", message: "Name is required." }
+  const forename = ((formData.get("forename") as string | null) ?? "").trim()
+  const surname = ((formData.get("surname") as string | null) ?? "").trim()
+  if (!forename || !surname) {
+    return { status: "error", message: "Forename and surname are required." }
   }
 
   const before = await prisma.user.findUniqueOrThrow({ where: { id: customerId } })
   const after = {
-    name,
+    forename,
+    surname,
     phone: ((formData.get("phone") as string | null) ?? "").trim() || null,
     workPhone: ((formData.get("workPhone") as string | null) ?? "").trim() || null,
     addressLine1: ((formData.get("addressLine1") as string | null) ?? "").trim() || null,
@@ -81,11 +83,12 @@ export async function updateCustomerContactDetails(
     action: "UPDATE_CUSTOMER_DETAILS",
     entity: "User",
     entityId: customerId,
-    context: `customer ${before.name} <${before.email}>`,
+    context: `customer ${fullName(before)} <${before.email}>`,
     before,
     after,
     labels: {
-      name: "Name",
+      forename: "Forename",
+      surname: "Surname",
       phone: "Phone",
       workPhone: "Work phone",
       addressLine1: "Address line 1",
@@ -110,7 +113,7 @@ export async function toggleCustomerActive(customerId: string, active: boolean) 
     action: "TOGGLE_CUSTOMER_ACTIVE",
     entity: "User",
     entityId: customerId,
-    context: `customer ${before.name} <${before.email}>`,
+    context: `customer ${fullName(before)} <${before.email}>`,
     before,
     after: { active },
     labels: { active: "Active" },
@@ -221,7 +224,7 @@ export async function addVaccinationRecordManually(
     action: "ADD_VACCINATION_RECORD_MANUALLY",
     entity: "VaccinationRecord",
     entityId: record.id,
-    meta: `${type} for ${dog.name}, owner ${dog.owner.name} <${dog.owner.email}> — ${record.dateGiven.toLocaleDateString("en-GB")} to ${record.expiryDate.toLocaleDateString("en-GB")} — added manually by ${session.user.name}`,
+    meta: `${type} for ${dog.name}, owner ${fullName(dog.owner)} <${dog.owner.email}> — ${record.dateGiven.toLocaleDateString("en-GB")} to ${record.expiryDate.toLocaleDateString("en-GB")} — added manually by ${fullName(session.user)}`,
   })
 
   await checkWaitlistAfterVaccination(dogId)
@@ -305,7 +308,7 @@ export async function deleteCustomer(customerId: string) {
     action: "DELETE_CUSTOMER",
     entity: "User",
     entityId: customerId,
-    meta: `${customer.name} <${customer.email}> — ${customer._count.dogs} dog(s), ${customer._count.bookings} booking(s) deleted`,
+    meta: `${fullName(customer)} <${customer.email}> — ${customer._count.dogs} dog(s), ${customer._count.bookings} booking(s) deleted`,
   })
 
   revalidatePath("/admin/customers")
@@ -335,7 +338,7 @@ export async function issueGoodwillCredit(
     action: "ISSUE_GOODWILL_CREDIT",
     entity: "User",
     entityId: customerId,
-    meta: `Customer: ${customer?.name ?? "Unknown"} (ID: ${customerId}) — ${formatPence(amountPence)} — ${reason}`,
+    meta: `Customer: ${customer ? fullName(customer) : "Unknown"} (ID: ${customerId}) — ${formatPence(amountPence)} — ${reason}`,
   })
 
   if (customer) {

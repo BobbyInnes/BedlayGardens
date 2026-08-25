@@ -37,6 +37,8 @@ export const authConfig = {
         token.role = user.role
         token.id = user.id
         token.isSuperAdmin = user.isSuperAdmin ?? false
+        token.forename = user.forename
+        token.surname = user.surname
       }
       return token
     },
@@ -45,6 +47,8 @@ export const authConfig = {
         session.user.role = token.role as Role
         session.user.id = token.id as string
         session.user.isSuperAdmin = (token.isSuperAdmin as boolean) ?? false
+        session.user.forename = token.forename as string
+        session.user.surname = token.surname as string
       }
       return session
     },

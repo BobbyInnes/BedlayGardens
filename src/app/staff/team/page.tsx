@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ToggleActiveButton } from "@/components/admin/toggle-active-button"
 import { toggleStaffActive } from "@/app/staff/team/actions"
+import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
   title: "Staff | Admin",
@@ -24,7 +25,7 @@ export default async function AdminStaffPage() {
       role: { in: ["STAFF", "ADMIN"] },
       ...(viewerIsSuperAdmin ? {} : { isSuperAdmin: false }),
     },
-    orderBy: { name: "asc" },
+    orderBy: [{ surname: "asc" }, { forename: "asc" }],
   })
 
   return (
@@ -41,12 +42,12 @@ export default async function AdminStaffPage() {
           <li key={member.id} className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
             <div className="flex items-center gap-3">
               <Avatar size="lg">
-                <AvatarImage src={member.photoUrl ?? undefined} alt={member.name} />
-                <AvatarFallback>{member.name.slice(0, 1).toUpperCase()}</AvatarFallback>
+                <AvatarImage src={member.photoUrl ?? undefined} alt={fullName(member)} />
+                <AvatarFallback>{member.forename.slice(0, 1).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">{member.name}</span>
+                  <span className="font-medium">{fullName(member)}</span>
                   <Badge variant="secondary">{member.role}</Badge>
                   {member.isSuperAdmin && <Badge variant="default">Super Admin</Badge>}
                   <Badge variant={member.active ? "default" : "outline"}>

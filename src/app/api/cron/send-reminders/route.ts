@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getSettings } from "@/lib/settings"
 import { sendEmail } from "@/lib/email"
 import { notifyCustomer } from "@/lib/notify"
-import { formatPence } from "@/lib/format"
+import { formatPence, fullName } from "@/lib/format"
 import { today, tomorrow } from "@/lib/staff-dates"
 import { addDays } from "@/lib/dates"
 import {
@@ -147,7 +147,7 @@ async function sendVaccinationReviewDigest(settings: Record<string, string>) {
     settings,
     records.map((record) => ({
       dogName: record.dog.name,
-      ownerName: record.dog.owner.name,
+      ownerName: fullName(record.dog.owner),
       type: record.type,
       dateGiven: record.dateGiven,
       expiryDate: record.expiryDate,

@@ -404,7 +404,7 @@ export default async function HomePage() {
                   </blockquote>
                 )}
                 <figcaption className="text-sm font-medium text-muted-foreground">
-                  — {review.customer.name.split(" ")[0]}
+                  — {review.customer.forename}
                 </figcaption>
               </figure>
             ))}

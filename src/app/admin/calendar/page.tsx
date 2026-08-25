@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { toDateInputValue, parseMonthParam, monthParamFor, nightsBetween } from "@/lib/dates"
 import { buildServiceColorMap } from "@/lib/service-colors"
 import { formatCustomerNumber } from "@/lib/customer-dog-numbers"
+import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
   title: "Calendar | Admin",
@@ -43,7 +44,7 @@ export default async function AdminCalendarPage({
         serviceId: true,
         startDate: true,
         endDate: true,
-        customer: { select: { name: true, customerNumber: true } },
+        customer: { select: { forename: true, surname: true, customerNumber: true } },
         bookingDogs: { select: { dog: { select: { name: true } } } },
       },
     }),
@@ -62,7 +63,7 @@ export default async function AdminCalendarPage({
         : nightsBetween(booking.startDate, booking.endDate)
 
     const dogNames = booking.bookingDogs.map((bd) => bd.dog.name)
-    const label = `${booking.customer.name} (${formatCustomerNumber(booking.customer.customerNumber)}) – ${dogNames.length > 0 ? dogNames.join(", ") : "no dog on record"}`
+    const label = `${fullName(booking.customer)} (${formatCustomerNumber(booking.customer.customerNumber)}) – ${dogNames.length > 0 ? dogNames.join(", ") : "no dog on record"}`
 
     for (const day of days) {
       if (day < monthStart || day >= monthEnd) continue

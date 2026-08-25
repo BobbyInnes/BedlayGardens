@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { Label } from "@/components/ui/label"
 import { registerAction, type RegisterState } from "@/app/(marketing)/register/actions"
+import { SALUTATIONS } from "@/lib/salutations"
 
 const initialState: RegisterState = { status: "idle" }
 
@@ -18,12 +19,37 @@ export function RegisterForm() {
 
   return (
     <form key={values ? JSON.stringify(values) : "initial"} action={formAction} className="space-y-5">
-      <div className="space-y-2">
-        <Label htmlFor="name">Name</Label>
-        <Input id="name" name="name" defaultValue={values?.name} required autoComplete="name" />
-        {state.fieldErrors?.name && (
-          <p className="text-sm text-destructive">{state.fieldErrors.name}</p>
-        )}
+      <div className="grid gap-4 sm:grid-cols-[120px_1fr_1fr]">
+        <div className="space-y-2">
+          <Label htmlFor="salutation">Salutation</Label>
+          <select
+            id="salutation"
+            name="salutation"
+            defaultValue={values?.salutation ?? ""}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+          >
+            <option value="">—</option>
+            {SALUTATIONS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="forename">Forename</Label>
+          <Input id="forename" name="forename" defaultValue={values?.forename} required autoComplete="given-name" />
+          {state.fieldErrors?.forename && (
+            <p className="text-sm text-destructive">{state.fieldErrors.forename}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="surname">Surname</Label>
+          <Input id="surname" name="surname" defaultValue={values?.surname} required autoComplete="family-name" />
+          {state.fieldErrors?.surname && (
+            <p className="text-sm text-destructive">{state.fieldErrors.surname}</p>
+          )}
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -58,13 +84,17 @@ export function RegisterForm() {
         )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-2">
-          <Label htmlFor="phone">Telephone number</Label>
+          <Label htmlFor="homePhone">Home Telephone No</Label>
+          <PhoneInput id="homePhone" name="homePhone" defaultValue={values?.homePhone} autoComplete="tel" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="phone">Mobile Telephone No</Label>
           <PhoneInput id="phone" name="phone" defaultValue={values?.phone} autoComplete="tel" />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="workPhone">Work phone number</Label>
+          <Label htmlFor="workPhone">Works Telephone No</Label>
           <PhoneInput id="workPhone" name="workPhone" defaultValue={values?.workPhone} />
         </div>
       </div>

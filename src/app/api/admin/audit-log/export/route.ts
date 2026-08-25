@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { buildAuditLogWhere } from "@/lib/audit-log-filters"
+import { fullName } from "@/lib/format"
 
 function csvField(value: string): string {
   if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
     const data = logs.map((log) => ({
       id: log.id,
       dateTime: log.createdAt.toISOString(),
-      actorName: log.actor?.name ?? null,
+      actorName: log.actor ? fullName(log.actor) : null,
       actorEmail: log.actor?.email ?? null,
       action: log.action,
       entity: log.entity,
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
   const header = ["Date & time", "Actor name", "Actor email", "Action", "Entity", "Entity ID", "Detail"]
   const rows = logs.map((log) => [
     log.createdAt.toISOString(),
-    log.actor?.name ?? "",
+    log.actor ? fullName(log.actor) : "",
     log.actor?.email ?? "",
     log.action,
     log.entity,

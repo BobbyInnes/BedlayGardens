@@ -5,6 +5,8 @@ declare module "next-auth" {
   interface User {
     role: Role
     isSuperAdmin: boolean
+    forename: string
+    surname: string
   }
 
   interface Session {
@@ -12,6 +14,8 @@ declare module "next-auth" {
       id: string
       role: Role
       isSuperAdmin: boolean
+      forename: string
+      surname: string
     } & DefaultSession["user"]
   }
 }
@@ -21,5 +25,7 @@ declare module "next-auth/jwt" {
     id: string
     role: Role
     isSuperAdmin: boolean
+    forename: string
+    surname: string
   }
 }

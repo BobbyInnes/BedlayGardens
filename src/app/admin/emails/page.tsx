@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
   title: "Sent Emails | Admin",
@@ -63,7 +64,7 @@ export default async function AdminEmailsPage({
   const recipients = [...new Set(emails.map((e) => e.to))]
   const matchedUsers = await prisma.user.findMany({
     where: { email: { in: recipients } },
-    select: { id: true, name: true, email: true, role: true },
+    select: { id: true, forename: true, surname: true, email: true, role: true },
   })
   const userByEmail = new Map(matchedUsers.map((u) => [u.email, u]))
 
@@ -164,7 +165,7 @@ export default async function AdminEmailsPage({
                             }
                             className="font-medium hover:underline"
                           >
-                            {user.name}
+                            {fullName(user)}
                           </Link>
                           <p className="text-xs text-muted-foreground">{email.to}</p>
                         </>

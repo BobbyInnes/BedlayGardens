@@ -11,12 +11,14 @@ import { sanitizeRichText } from "@/lib/sanitize-html"
 import { canManageAdmins, superAdminSlotAvailable, MAX_SUPER_ADMINS } from "@/lib/admin-permissions"
 import { logAudit } from "@/lib/audit"
 import { deleteStaffAndAllData } from "@/lib/delete-staff"
+import { fullName } from "@/lib/format"
 
 export type AdminActionState = {
   status: "idle" | "error"
   message?: string
   values?: {
-    name: string
+    forename: string
+    surname: string
     email: string
     phone: string
     jobTitle: string
@@ -29,7 +31,8 @@ export type AdminActionState = {
 /** Re-reads whatever the user submitted so a failed save can refill the form instead of blanking it. */
 function formValues(formData: FormData): NonNullable<AdminActionState["values"]> {
   return {
-    name: (formData.get("name") as string | null) ?? "",
+    forename: (formData.get("forename") as string | null) ?? "",
+    surname: (formData.get("surname") as string | null) ?? "",
     email: (formData.get("email") as string | null) ?? "",
     phone: (formData.get("phone") as string | null) ?? "",
     jobTitle: (formData.get("jobTitle") as string | null) ?? "",
@@ -57,7 +60,8 @@ async function wouldRemoveLastSuperAdmin(userId: string, nextIsSuperAdmin: boole
 }
 
 const staffSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(200),
+  forename: z.string().trim().min(1, "Forename is required").max(100),
+  surname: z.string().trim().min(1, "Surname is required").max(100),
   email: z.string().trim().email("Enter a valid email address").max(200),
   phone: z.string().trim().max(50).optional().or(z.literal("")),
   jobTitle: z.string().trim().max(100).optional().or(z.literal("")),
@@ -77,7 +81,8 @@ export async function createStaff(
   const session = await requireAdmin()
 
   const parsed = staffSchema.safeParse({
-    name: formData.get("name"),
+    forename: formData.get("forename"),
+    surname: formData.get("surname"),
     email: formData.get("email"),
     phone: formData.get("phone"),
     jobTitle: formData.get("jobTitle"),
@@ -139,7 +144,8 @@ export async function createStaff(
   const passwordHash = await bcrypt.hash(password, 10)
   const newStaff = await prisma.user.create({
     data: {
-      name: parsed.data.name,
+      forename: parsed.data.forename,
+      surname: parsed.data.surname,
       email: parsed.data.email,
       phone: parsed.data.phone || null,
       jobTitle: parsed.data.jobTitle || null,
@@ -156,7 +162,7 @@ export async function createStaff(
     action: "CREATE_STAFF",
     entity: "User",
     entityId: newStaff.id,
-    meta: `${parsed.data.name} <${parsed.data.email}> — ${parsed.data.role}${wantsSuperAdmin ? " (super admin)" : ""}`,
+    meta: `${fullName(parsed.data)} <${parsed.data.email}> — ${parsed.data.role}${wantsSuperAdmin ? " (super admin)" : ""}`,
   })
 
   revalidateStaffPaths()
@@ -185,7 +191,8 @@ export async function updateStaff(
   }
 
   const parsed = staffSchema.safeParse({
-    name: formData.get("name"),
+    forename: formData.get("forename"),
+    surname: formData.get("surname"),
     email: formData.get("email"),
     phone: formData.get("phone"),
     jobTitle: formData.get("jobTitle"),
@@ -257,7 +264,8 @@ export async function updateStaff(
   await prisma.user.update({
     where: { id: staffId },
     data: {
-      name: parsed.data.name,
+      forename: parsed.data.forename,
+      surname: parsed.data.surname,
       email: parsed.data.email,
       phone: parsed.data.phone || null,
       jobTitle: parsed.data.jobTitle || null,
@@ -272,7 +280,7 @@ export async function updateStaff(
     action: "UPDATE_STAFF",
     entity: "User",
     entityId: staffId,
-    meta: `${parsed.data.name} <${parsed.data.email}> — ${parsed.data.role}${wantsSuperAdmin ? " (super admin)" : ""}${
+    meta: `${fullName(parsed.data)} <${parsed.data.email}> — ${parsed.data.role}${wantsSuperAdmin ? " (super admin)" : ""}${
       wantsSuperAdmin !== staff.isSuperAdmin ? ` [super admin status ${wantsSuperAdmin ? "granted" : "removed"}]` : ""
     }`,
   })
@@ -297,7 +305,7 @@ export async function toggleStaffActive(staffId: string, active: boolean) {
     action: "TOGGLE_STAFF_ACTIVE",
     entity: "User",
     entityId: staffId,
-    meta: `${staff.name} — ${active ? "activated" : "deactivated"}`,
+    meta: `${fullName(staff)} — ${active ? "activated" : "deactivated"}`,
   })
   revalidateStaffPaths()
 }
@@ -329,7 +337,7 @@ export async function resetStaffPassword(
     action: "RESET_STAFF_PASSWORD",
     entity: "User",
     entityId: staffId,
-    meta: staff.name,
+    meta: fullName(staff),
   })
 
   return { status: "idle", message: "Password reset." }
@@ -362,7 +370,7 @@ export async function deleteStaff(staffId: string) {
     action: "DELETE_STAFF",
     entity: "User",
     entityId: staffId,
-    meta: `${staff.name} <${staff.email}> — ${staff.role}`,
+    meta: `${fullName(staff)} <${staff.email}> — ${staff.role}`,
   })
 
   revalidateStaffPaths()

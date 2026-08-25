@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { parseMonthParam } from "@/lib/dates"
+import { fullName } from "@/lib/format"
 
 function csvField(value: string | number): string {
   const str = String(value)
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
   ]
   const rows = bookings.map((b) => [
     b.id,
-    b.customer.name,
+    fullName(b.customer),
     b.customer.email,
     b.service.name,
     b.startDate.toLocaleDateString("en-GB"),

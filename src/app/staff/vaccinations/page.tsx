@@ -6,6 +6,7 @@ import { VaccinationVerifyButtons } from "@/components/staff/vaccination-verify-
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
+import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
   title: "Vaccinations | Staff",
@@ -33,7 +34,8 @@ export default async function StaffVaccinationsPage({
             dog: {
               owner: {
                 OR: [
-                  { name: { contains: owner.trim(), mode: "insensitive" } },
+                  { forename: { contains: owner.trim(), mode: "insensitive" } },
+                  { surname: { contains: owner.trim(), mode: "insensitive" } },
                   { email: { contains: owner.trim(), mode: "insensitive" } },
                 ],
               },
@@ -102,7 +104,7 @@ export default async function StaffVaccinationsPage({
                     {record.dog.name} — {record.type}
                   </p>
                   <p className="text-muted-foreground">
-                    Owner: {record.dog.owner.name} ({record.dog.owner.email})
+                    Owner: {fullName(record.dog.owner)} ({record.dog.owner.email})
                   </p>
                   <p className="text-muted-foreground">
                     Given {record.dateGiven.toLocaleDateString("en-GB")} · Expires{" "}

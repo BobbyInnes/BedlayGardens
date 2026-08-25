@@ -1,4 +1,4 @@
-import { formatPence } from "@/lib/format"
+import { formatPence, fullName } from "@/lib/format"
 import { formatCustomerNumber, formatDogNumber, formatBookingNumber } from "@/lib/customer-dog-numbers"
 import { splitGrossForVat } from "@/lib/vat"
 import { resolveEmailTemplate, renderMergeFields, EMAIL_TEMPLATE_DEFS } from "@/lib/email-template-store"
@@ -10,32 +10,39 @@ export type EmailBranding = {
   business_address_line1?: string
   business_address_line2?: string
   business_postcode?: string
-  // Every email's closing disclosure (see closingBlock below) uses these if
-  // set via Settings — updateInvoiceLegalSettings in admin/content/actions.ts
-  // — falling back to DEFAULT_COMPANY_REG_NO/DEFAULT_DIRECTORS otherwise.
+  // Set via Settings — updateInvoiceLegalSettings in admin/content/actions.ts
+  // — falling back to DEFAULT_COMPANY_REG_NO/DEFAULT_DIRECTORS otherwise. Used
+  // only by closingBlock's disclosure line below — the separate mid-body
+  // {{legalFooterBlock}} merge field on the invoice-style templates stays
+  // removed (see buildLegalFooterBlock) since it duplicated this same line.
   business_company_reg_no?: string
   business_directors?: string
 }
 
-// Standing fallback for the sign-off's company-law disclosure line, used
-// whenever Settings (business_company_reg_no / business_directors) haven't
-// been set to something else — see the closing block in layout() below.
-// Deliberately real values, not placeholders, per Bobby's 2026-08-23 request
-// that every email close with this exact disclosure.
+// Standing fallback for the closing disclosure line, used whenever Settings
+// (business_company_reg_no / business_directors) haven't been set to
+// something else.
 const DEFAULT_COMPANY_REG_NO = "SC732228"
 const DEFAULT_DIRECTORS = "Mrs Diane Kiernan & Miss Kelsey Kiernan"
 
+// Standing fallback for the header's Tel-No/Email line (see layout below),
+// used whenever Settings (business_phone / business_email) haven't been set
+// to something else — guarantees every email's header shows contact details
+// per Bobby's 2026-08-25 request, rather than the line silently vanishing
+// when those Settings are blank.
+const DEFAULT_PHONE = "07958 670328"
+const DEFAULT_EMAIL = "bobbyinnes1@gmail.com"
+
 // Every email closes with the same sign-off and company-law disclosure —
 // added here once rather than per-template, so it's guaranteed on every
-// email type, not just the admin-editable invoice-style ones (which also
-// have their own optional {{legalFooterBlock}} merge field for placing a
-// copy earlier in the body; this is the one that always renders at the end).
+// email type. Restored per Bobby's 2026-08-25 follow-up request, at the
+// bottom only — the mid-body {{legalFooterBlock}} duplicate stays removed.
 function closingBlock(branding: EmailBranding): string {
-  const businessName = branding.business_name ?? "Bedlay Gardens LTD"
+  const businessName = branding.business_name || "Bedlay Gardens LTD"
   const regNo = branding.business_company_reg_no || DEFAULT_COMPANY_REG_NO
   const directors = branding.business_directors || DEFAULT_DIRECTORS
   return `
-    <p style="margin: 24px 0 0;">Warm regards,<br />The Team at ${businessName}</p>
+    <p style="margin: 24px 0 0;">Warm regards,<br />The staff at ${businessName}</p>
     <p style="margin: 16px 0 0; font-size: 11px; color: #999;">
       ${businessName} is a registered company in the United Kingdom.<br />
       Company Registration No: ${regNo}<br />
@@ -45,7 +52,9 @@ function closingBlock(branding: EmailBranding): string {
 }
 
 function layout(branding: EmailBranding, title: string, bodyHtml: string): string {
-  const businessName = branding.business_name ?? "Bedlay Gardens LTD"
+  const businessName = branding.business_name || "Bedlay Gardens LTD"
+  const phone = branding.business_phone || DEFAULT_PHONE
+  const email = branding.business_email || DEFAULT_EMAIL
   const addressLine = [
     branding.business_address_line1,
     branding.business_address_line2,
@@ -60,7 +69,7 @@ function layout(branding: EmailBranding, title: string, bodyHtml: string): strin
         <img src="cid:logo" alt="${businessName}" style="height: 40px; margin-bottom: 8px;" />
         <h1 style="margin: 0; font-size: 20px; color: #3f5a3a;">${businessName}</h1>
         <p style="margin: 4px 0 0; font-size: 13px; color: #666;">
-          ${branding.business_phone ? `Tel-No: ${branding.business_phone}` : ""}${branding.business_phone && branding.business_email ? " · " : ""}${branding.business_email ? `Email: ${branding.business_email}` : ""}
+          Tel-No: ${phone} · Email: ${email}
         </p>
       </div>
       <div style="padding: 24px 0;">
@@ -68,7 +77,7 @@ function layout(branding: EmailBranding, title: string, bodyHtml: string): strin
         ${bodyHtml}
       </div>
       <div style="padding: 16px 0; border-top: 1px solid #ddd; font-size: 12px; color: #666;">
-        <p style="margin: 0 0 4px;">${businessName}${addressLine ? ` — ${addressLine}` : ""}</p>
+        ${addressLine ? `<p style="margin: 0 0 4px;">${businessName} — ${addressLine}</p>` : ""}
         ${closingBlock(branding)}
       </div>
     </div>
@@ -244,7 +253,8 @@ function otherDaycareDatesLine(dates: Date[] | undefined): string {
 }
 
 type NewCustomerDetails = {
-  name: string
+  forename: string
+  surname: string
   email: string
   customerNumber: number
   phone: string | null
@@ -267,7 +277,7 @@ function customerDetailRows(customer: NewCustomerDetails): [string, string][] {
 
   return [
     ["Customer reference", formatCustomerNumber(customer.customerNumber)],
-    ["Name", customer.name],
+    ["Name", fullName(customer)],
     ["Email", customer.email],
     ...(customer.phone ? ([["Phone", customer.phone]] as [string, string][]) : []),
     ...(customer.workPhone ? ([["Work phone", customer.workPhone]] as [string, string][]) : []),
@@ -280,12 +290,12 @@ export function welcomeEmail(
   customer: NewCustomerDetails,
   addDogUrl: string
 ): { subject: string; html: string } {
-  const businessName = branding.business_name ?? "Bedlay Gardens LTD"
+  const businessName = branding.business_name || "Bedlay Gardens LTD"
   return {
     subject: `Welcome to ${businessName}`,
     html: layout(
       branding,
-      `Welcome, ${customer.name}!`,
+      `Welcome, ${fullName(customer)}!`,
       `
         <p>Thanks for creating an account with ${businessName} — we're looking forward to meeting your dog.</p>
         <p>Here's a summary of the details you entered:</p>
@@ -450,6 +460,19 @@ export function dogUpdatedEmail(
   }
 }
 
+// Used to be the company-registration/VAT/directors line that could be
+// placed mid-body via the {{legalFooterBlock}} merge field on the
+// invoice-style templates — removed per Bobby's 2026-08-25 request (it was
+// duplicating the same disclosure closingBlock already added at the very
+// end of every email, and both broke when the business name Setting was
+// blank). Kept as an always-empty no-op, rather than deleted outright, so an
+// already-saved custom template body that still contains the literal
+// "{{legalFooterBlock}}" placeholder renders blank instead of leaking that
+// text — see renderMergeFields in lib/email-template-store.ts.
+function buildLegalFooterBlock(): string {
+  return ""
+}
+
 // Computes every merge-field value for the post-payment invoice template
 // from real (or, from preview, synthetic) booking data — shared by the real
 // send (bookingConfirmationEmail, which resolves the admin-editable
@@ -457,29 +480,13 @@ export function dogUpdatedEmail(
 // whatever the admin currently has typed, unsaved, against sample data).
 // Keeping this one function as the single source of "what these fields
 // mean" is what keeps the preview honest.
-// Shared by every invoice-style email (post-payment invoice, and the
-// pre-payment deposit invoice below) — empty unless a company registration
-// number is on file (see EmailBranding.business_company_reg_no).
-function buildLegalFooterBlock(branding: EmailBranding, vat: InvoiceVatDetails): string {
-  if (!branding.business_company_reg_no) return ""
-  const businessName = branding.business_name ?? "Bedlay Gardens LTD"
-  return `
-    <p style="margin: 16px 0 0; font-size: 11px; color: #999;">
-      ${businessName} is a registered company in the United Kingdom.<br />
-      Company Registration No: ${branding.business_company_reg_no}
-      ${vat.enabled && vat.number ? `<br />VAT No: ${vat.number}` : ""}
-      ${branding.business_directors ? `<br />Directors: ${branding.business_directors}` : ""}
-    </p>
-  `
-}
-
 function buildInvoiceEmailVars(
   branding: EmailBranding,
   booking: InvoiceBookingDetails,
   vat: InvoiceVatDetails,
   portalBookingsUrl: string
 ): Record<string, string> {
-  const businessName = branding.business_name ?? "Bedlay Gardens LTD"
+  const businessName = branding.business_name || "Bedlay Gardens LTD"
   const invoiceNumber = `INV-${booking.bookingId.slice(-6).toUpperCase()}`
   const invoiceDate = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
   const balancePence = booking.totalPence - booking.depositPence
@@ -511,7 +518,7 @@ function buildInvoiceEmailVars(
     customerReferenceBlock: booking.customerNumber
       ? `<p style="color: #666; font-size: 12px;">Your customer reference: ${formatCustomerNumber(booking.customerNumber)}</p>`
       : "",
-    legalFooterBlock: buildLegalFooterBlock(branding, vat),
+    legalFooterBlock: buildLegalFooterBlock(),
   }
 }
 
@@ -624,7 +631,7 @@ function buildDepositInvoiceVars(
   vat: InvoiceVatDetails,
   depositPayUrl: string
 ): Record<string, string> {
-  const businessName = branding.business_name ?? "Bedlay Gardens LTD"
+  const businessName = branding.business_name || "Bedlay Gardens LTD"
   const { bookingMetaBlock, invoiceNumber, invoiceDate, bookingRef } = buildBookingMetaBlock(booking)
   const bookingDates = dateRange(booking.startDate, booking.endDate)
   const balancePence = booking.totalPence - booking.depositPence
@@ -649,7 +656,7 @@ function buildDepositInvoiceVars(
     lineItemsTable: invoiceLineItemsTable(booking, vat),
     payLinkBlock: `<p style="margin: 16px 0;">You can securely pay your deposit online via credit or debit card using our Stripe payment link below:</p>
          <p style="margin: 16px 0;"><a href="${depositPayUrl}" style="color: #3f5a3a; font-weight: bold;">Pay deposit now →</a></p>`,
-    legalFooterBlock: buildLegalFooterBlock(branding, vat),
+    legalFooterBlock: buildLegalFooterBlock(),
   }
 }
 
@@ -790,7 +797,7 @@ function buildPaymentReceiptVars(
     otherDaycareDatesBlock: otherDaycareDatesLine(booking.otherDaycareDates),
     followUpBlock,
     payLinkBlock,
-    legalFooterBlock: buildLegalFooterBlock(branding, vat),
+    legalFooterBlock: buildLegalFooterBlock(),
   }
 }
 

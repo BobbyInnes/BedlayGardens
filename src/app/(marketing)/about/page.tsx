@@ -7,6 +7,7 @@ import { sanitizeRichText } from "@/lib/sanitize-html"
 import { DEFAULT_ABOUT_STORY, DEFAULT_ABOUT_FACILITY } from "@/lib/about-defaults"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
   title: "About Us",
@@ -23,7 +24,7 @@ export default async function AboutPage() {
     prisma.user.findMany({
       // Super admins (owners/operators) are excluded from the public team grid.
       where: { role: { in: ["STAFF", "ADMIN"] }, active: true, isSuperAdmin: false },
-      orderBy: { name: "asc" },
+      orderBy: [{ surname: "asc" }, { forename: "asc" }],
     }),
   ])
 
@@ -140,13 +141,13 @@ export default async function AboutPage() {
                   className="flex flex-col items-center gap-3 rounded-xl border-2 border-blue-500 p-6"
                 >
                   <Avatar className="size-24">
-                    <AvatarImage src={member.photoUrl ?? undefined} alt={member.name} />
+                    <AvatarImage src={member.photoUrl ?? undefined} alt={fullName(member)} />
                     <AvatarFallback className="text-2xl">
-                      {member.name.slice(0, 1).toUpperCase()}
+                      {member.forename.slice(0, 1).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-medium">{member.name}</p>
+                    <p className="font-medium">{fullName(member)}</p>
                     {member.jobTitle && (
                       <p className="text-sm text-muted-foreground">{member.jobTitle}</p>
                     )}

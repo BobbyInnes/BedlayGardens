@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { prisma } from "@/lib/prisma"
 import { PupdateForm } from "@/components/staff/pupdate-form"
+import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
   title: "Pupdates | Staff",
@@ -26,7 +27,7 @@ export default async function StaffPupdatesPage() {
       bookingId: booking.id,
       dogId: bd.dogId,
       dogName: bd.dog.name,
-      customerName: booking.customer.name,
+      customerName: fullName(booking.customer),
     }))
   )
 

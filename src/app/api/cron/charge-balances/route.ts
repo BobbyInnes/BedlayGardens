@@ -11,7 +11,7 @@ async function chargeBookingBalance(booking: {
   startDate: Date
   endDate: Date
   service: { name: string }
-  customer: { id: string; name: string; email: string; stripeCustomerId: string | null }
+  customer: { id: string; forename: string; surname: string; email: string; stripeCustomerId: string | null }
   bookingDogs: { dog: { name: string } }[]
 }) {
   const balancePence = booking.totalPence - booking.depositPence
@@ -86,7 +86,7 @@ export async function GET(request: Request) {
     },
     include: {
       service: true,
-      customer: { select: { id: true, name: true, email: true, stripeCustomerId: true } },
+      customer: { select: { id: true, forename: true, surname: true, email: true, stripeCustomerId: true } },
       bookingDogs: { include: { dog: true } },
     },
   })

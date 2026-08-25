@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs"
 import { z } from "zod"
 import { prisma } from "@/lib/prisma"
 import { logAudit } from "@/lib/audit"
+import { fullName } from "@/lib/format"
 
 export type ResetPasswordState = { status: "idle" | "error"; message?: string }
 
@@ -41,7 +42,7 @@ export async function resetPasswordWithToken(
     action: "RESET_PASSWORD",
     entity: "User",
     entityId: resetToken.userId,
-    meta: `${resetToken.user.name} <${resetToken.user.email}> — self-service password reset`,
+    meta: `${fullName(resetToken.user)} <${resetToken.user.email}> — self-service password reset`,
   })
 
   redirect("/login?reset=success")

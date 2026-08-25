@@ -3,6 +3,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { getVatSettings, vatPeriodContaining, splitGrossForVat } from "@/lib/vat"
 import { formatCustomerNumber } from "@/lib/customer-dog-numbers"
+import { fullName } from "@/lib/format"
 import type { PaymentStatus } from "@/generated/prisma/client"
 
 function csvField(value: string): string {
@@ -55,7 +56,8 @@ export async function GET(request: Request) {
             booking: {
               customer: {
                 OR: [
-                  { name: { contains: q, mode: "insensitive" } },
+                  { forename: { contains: q, mode: "insensitive" } },
+                  { surname: { contains: q, mode: "insensitive" } },
                   { email: { contains: q, mode: "insensitive" } },
                   ...(digitsOf(q) !== null ? [{ customerNumber: digitsOf(q)! }] : []),
                 ],
@@ -107,7 +109,7 @@ export async function GET(request: Request) {
     return [
       payment.createdAt.toISOString(),
       payment.succeededAt ? payment.succeededAt.toISOString() : "",
-      payment.booking.customer.name,
+      fullName(payment.booking.customer),
       formatCustomerNumber(payment.booking.customer.customerNumber),
       payment.booking.customer.email,
       payment.booking.bookingDogs.map((bd) => bd.dog.name).join(", "),

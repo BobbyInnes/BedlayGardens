@@ -13,6 +13,7 @@ import {
   updateVacancies,
 } from "@/app/admin/content/actions"
 import { BusinessEmailForm } from "@/components/admin/business-email-form"
+import { BusinessDetailsForm } from "@/components/admin/business-details-form"
 import { VaccinationReviewEmailForm } from "@/components/admin/vaccination-review-email-form"
 import { OpeningHoursForm } from "@/components/admin/opening-hours-form"
 import { FaqCreateForm } from "@/components/admin/faq-create-form"
@@ -79,6 +80,22 @@ export default async function AdminContentPage() {
           linked from the menu.
         </p>
         <NavVisibilityForm settings={settings} />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Business details</h2>
+        <p className="text-sm text-muted-foreground">
+          Shown in the site header/footer, the contact page, search-engine listing info, and the
+          footer of every outgoing email. Leave the address blank to omit it from the email footer
+          entirely.
+        </p>
+        <BusinessDetailsForm
+          name={settings.business_name ?? ""}
+          phone={settings.business_phone ?? ""}
+          addressLine1={settings.business_address_line1 ?? ""}
+          addressLine2={settings.business_address_line2 ?? ""}
+          postcode={settings.business_postcode ?? ""}
+        />
       </section>
 
       <section className="space-y-3">

@@ -7,7 +7,7 @@ import { logAudit, describeBooking } from "@/lib/audit"
 import { getSetting, getSettings } from "@/lib/settings"
 import { getVatSettings } from "@/lib/vat"
 import { stripe, getSiteUrl } from "@/lib/stripe"
-import { formatPence } from "@/lib/format"
+import { formatPence, fullName } from "@/lib/format"
 import { sendEmail } from "@/lib/email"
 import { cancellationConfirmationEmail, bookingConfirmationEmail, paymentReceiptEmail } from "@/lib/email-templates"
 import { offerNextInLine } from "@/lib/waitlist"
@@ -223,7 +223,7 @@ export async function redeemCreditForPayment(
   const bookingSummary = {
     bookingId: booking.id,
     bookingNumber: booking.bookingNumber,
-    customerName: booking.customer.name,
+    customerName: fullName(booking.customer),
     serviceName: booking.service.name,
     startDate: booking.startDate,
     endDate: booking.endDate,
@@ -250,7 +250,7 @@ export async function redeemCreditForPayment(
       {
         bookingId: booking.id,
         bookingNumber: booking.bookingNumber,
-        customerName: booking.customer.name,
+        customerName: fullName(booking.customer),
         serviceSlug: booking.service.slug,
         serviceName: booking.service.name,
         paymentTiming: booking.service.paymentTiming,

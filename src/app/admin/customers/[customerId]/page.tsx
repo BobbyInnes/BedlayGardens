@@ -5,7 +5,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { formatPence } from "@/lib/format"
+import { formatPence, fullName } from "@/lib/format"
 import { ToggleActiveButton } from "@/components/admin/toggle-active-button"
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
 import { CustomerNotesForm } from "@/components/admin/customer-notes-form"
@@ -134,7 +134,7 @@ export default async function AdminCustomerDetailPage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            {customer.name}{" "}
+            {fullName(customer)}{" "}
             <span className="text-base font-normal text-muted-foreground">
               ({formatCustomerNumber(customer.customerNumber)})
             </span>
@@ -163,7 +163,8 @@ export default async function AdminCustomerDetailPage({
             <h2 className="text-sm font-semibold">Customer details</h2>
             <CustomerDetailsForm
               customerId={customer.id}
-              name={customer.name}
+              forename={customer.forename}
+              surname={customer.surname}
               email={customer.email}
               phone={customer.phone ?? ""}
               workPhone={customer.workPhone ?? ""}
@@ -421,8 +422,8 @@ export default async function AdminCustomerDetailPage({
               </p>
               <ConfirmDeleteButton
                 label="Delete customer"
-                title={`Delete ${customer.name}?`}
-                description={`This will permanently delete ${customer.name}, their ${customer.dogs.length} dog(s), and their ${customer.bookings.length} booking(s). This cannot be undone.`}
+                title={`Delete ${fullName(customer)}?`}
+                description={`This will permanently delete ${fullName(customer)}, their ${customer.dogs.length} dog(s), and their ${customer.bookings.length} booking(s). This cannot be undone.`}
                 onConfirm={deleteCustomer.bind(null, customer.id)}
               />
             </section>

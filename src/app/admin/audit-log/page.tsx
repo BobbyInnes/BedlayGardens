@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
+import { fullName } from "@/lib/format"
 import { deleteAllAuditLogs } from "./actions"
 
 export const metadata: Metadata = {
@@ -165,7 +166,7 @@ export default async function AdminAuditLogPage({
                     {formatDateTime(log.createdAt)}
                   </td>
                   <td className="p-3">
-                    <p className="font-medium">{log.actor?.name ?? "Unknown"}</p>
+                    <p className="font-medium">{log.actor ? fullName(log.actor) : "Unknown"}</p>
                     <p className="text-xs text-muted-foreground">{log.actor?.email}</p>
                   </td>
                   <td className="p-3">

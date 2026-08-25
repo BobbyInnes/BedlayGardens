@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { ensureCareTasksForToday } from "@/lib/care-tasks"
 import { startOfDay } from "@/lib/dates"
 import { CareTaskItem } from "@/components/staff/care-task-item"
+import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
   title: "Care Schedule | Staff",
@@ -41,7 +42,7 @@ export default async function StaffCareSchedulePage() {
               <h2 className="font-semibold">
                 {dogTasks[0].dog.name}{" "}
                 <span className="font-normal text-muted-foreground">
-                  — {dogTasks[0].booking.customer.name}
+                  — {fullName(dogTasks[0].booking.customer)}
                 </span>
               </h2>
               <ul className="space-y-2">
@@ -52,7 +53,7 @@ export default async function StaffCareSchedulePage() {
                     type={task.type}
                     description={task.description}
                     completed={!!task.completedAt}
-                    completedByName={task.completedBy?.name ?? null}
+                    completedByName={task.completedBy ? fullName(task.completedBy) : null}
                     notes={task.notes}
                   />
                 ))}

@@ -5,6 +5,7 @@ import { checkVaccinationGate } from "@/lib/vaccination-gate"
 import { CheckInForm } from "@/components/staff/check-in-form"
 import { Badge } from "@/components/ui/badge"
 import { AlertTriangle } from "lucide-react"
+import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
   title: "Check In | Staff",
@@ -44,7 +45,7 @@ export default async function StaffCheckInPage({
           Check in — {booking.bookingDogs.map((bd) => bd.dog.name).join(", ")}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {booking.customer.name} — {booking.service.name}
+          {fullName(booking.customer)} — {booking.service.name}
         </p>
       </div>
 

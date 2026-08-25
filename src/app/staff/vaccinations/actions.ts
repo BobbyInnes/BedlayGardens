@@ -5,6 +5,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { logAudit } from "@/lib/audit"
 import { notifyCustomerVaccinationReviewed } from "@/lib/vaccination-review-notify"
+import { fullName } from "@/lib/format"
 
 async function requireStaff() {
   const session = await auth()
@@ -30,7 +31,7 @@ export async function verifyVaccinationRecord(
     action: "VERIFY_VACCINATION_RECORD",
     entity: "VaccinationRecord",
     entityId: recordId,
-    meta: `${record.type} — ${status} — ${record.dateGiven.toLocaleDateString("en-GB")} to ${record.expiryDate.toLocaleDateString("en-GB")} — ${record.dog.name}, owner ${record.dog.owner.name} <${record.dog.owner.email}>`,
+    meta: `${record.type} — ${status} — ${record.dateGiven.toLocaleDateString("en-GB")} to ${record.expiryDate.toLocaleDateString("en-GB")} — ${record.dog.name}, owner ${fullName(record.dog.owner)} <${record.dog.owner.email}>`,
   })
   await notifyCustomerVaccinationReviewed({
     customerId: record.dog.ownerId,

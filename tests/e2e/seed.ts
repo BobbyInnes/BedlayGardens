@@ -2,6 +2,7 @@ import { PrismaNeon } from "@prisma/adapter-neon"
 import bcrypt from "bcryptjs"
 import fs from "node:fs"
 import { PrismaClient } from "../../src/generated/prisma/client"
+import { fullName } from "../../src/lib/format"
 import {
   E2E_CUSTOMER_EMAIL,
   E2E_CUSTOMER_PASSWORD,
@@ -53,7 +54,8 @@ async function seed() {
 
   const customer = await prisma.user.create({
     data: {
-      name: "E2E Customer",
+      forename: "E2E",
+      surname: "Customer",
       email: E2E_CUSTOMER_EMAIL,
       passwordHash: customerHash,
       role: "CUSTOMER",
@@ -73,14 +75,15 @@ async function seed() {
       data: {
         agreementId: activeAgreement.id,
         customerId: customer.id,
-        signedName: customer.name,
+        signedName: fullName(customer),
         ipAddress: "127.0.0.1",
       },
     })
   }
   const admin = await prisma.user.create({
     data: {
-      name: "E2E Admin",
+      forename: "E2E",
+      surname: "Admin",
       email: E2E_ADMIN_EMAIL,
       passwordHash: adminHash,
       role: "ADMIN",
@@ -89,7 +92,8 @@ async function seed() {
   })
   const staff = await prisma.user.create({
     data: {
-      name: "E2E Staff",
+      forename: "E2E",
+      surname: "Staff",
       email: E2E_STAFF_EMAIL,
       passwordHash: staffHash,
       role: "STAFF",

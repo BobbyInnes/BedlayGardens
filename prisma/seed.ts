@@ -90,41 +90,41 @@ async function main() {
   // USERS
   // ---------------------------------------------------------------------
   const admin = await prisma.user.create({
-    data: { email: 'admin@bedlaygardens.test', passwordHash, name: 'Robert Innes', phone: '07958670328', addressLine1: 'Bedlay Gardens, Cumbernauld Road, Chryston', addressCity: 'Glasgow', addressPostcode: 'G69 9HP', role: 'ADMIN', active: true },
+    data: { email: 'admin@bedlaygardens.test', passwordHash, forename: 'Robert', surname: 'Innes', phone: '07958670328', addressLine1: 'Bedlay Gardens, Cumbernauld Road, Chryston', addressCity: 'Glasgow', addressPostcode: 'G69 9HP', role: 'ADMIN', active: true },
   });
 
   const staff = await prisma.user.create({
-    data: { email: 'staff@bedlaygardens.test', passwordHash, name: 'Jamie Staff', phone: '07700900001', role: 'STAFF', active: true },
+    data: { email: 'staff@bedlaygardens.test', passwordHash, forename: 'Jamie', surname: 'Staff', phone: '07700900001', role: 'STAFF', active: true },
   });
 
   await prisma.user.create({
-    data: { email: 'formerstaff@bedlaygardens.test', passwordHash, name: 'Former Employee', phone: '07700900002', role: 'STAFF', active: false }, // deactivated: login blocked, history preserved
+    data: { email: 'formerstaff@bedlaygardens.test', passwordHash, forename: 'Former', surname: 'Employee', phone: '07700900002', role: 'STAFF', active: false }, // deactivated: login blocked, history preserved
   });
 
   const alice = await prisma.user.create({
-    data: { email: 'alice@example.test', passwordHash, name: 'Alice Walker', phone: '07700900010', addressLine1: '10 Example Street', addressCity: 'Glasgow', addressPostcode: 'G1 1AA', role: 'CUSTOMER', active: true, stripeCustomerId: 'cus_test_alice', vetName: 'Dr. Fiona Reid', vetPhone: '01417001234', vetPracticeName: 'Chryston Vets', vetAddressLine1: '12 Main Street', vetCity: 'Chryston', vetPostcode: 'G69 9AB', vetEmail: 'info@chrystonvets.co.uk', emergencyContactName: 'Alice Walker', emergencyContactPhone: '07700900010', emergencyContactAddressLine1: '4 Orchard Road', emergencyContactCity: 'Glasgow', emergencyContactPostcode: 'G33 1AB' },
+    data: { email: 'alice@example.test', passwordHash, forename: 'Alice', surname: 'Walker', phone: '07700900010', addressLine1: '10 Example Street', addressCity: 'Glasgow', addressPostcode: 'G1 1AA', role: 'CUSTOMER', active: true, stripeCustomerId: 'cus_test_alice', vetName: 'Dr. Fiona Reid', vetPhone: '01417001234', vetPracticeName: 'Chryston Vets', vetAddressLine1: '12 Main Street', vetCity: 'Chryston', vetPostcode: 'G69 9AB', vetEmail: 'info@chrystonvets.co.uk', emergencyContactName: 'Alice Walker', emergencyContactPhone: '07700900010', emergencyContactAddressLine1: '4 Orchard Road', emergencyContactCity: 'Glasgow', emergencyContactPostcode: 'G33 1AB' },
   });
 
   const bob = await prisma.user.create({
-    data: { email: 'bob@example.test', passwordHash, name: 'Bob Fraser', phone: '07700900011', addressLine1: '22 Example Street', addressCity: 'Glasgow', addressPostcode: 'G2 2BB', role: 'CUSTOMER', active: true, stripeCustomerId: 'cus_test_bob', vetName: 'Dr. James Wood', vetPhone: '01417005678', vetPracticeName: 'Glasgow Vet Clinic', vetAddressLine1: '88 Cathedral Street', vetCity: 'Glasgow', vetPostcode: 'G1 2QX', vetEmail: 'reception@glasgowvetclinic.co.uk', emergencyContactName: 'Bob Fraser', emergencyContactPhone: '07700900011' },
+    data: { email: 'bob@example.test', passwordHash, forename: 'Bob', surname: 'Fraser', phone: '07700900011', addressLine1: '22 Example Street', addressCity: 'Glasgow', addressPostcode: 'G2 2BB', role: 'CUSTOMER', active: true, stripeCustomerId: 'cus_test_bob', vetName: 'Dr. James Wood', vetPhone: '01417005678', vetPracticeName: 'Glasgow Vet Clinic', vetAddressLine1: '88 Cathedral Street', vetCity: 'Glasgow', vetPostcode: 'G1 2QX', vetEmail: 'reception@glasgowvetclinic.co.uk', emergencyContactName: 'Bob Fraser', emergencyContactPhone: '07700900011' },
   });
 
   const carol = await prisma.user.create({
-    data: { email: 'carol@example.test', passwordHash, name: 'Carol Mitchell', phone: '07700900012', addressLine1: '5 Example Road', addressCity: 'Chryston', addressPostcode: 'G69 9AA', role: 'CUSTOMER', active: true, vetName: 'Dr. Fiona Reid', vetPhone: '01417001234', vetPracticeName: 'Chryston Vets', vetAddressLine1: '12 Main Street', vetCity: 'Chryston', vetPostcode: 'G69 9AB', vetEmail: 'info@chrystonvets.co.uk', emergencyContactName: 'Carol Mitchell', emergencyContactPhone: '07700900012' },
+    data: { email: 'carol@example.test', passwordHash, forename: 'Carol', surname: 'Mitchell', phone: '07700900012', addressLine1: '5 Example Road', addressCity: 'Chryston', addressPostcode: 'G69 9AA', role: 'CUSTOMER', active: true, vetName: 'Dr. Fiona Reid', vetPhone: '01417001234', vetPracticeName: 'Chryston Vets', vetAddressLine1: '12 Main Street', vetCity: 'Chryston', vetPostcode: 'G69 9AB', vetEmail: 'info@chrystonvets.co.uk', emergencyContactName: 'Carol Mitchell', emergencyContactPhone: '07700900012' },
   });
 
   const dave = await prisma.user.create({
-    data: { email: 'dave@example.test', passwordHash, name: 'Dave Thomson', phone: '07700900013', addressLine1: '99 Outside Area Lane', addressCity: 'Edinburgh', addressPostcode: 'EH1 1AA', role: 'CUSTOMER', active: true, vetName: 'Dr. Ian Ross', vetPhone: '01315559999', vetPracticeName: 'Edinburgh Vets', vetCity: 'Edinburgh', vetPostcode: 'EH1 1AA', emergencyContactName: 'Dave Thomson', emergencyContactPhone: '07700900013' }, // EH postcode: outside service area on purpose
+    data: { email: 'dave@example.test', passwordHash, forename: 'Dave', surname: 'Thomson', phone: '07700900013', addressLine1: '99 Outside Area Lane', addressCity: 'Edinburgh', addressPostcode: 'EH1 1AA', role: 'CUSTOMER', active: true, vetName: 'Dr. Ian Ross', vetPhone: '01315559999', vetPracticeName: 'Edinburgh Vets', vetCity: 'Edinburgh', vetPostcode: 'EH1 1AA', emergencyContactName: 'Dave Thomson', emergencyContactPhone: '07700900013' }, // EH postcode: outside service area on purpose
   });
 
   const erin = await prisma.user.create({
-    data: { email: 'erin@example.test', passwordHash, name: 'Erin Campbell', phone: '07700900014', addressLine1: '3 Example Crescent', addressCity: 'Muirhead', addressPostcode: 'G69 9XY', role: 'CUSTOMER', active: true, stripeCustomerId: 'cus_test_erin', vetName: 'Dr. Sarah Kerr', vetPhone: '01417009999', vetPracticeName: 'Muirhead Vets', vetCity: 'Muirhead', vetPostcode: 'G69 9DL', emergencyContactName: 'Erin Campbell', emergencyContactPhone: '07700900014' },
+    data: { email: 'erin@example.test', passwordHash, forename: 'Erin', surname: 'Campbell', phone: '07700900014', addressLine1: '3 Example Crescent', addressCity: 'Muirhead', addressPostcode: 'G69 9XY', role: 'CUSTOMER', active: true, stripeCustomerId: 'cus_test_erin', vetName: 'Dr. Sarah Kerr', vetPhone: '01417009999', vetPracticeName: 'Muirhead Vets', vetCity: 'Muirhead', vetPostcode: 'G69 9DL', emergencyContactName: 'Erin Campbell', emergencyContactPhone: '07700900014' },
   });
 
   // A soft-deleted / GDPR-deleted account, to test account deletion still
   // preserves referential integrity for past bookings/audit
   const deletedCustomer = await prisma.user.create({
-    data: { email: 'deleted-user-4471@bedlaygardens.test', passwordHash, name: '[deleted]', role: 'CUSTOMER', active: false },
+    data: { email: 'deleted-user-4471@bedlaygardens.test', passwordHash, forename: '[deleted]', surname: '', role: 'CUSTOMER', active: false },
   });
 
   // ---------------------------------------------------------------------

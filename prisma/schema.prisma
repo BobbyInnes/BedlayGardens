@@ -156,7 +156,16 @@ model User {
   customerNumber   Int       @unique @default(autoincrement())
   emailVerified    DateTime?
   passwordHash     String?
-  name             String
+  // name replaced with salutation/forename/surname (2026-08-25) — every
+  // display site now builds its shown name via lib/format.ts's fullName().
+  salutation       String?
+  forename         String
+  surname          String
+  // Home/Mobile/Works split (2026-08-25) — phone (pre-existing) now means
+  // Mobile specifically; homePhone is new; workPhone means Works. Kept the
+  // `phone`/`workPhone` column names rather than renaming them to avoid
+  // rewriting every other read site that already expects those names.
+  homePhone        String?
   phone            String?
   workPhone        String?
   addressLine1     String?

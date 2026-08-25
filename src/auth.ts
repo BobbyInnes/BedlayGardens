@@ -33,7 +33,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return {
           id: user.id,
           email: user.email,
-          name: user.name,
+          forename: user.forename,
+          surname: user.surname,
           role: user.role,
           isSuperAdmin: user.isSuperAdmin,
         }

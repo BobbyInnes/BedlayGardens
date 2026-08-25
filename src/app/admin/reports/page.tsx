@@ -3,7 +3,7 @@ import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { prisma } from "@/lib/prisma"
-import { formatPence } from "@/lib/format"
+import { formatPence, fullName } from "@/lib/format"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 import { startOfDay, addDays, parseMonthParam, monthParamFor } from "@/lib/dates"
 import type { BookingStatus } from "@/generated/prisma/client"
@@ -160,7 +160,7 @@ export default async function AdminReportsPage({
                   {booking.startDate.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}{" "}
                   — {booking.service.name}{" "}
                   <BookingDogTag names={booking.bookingDogs.map((bd) => bd.dog.name)} /> —{" "}
-                  {booking.customer.name}
+                  {fullName(booking.customer)}
                 </span>
                 <span className="text-muted-foreground">{formatPence(booking.totalPence)}</span>
               </li>

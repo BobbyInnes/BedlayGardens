@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { prisma } from "@/lib/prisma"
 import { today } from "@/lib/staff-dates"
 import { DogFlagBadges } from "@/components/staff/dog-flag-badges"
+import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
   title: "Walk Roster | Staff",
@@ -43,7 +44,7 @@ export default async function StaffWalkRosterPage() {
                         <DogFlagBadges flags={wb.dog.flags} />
                       </span>
                       <span className="text-muted-foreground">
-                        {wb.booking?.customer.name ?? "—"}
+                        {wb.booking ? fullName(wb.booking.customer) : "—"}
                       </span>
                     </li>
                   ))}

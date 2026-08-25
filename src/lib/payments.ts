@@ -4,7 +4,7 @@ import { logAudit, describeBooking } from "@/lib/audit"
 import { sendEmail } from "@/lib/email"
 import { getSettings } from "@/lib/settings"
 import { getVatSettings } from "@/lib/vat"
-import { formatPence } from "@/lib/format"
+import { formatPence, fullName } from "@/lib/format"
 import { bookingConfirmationEmail, paymentReceiptEmail } from "@/lib/email-templates"
 
 // Marks a Payment as SUCCEEDED (if not already), confirms the booking when a
@@ -61,7 +61,7 @@ export async function markPaymentSucceededAndNotify(stripePaymentIntentId: strin
   const bookingSummary = {
     bookingId: booking.id,
     bookingNumber: booking.bookingNumber,
-    customerName: booking.customer.name,
+    customerName: fullName(booking.customer),
     serviceName: booking.service.name,
     startDate: booking.startDate,
     endDate: booking.endDate,
@@ -94,7 +94,7 @@ export async function markPaymentSucceededAndNotify(stripePaymentIntentId: strin
       {
         bookingId: booking.id,
         bookingNumber: booking.bookingNumber,
-        customerName: booking.customer.name,
+        customerName: fullName(booking.customer),
         serviceSlug: booking.service.slug,
         serviceName: booking.service.name,
         paymentTiming: booking.service.paymentTiming,

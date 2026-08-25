@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { today, tomorrow } from "@/lib/staff-dates"
 import { DogFlagBadges } from "@/components/staff/dog-flag-badges"
 import type { DogFlagType } from "@/generated/prisma/client"
+import { fullName } from "@/lib/format"
 
 function allFlags(bookingDogs: { dog: { flags: { type: DogFlagType; notes: string | null }[] } }[]) {
   return bookingDogs.flatMap((bd) => bd.dog.flags)
@@ -87,7 +88,7 @@ export default async function StaffTodayPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm text-muted-foreground">
-                    <p>{booking.customer.name}</p>
+                    <p>{fullName(booking.customer)}</p>
                     <DogFlagBadges flags={allFlags(booking.bookingDogs)} />
                     <Button size="sm" asChild>
                       <Link href={`/staff/bookings/${booking.id}/check-in`}>Check in</Link>
@@ -116,7 +117,7 @@ export default async function StaffTodayPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm text-muted-foreground">
-                    <p>{booking.customer.name}</p>
+                    <p>{fullName(booking.customer)}</p>
                     <DogFlagBadges flags={allFlags(booking.bookingDogs)} />
                     <Button size="sm" asChild>
                       <Link href={`/staff/bookings/${booking.id}/check-out`}>Check out</Link>
@@ -142,7 +143,7 @@ export default async function StaffTodayPage() {
                     {booking.bookingDogs.map((bd) => bd.dog.name).join(", ")}
                   </p>
                   <p className="text-muted-foreground">
-                    {booking.customer.name} — {booking.service.name}
+                    {fullName(booking.customer)} — {booking.service.name}
                   </p>
                   <DogFlagBadges flags={allFlags(booking.bookingDogs)} />
                 </div>

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DeleteDogButton } from "@/components/portal/delete-dog-button"
 import { formatCustomerNumber, formatDogNumber } from "@/lib/customer-dog-numbers"
+import { fullName } from "@/lib/format"
 import type {
   Dog,
   DogFeedingItem,
@@ -126,7 +127,7 @@ export default async function DogsPage({
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-border bg-card p-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">
-            Customer: {user?.name}{" "}
+            Customer: {user && fullName(user)}{" "}
             {user && (
               <span className="text-sm font-normal text-muted-foreground">
                 ({formatCustomerNumber(user.customerNumber)})
@@ -371,17 +372,13 @@ export default async function DogsPage({
             <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-sm">
               <dt className="text-muted-foreground">Evaluation Complete:</dt>
               <dd className="font-medium">{trial ? (trial.outcome ? "Yes" : "No") : "—"}</dd>
-              <dt className="text-muted-foreground">Evaluation Failed:</dt>
+              <dt className="text-muted-foreground">Evaluation Passed:</dt>
               <dd className="font-medium">
-                {trial ? (trial.outcome === "NOT_SUITABLE" ? "Yes" : "No") : "—"}
+                {trial ? (trial.outcome && trial.outcome !== "NOT_SUITABLE" ? "Yes" : "No") : "—"}
               </dd>
               <dt className="text-muted-foreground">Evaluation Date:</dt>
               <dd className="font-medium">
                 {trial?.completedAt ? trial.completedAt.toLocaleDateString("en-GB") : "—"}
-              </dd>
-              <dt className="text-muted-foreground">Valid Until:</dt>
-              <dd className="font-medium">
-                {trial?.validUntil ? trial.validUntil.toLocaleDateString("en-GB") : "—"}
               </dd>
               <dt className="col-span-2 text-muted-foreground">Evaluation Notes:</dt>
               <dd className="col-span-2 font-medium">{trial?.notes || "—"}</dd>

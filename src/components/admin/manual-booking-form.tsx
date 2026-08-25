@@ -21,10 +21,11 @@ import {
   createManualBooking,
   signAgreementForPhoneCustomer,
 } from "@/app/admin/bookings/actions"
+import { fullName } from "@/lib/format"
 
 type PricingModel = "PER_NIGHT" | "PER_DAY" | "PER_SESSION"
 type ServiceInfo = { id: string; slug: string; name: string; pricingModel: PricingModel }
-type Customer = { id: string; name: string; email: string; phone: string | null }
+type Customer = { id: string; forename: string; surname: string; email: string; phone: string | null }
 type DogOption = { id: string; name: string; breed: string }
 type WalkSlotOption = { id: string; date: string; time: string; durationMin: number; remaining: number }
 type VanRunOption = { id: string; date: string; name: string; startTime: string; remaining: number }
@@ -40,7 +41,8 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
   const [searching, setSearching] = React.useState(false)
   const [customer, setCustomer] = React.useState<Customer | null>(null)
   const [showNewCustomer, setShowNewCustomer] = React.useState(false)
-  const [newName, setNewName] = React.useState("")
+  const [newForename, setNewForename] = React.useState("")
+  const [newSurname, setNewSurname] = React.useState("")
   const [newEmail, setNewEmail] = React.useState("")
   const [newPhone, setNewPhone] = React.useState("")
   const [newWorkPhone, setNewWorkPhone] = React.useState("")
@@ -115,7 +117,7 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
   async function selectCustomer(c: Customer) {
     setCustomer(c)
     setResults([])
-    setAgreementSignedName(c.name)
+    setAgreementSignedName(fullName(c))
     const customerDogs = await getCustomerDogs(c.id)
     setDogs(customerDogs)
   }
@@ -123,7 +125,8 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
   async function submitNewCustomer() {
     setCustomerError(null)
     const result = await createQuickCustomer({
-      name: newName,
+      forename: newForename,
+      surname: newSurname,
       email: newEmail,
       phone: newPhone,
       workPhone: newWorkPhone,
@@ -138,7 +141,7 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
     }
     if (result.customer) {
       setCustomer(result.customer)
-      setAgreementSignedName(result.customer.name)
+      setAgreementSignedName(fullName(result.customer))
       setDogs([])
       setShowNewCustomer(false)
     }
@@ -242,7 +245,7 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
         {customer ? (
           <div className="flex items-center justify-between rounded-md bg-muted p-3 text-sm">
             <div>
-              <p className="font-medium">{customer.name}</p>
+              <p className="font-medium">{fullName(customer)}</p>
               <p className="text-muted-foreground">{customer.email}</p>
             </div>
             <Button
@@ -278,7 +281,7 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
                       onClick={() => selectCustomer(r)}
                       className="flex w-full items-center justify-between p-2 text-left text-sm hover:bg-muted"
                     >
-                      <span>{r.name}</span>
+                      <span>{fullName(r)}</span>
                       <span className="text-muted-foreground">{r.email}</span>
                     </button>
                   </li>
@@ -292,9 +295,19 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
               </Button>
             ) : (
               <div className="space-y-3 rounded-md border border-border p-3">
-                <div className="space-y-2">
-                  <Label htmlFor="newName">Name</Label>
-                  <Input id="newName" value={newName} onChange={(e) => setNewName(e.target.value)} />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="newForename">Forename</Label>
+                    <Input
+                      id="newForename"
+                      value={newForename}
+                      onChange={(e) => setNewForename(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="newSurname">Surname</Label>
+                    <Input id="newSurname" value={newSurname} onChange={(e) => setNewSurname(e.target.value)} />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="newEmail">Email</Label>
@@ -362,7 +375,12 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
                     type="button"
                     size="sm"
                     onClick={submitNewCustomer}
-                    disabled={!newAddressLine1.trim() || (!newPhone.trim() && !newWorkPhone.trim())}
+                    disabled={
+                      !newForename.trim() ||
+                      !newSurname.trim() ||
+                      !newAddressLine1.trim() ||
+                      (!newPhone.trim() && !newWorkPhone.trim())
+                    }
                   >
                     Create customer
                   </Button>

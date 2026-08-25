@@ -7,6 +7,7 @@ import { StaffForm } from "@/components/admin/staff-form"
 import { ResetPasswordForm } from "@/components/admin/reset-password-form"
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
 import { updateStaff, deleteStaff } from "@/app/staff/team/actions"
+import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
   title: "Edit Staff | Admin",
@@ -30,7 +31,7 @@ export default async function EditStaffPage({
   if (staff.role === "ADMIN" && !viewerIsSuperAdmin && !isSelf) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Edit {staff.name}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Edit {fullName(staff)}</h1>
         <p className="rounded-lg border border-border bg-muted/50 p-4 text-sm text-muted-foreground">
           Only a super admin can view or edit an admin account.
         </p>
@@ -43,7 +44,7 @@ export default async function EditStaffPage({
   return (
     <div className="space-y-10">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Edit {staff.name}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Edit {fullName(staff)}</h1>
       </div>
 
       <StaffForm
@@ -68,8 +69,8 @@ export default async function EditStaffPage({
           </p>
           <ConfirmDeleteButton
             label="Delete staff account"
-            title={`Delete ${staff.name}?`}
-            description={`This will permanently delete ${staff.name}'s account, their audit log entries, and any incident reports they filed. This cannot be undone.`}
+            title={`Delete ${fullName(staff)}?`}
+            description={`This will permanently delete ${fullName(staff)}'s account, their audit log entries, and any incident reports they filed. This cannot be undone.`}
             onConfirm={deleteStaff.bind(null, staff.id)}
           />
         </section>

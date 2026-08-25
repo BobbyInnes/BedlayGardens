@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import type { Prisma } from "@/generated/prisma/client"
 import { TRIAL_OUTCOME_LABELS } from "@/lib/trial-outcome"
+import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
   title: "Meet & Greet Review | Staff",
@@ -30,7 +31,8 @@ export default async function StaffTrialsPage({
             booking: {
               customer: {
                 OR: [
-                  { name: { contains: owner.trim(), mode: "insensitive" as const } },
+                  { forename: { contains: owner.trim(), mode: "insensitive" as const } },
+                  { surname: { contains: owner.trim(), mode: "insensitive" as const } },
                   { email: { contains: owner.trim(), mode: "insensitive" as const } },
                 ],
               },
@@ -88,7 +90,7 @@ export default async function StaffTrialsPage({
                   <p className="font-medium">
                     {trial.dog.name}{" "}
                     <span className="font-normal text-muted-foreground">
-                      — {trial.booking.customer.name}
+                      — {fullName(trial.booking.customer)}
                     </span>
                   </p>
                   <span className="text-muted-foreground">
@@ -120,7 +122,7 @@ export default async function StaffTrialsPage({
                   <p className="font-medium">
                     {trial.dog.name}{" "}
                     <span className="font-normal text-muted-foreground">
-                      — {trial.booking.customer.name}
+                      — {fullName(trial.booking.customer)}
                     </span>
                   </p>
                   <Badge variant={trial.outcome === "PASSED" ? "default" : "destructive"}>

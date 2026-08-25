@@ -18,6 +18,7 @@ import { sendEmail } from "@/lib/email"
 import { getSiteUrl } from "@/lib/stripe"
 import { bookingConfirmationEmail, bookingConfirmationDepositInvoiceEmail } from "@/lib/email-templates"
 import { logAudit } from "@/lib/audit"
+import { fullName } from "@/lib/format"
 import { GROUP_BLOCKING_FLAGS, SHARED_KENNEL_BLOCKING_FLAGS, DOG_FLAG_LABELS } from "@/lib/dog-flags"
 import { hasCurrentSignedAgreement } from "@/lib/agreement"
 import { checkTrialGate } from "@/lib/trial"
@@ -693,7 +694,7 @@ export async function resolveBookingCreation(
       const invoiceBooking = {
         bookingId: booking.id,
         bookingNumber: booking.bookingNumber,
-        customerName: customer.name,
+        customerName: fullName(customer),
         serviceSlug: service.slug,
         serviceName: service.name,
         paymentTiming: service.paymentTiming,
@@ -730,7 +731,7 @@ export async function resolveBookingCreation(
     select: {
       startDate: true,
       endDate: true,
-      customer: { select: { name: true, email: true } },
+      customer: { select: { forename: true, surname: true, email: true } },
     },
   })
   const dateSummary = createdBooking
@@ -743,7 +744,7 @@ export async function resolveBookingCreation(
     action: "CREATE_BOOKING",
     entity: "Booking",
     entityId: bookingId!,
-    meta: `${service.name} — ${dateSummary} — ${dogs.map((dog) => dog.name).join(", ")} — owner ${createdBooking?.customer.name} <${createdBooking?.customer.email}>`,
+    meta: `${service.name} — ${dateSummary} — ${dogs.map((dog) => dog.name).join(", ")} — owner ${createdBooking?.customer ? fullName(createdBooking.customer) : "Unknown"} <${createdBooking?.customer.email}>`,
   })
 
   return { status: "idle", bookingId: bookingId! }

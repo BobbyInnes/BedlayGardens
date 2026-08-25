@@ -11,7 +11,8 @@ const initialState: AdminActionState = { status: "idle" }
 
 export function CustomerDetailsForm({
   customerId,
-  name,
+  forename,
+  surname,
   email,
   phone,
   workPhone,
@@ -21,7 +22,8 @@ export function CustomerDetailsForm({
   addressPostcode,
 }: {
   customerId: string
-  name: string
+  forename: string
+  surname: string
   email: string
   phone: string
   workPhone: string
@@ -35,9 +37,15 @@ export function CustomerDetailsForm({
 
   return (
     <form action={formAction} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="name">Name</Label>
-        <Input id="name" name="name" defaultValue={name} required />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="forename">Forename</Label>
+          <Input id="forename" name="forename" defaultValue={forename} required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="surname">Surname</Label>
+          <Input id="surname" name="surname" defaultValue={surname} required />
+        </div>
       </div>
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>

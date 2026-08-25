@@ -4,6 +4,7 @@ import { FileText } from "lucide-react"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { VaccinationVerifyButtons } from "@/components/admin/vaccination-verify-buttons"
+import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
   title: "Vaccinations | Admin",
@@ -69,7 +70,7 @@ export default async function AdminVaccinationsPage() {
                     {record.dog.name} — {record.type}
                   </p>
                   <p className="text-muted-foreground">
-                    Owner: {record.dog.owner.name} ({record.dog.owner.email})
+                    Owner: {fullName(record.dog.owner)} ({record.dog.owner.email})
                   </p>
                   <p className="text-muted-foreground">
                     Given {record.dateGiven.toLocaleDateString("en-GB")} · Expires{" "}

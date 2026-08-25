@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { getSettings } from "@/lib/settings"
 import { getVatSettings } from "@/lib/vat"
-import { formatPence } from "@/lib/format"
+import { formatPence, fullName } from "@/lib/format"
 import { paymentReceiptEmail, voucherDeliveryEmail } from "@/lib/email-templates"
 import { notifySubscriptionPaymentFailed } from "@/lib/subscriptions"
 import { markPaymentSucceededAndNotify } from "@/lib/payments"
@@ -20,7 +20,7 @@ async function handleVoucherCheckoutCompleted(voucherId: string) {
   const settings = await getSettings()
   const recipientEmail = voucher.recipientEmail || voucher.purchaser?.email
   if (!recipientEmail) return
-  const email = voucherDeliveryEmail(settings, voucher.code, voucher.amountPence, voucher.purchaser?.name ?? "A friend")
+  const email = voucherDeliveryEmail(settings, voucher.code, voucher.amountPence, voucher.purchaser ? fullName(voucher.purchaser) : "A friend")
   await sendEmail({ to: recipientEmail, subject: email.subject, html: email.html })
 }
 
@@ -115,7 +115,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
     {
       bookingId: booking.id,
       bookingNumber: booking.bookingNumber,
-      customerName: booking.customer.name,
+      customerName: fullName(booking.customer),
       serviceName: booking.service.name,
       startDate: booking.startDate,
       endDate: booking.endDate,

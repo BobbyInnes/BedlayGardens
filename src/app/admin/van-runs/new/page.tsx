@@ -2,17 +2,19 @@ import type { Metadata } from "next"
 import { prisma } from "@/lib/prisma"
 import { VanRunForm } from "@/components/admin/van-run-form"
 import { createVanRun } from "@/app/admin/van-runs/actions"
+import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
   title: "New Van Run | Admin",
 }
 
 export default async function NewVanRunPage() {
-  const staffOptions = await prisma.user.findMany({
+  const staffUsers = await prisma.user.findMany({
     where: { role: { in: ["STAFF", "ADMIN"] }, active: true },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true },
+    orderBy: [{ surname: "asc" }, { forename: "asc" }],
+    select: { id: true, forename: true, surname: true },
   })
+  const staffOptions = staffUsers.map((u) => ({ id: u.id, name: fullName(u) }))
 
   return (
     <div className="space-y-6">

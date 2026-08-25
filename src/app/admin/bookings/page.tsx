@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { formatPence } from "@/lib/format"
+import { formatPence, fullName } from "@/lib/format"
 import { buildServiceColorMap } from "@/lib/service-colors"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 import { formatCustomerNumber } from "@/lib/customer-dog-numbers"
@@ -54,7 +54,8 @@ export default async function AdminBookingsPage({
           ? {
               customer: {
                 OR: [
-                  { name: { contains: q.trim(), mode: "insensitive" } },
+                  { forename: { contains: q.trim(), mode: "insensitive" } },
+                  { surname: { contains: q.trim(), mode: "insensitive" } },
                   { email: { contains: q.trim(), mode: "insensitive" } },
                 ],
               },
@@ -138,7 +139,7 @@ export default async function AdminBookingsPage({
               >
                 <div>
                   <p className="font-semibold text-foreground">
-                    {booking.customer.name}{" "}
+                    {fullName(booking.customer)}{" "}
                     <span className="font-normal text-muted-foreground">
                       ({formatCustomerNumber(booking.customer.customerNumber)})
                     </span>

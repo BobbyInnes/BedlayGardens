@@ -4,7 +4,7 @@ import { notFound } from "next/navigation"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Badge } from "@/components/ui/badge"
-import { formatPence } from "@/lib/format"
+import { formatPence, fullName } from "@/lib/format"
 import { toDateInputValue } from "@/lib/dates"
 import { BookingDatesForm } from "@/components/admin/booking-dates-form"
 import { CancelBookingAdminButton } from "@/components/admin/cancel-booking-admin-button"
@@ -79,11 +79,13 @@ export default async function AdminBookingDetailPage({
   // just be confusing, so the generic schedule form is for everything else.
   const showSchedule = booking.service.slug !== "dog-walking"
   const staffOptions = showSchedule
-    ? await prisma.user.findMany({
-        where: { role: { in: ["STAFF", "ADMIN"] }, active: true },
-        orderBy: { name: "asc" },
-        select: { id: true, name: true },
-      })
+    ? (
+        await prisma.user.findMany({
+          where: { role: { in: ["STAFF", "ADMIN"] }, active: true },
+          orderBy: [{ surname: "asc" }, { forename: "asc" }],
+          select: { id: true, forename: true, surname: true },
+        })
+      ).map((u) => ({ id: u.id, name: fullName(u) }))
     : []
 
   return (
@@ -95,7 +97,7 @@ export default async function AdminBookingDetailPage({
             <BookingDogTag names={booking.bookingDogs.map((bd) => bd.dog.name)} />
           </h1>
           <p className="text-sm text-muted-foreground">
-            {booking.customer.name} ({formatCustomerNumber(booking.customer.customerNumber)} —{" "}
+            {fullName(booking.customer)} ({formatCustomerNumber(booking.customer.customerNumber)} —{" "}
             {booking.customer.email})
           </p>
         </div>
@@ -299,7 +301,7 @@ export default async function AdminBookingDetailPage({
           <ConfirmDeleteButton
             label="Delete booking"
             title="Delete this booking?"
-            description={`This will permanently delete the ${booking.service.name} booking for ${booking.customer.name}. This cannot be undone.`}
+            description={`This will permanently delete the ${booking.service.name} booking for ${fullName(booking.customer)}. This cannot be undone.`}
             onConfirm={deleteBookingAdmin.bind(null, booking.id)}
           />
         </section>

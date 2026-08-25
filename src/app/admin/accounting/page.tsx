@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { formatPence } from "@/lib/format"
+import { formatPence, fullName } from "@/lib/format"
 import { formatCustomerNumber } from "@/lib/customer-dog-numbers"
 import { getVatSettings, vatPeriodContaining, adjacentVatPeriod, formatVatPeriod, vatPeriodParam, splitGrossForVat } from "@/lib/vat"
 import type { PaymentStatus } from "@/generated/prisma/client"
@@ -87,7 +87,8 @@ export default async function AdminAccountingPage({
             booking: {
               customer: {
                 OR: [
-                  { name: { contains: q.trim(), mode: "insensitive" } },
+                  { forename: { contains: q.trim(), mode: "insensitive" } },
+                  { surname: { contains: q.trim(), mode: "insensitive" } },
                   { email: { contains: q.trim(), mode: "insensitive" } },
                   // Also matches a customer number typed into this field —
                   // "CUST-00019", "00019", or plain "19" all extract to the
@@ -310,7 +311,7 @@ export default async function AdminAccountingPage({
                         href={`/admin/bookings/${payment.bookingId}`}
                         className="font-medium text-primary hover:underline"
                       >
-                        {payment.booking.customer.name}
+                        {fullName(payment.booking.customer)}
                       </Link>
                     </td>
                     <td className="p-3 whitespace-nowrap text-muted-foreground">

@@ -10,7 +10,7 @@ import { generateVoucherCode, getGiftCardAmountLimits } from "@/lib/vouchers"
 import { getSettings } from "@/lib/settings"
 import { sendEmail } from "@/lib/email"
 import { voucherDeliveryEmail } from "@/lib/email-templates"
-import { formatPence } from "@/lib/format"
+import { formatPence, fullName } from "@/lib/format"
 
 export type VoucherActionState = { status: "idle" | "error"; message?: string }
 
@@ -37,7 +37,7 @@ async function ensureStripeCustomer(userId: string): Promise<string> {
   }
   const customer = await stripe!.customers.create({
     email: user.email,
-    name: user.name,
+    name: fullName(user),
     address: { country: "GB" },
     metadata: { userId },
   })
@@ -83,7 +83,7 @@ export async function purchaseVoucher(input: {
     const purchaser = await prisma.user.findUnique({ where: { id: session.user.id } })
     const recipientEmail = voucher.recipientEmail || purchaser?.email
     if (recipientEmail) {
-      const email = voucherDeliveryEmail(settings, voucher.code, voucher.amountPence, purchaser?.name ?? "A friend")
+      const email = voucherDeliveryEmail(settings, voucher.code, voucher.amountPence, purchaser ? fullName(purchaser) : "A friend")
       await sendEmail({ to: recipientEmail, subject: email.subject, html: email.html })
     }
     revalidatePath("/portal/vouchers")

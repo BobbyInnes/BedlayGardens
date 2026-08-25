@@ -27,7 +27,7 @@ import { Label } from "@/components/ui/label"
 import { isSameDay, parseDateParam, startOfDay, toDateInputValue } from "@/lib/dates"
 import { ensureCareTasksForToday } from "@/lib/care-tasks"
 import { getSetting } from "@/lib/settings"
-import { formatPence } from "@/lib/format"
+import { formatPence, fullName } from "@/lib/format"
 import { ToDoList } from "@/components/admin/todo-list"
 import { CareTaskRecordButton } from "@/components/admin/care-task-record-button"
 import { DailyDatePicker } from "@/components/admin/daily-date-picker"
@@ -298,7 +298,7 @@ function BookingTable({
               </td>
               <td className={TABLE_CELL}>
                 <Link href={`/admin/customers/${booking.customerId}`} className="font-medium hover:underline">
-                  {booking.customer.name}
+                  {fullName(booking.customer)}
                 </Link>
               </td>
               <td className={TABLE_CELL}>{dogsCell(booking.bookingDogs)}</td>
@@ -419,7 +419,7 @@ export default async function AdminOverviewPage({
     }),
     prisma.user.findMany({
       where: { role: { in: ["STAFF", "ADMIN"] }, active: true },
-      orderBy: { name: "asc" },
+      orderBy: [{ surname: "asc" }, { forename: "asc" }],
     }),
     getSetting("daycare_max_capacity", "0"),
   ])
@@ -467,7 +467,7 @@ export default async function AdminOverviewPage({
     id: t.id,
     text: t.text,
     completed: t.completed,
-    assignedTo: t.assignedTo ? { id: t.assignedTo.id, name: t.assignedTo.name } : null,
+    assignedTo: t.assignedTo ? { id: t.assignedTo.id, name: fullName(t.assignedTo) } : null,
   }))
 
   return (
@@ -639,7 +639,7 @@ export default async function AdminOverviewPage({
                 </td>
                 <td className={TABLE_CELL}>
                   <Link href={`/admin/customers/${booking.customerId}`} className="font-medium hover:underline">
-                    {booking.customer.name}
+                    {fullName(booking.customer)}
                   </Link>
                 </td>
                 <td className={TABLE_CELL}>{dogsCell(booking.bookingDogs)}</td>
@@ -689,11 +689,11 @@ export default async function AdminOverviewPage({
                       {booking.id.slice(-6).toUpperCase()}
                     </Link>
                   </td>
-                  <td className={TABLE_CELL}>{booking.customer.name}</td>
+                  <td className={TABLE_CELL}>{fullName(booking.customer)}</td>
                   <td className={TABLE_CELL}>{dogsCell(booking.bookingDogs)}</td>
                   <td className={TABLE_CELL}>{booking.service.name}</td>
                   <td className={TABLE_CELL}>{stop?.vanRun.startTime ?? booking.scheduledTime ?? "—"}</td>
-                  <td className={TABLE_CELL}>{stop?.vanRun.staff?.name ?? booking.assignedStaff?.name ?? "—"}</td>
+                  <td className={TABLE_CELL}>{(stop?.vanRun.staff ? fullName(stop.vanRun.staff) : null) ?? (booking.assignedStaff ? fullName(booking.assignedStaff) : null) ?? "—"}</td>
                   <td className={TABLE_CELL}>
                     <Badge variant="outline">{booking.status.replace(/_/g, " ")}</Badge>
                   </td>
@@ -725,7 +725,7 @@ export default async function AdminOverviewPage({
               <option value="UNASSIGNED">Unassigned</option>
               {staffUsers.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {u.name}
+                  {fullName(u)}
                 </option>
               ))}
             </select>
@@ -735,7 +735,7 @@ export default async function AdminOverviewPage({
           </form>
         </CardHeader>
         <CardContent>
-          <ToDoList tasks={toDoTasksForClient} staff={staffUsers.map((u) => ({ id: u.id, name: u.name }))} />
+          <ToDoList tasks={toDoTasksForClient} staff={staffUsers.map((u) => ({ id: u.id, name: fullName(u) }))} />
         </CardContent>
       </Card>
 
@@ -764,7 +764,7 @@ export default async function AdminOverviewPage({
                   <CareTaskRecordButton
                     taskId={task.id}
                     completed={!!task.completedAt}
-                    completedByName={task.completedBy?.name ?? null}
+                    completedByName={task.completedBy ? fullName(task.completedBy) : null}
                   />
                 </td>
               </tr>
@@ -798,7 +798,7 @@ export default async function AdminOverviewPage({
                   <CareTaskRecordButton
                     taskId={task.id}
                     completed={!!task.completedAt}
-                    completedByName={task.completedBy?.name ?? null}
+                    completedByName={task.completedBy ? fullName(task.completedBy) : null}
                   />
                 </td>
               </tr>

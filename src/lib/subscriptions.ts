@@ -4,6 +4,7 @@ import { resolveBookingCreation } from "@/app/(marketing)/book/actions"
 import { notifyCustomer } from "@/lib/notify"
 import { sendEmail } from "@/lib/email"
 import { getSettings, getSetting } from "@/lib/settings"
+import { fullName } from "@/lib/format"
 
 export const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const
 
@@ -92,8 +93,8 @@ export async function notifySubscriptionPaymentFailed(subscriptionId: string): P
   if (adminEmail) {
     await sendEmail({
       to: adminEmail,
-      subject: `Subscription payment failed — ${subscription.customer.name}`,
-      html: `<p>${subscription.customer.name}'s ${subscription.service.name} subscription for ${subscription.dog.name} has been paused after a failed payment.</p>`,
+      subject: `Subscription payment failed — ${fullName(subscription.customer)}`,
+      html: `<p>${fullName(subscription.customer)}'s ${subscription.service.name} subscription for ${subscription.dog.name} has been paused after a failed payment.</p>`,
     })
   }
 }

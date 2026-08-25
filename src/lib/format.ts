@@ -18,3 +18,12 @@ const pricingModelSuffix: Record<PricingModel, string> = {
 export function formatPriceWithSuffix(pence: number, pricingModel: PricingModel): string {
   return `${formatPence(pence)}${pricingModelSuffix[pricingModel]}`
 }
+
+// The single source of "how do we display a customer/staff member's name" —
+// User.name was replaced with separate forename/surname columns (2026-08-25
+// app-wide rename), so every display site (bookings, invoices, admin lists,
+// staff pages, emails, audit logs) builds its shown name through this rather
+// than concatenating the two fields itself.
+export function fullName(person: { forename: string; surname: string }): string {
+  return `${person.forename} ${person.surname}`.trim()
+}

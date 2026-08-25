@@ -618,3 +618,53 @@ export async function updateInvoiceLegalSettings(
   revalidatePath("/admin/content")
   return { status: "idle", message: "Invoice legal details updated." }
 }
+
+// Business name, phone, and postal address — shown in the site header/footer,
+// the contact page, the LocalBusiness structured-data schema, and every
+// outgoing email (header/footer of layout() in lib/email-templates.ts).
+// business_name falls back to "Bedlay Gardens LTD" wherever it's read if
+// left blank here; the rest simply omit themselves (e.g. no address line in
+// the email footer) rather than showing a placeholder.
+const businessDetailsSchema = z.object({
+  business_name: z.string().trim().max(200),
+  business_phone: z.string().trim().max(50),
+  business_address_line1: z.string().trim().max(200),
+  business_address_line2: z.string().trim().max(200),
+  business_postcode: z.string().trim().max(20),
+})
+
+export async function updateBusinessDetails(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  const session = await requireAdmin()
+  const parsed = businessDetailsSchema.safeParse({
+    business_name: formData.get("business_name"),
+    business_phone: formData.get("business_phone"),
+    business_address_line1: formData.get("business_address_line1"),
+    business_address_line2: formData.get("business_address_line2"),
+    business_postcode: formData.get("business_postcode"),
+  })
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid submission." }
+  }
+
+  const entries = Object.entries(parsed.data)
+  for (const [key, value] of entries) {
+    await prisma.setting.upsert({
+      where: { key },
+      update: { value },
+      create: { key, value },
+    })
+  }
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_SETTING",
+    entity: "Setting",
+    entityId: "business_details",
+    meta: `Name: ${parsed.data.business_name || "(default)"} — Phone: ${parsed.data.business_phone || "(none)"} — Address: ${[parsed.data.business_address_line1, parsed.data.business_address_line2, parsed.data.business_postcode].filter(Boolean).join(", ") || "(none)"}`,
+  })
+
+  revalidatePath("/admin/content")
+  return { status: "idle", message: "Business details updated." }
+}

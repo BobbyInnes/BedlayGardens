@@ -64,7 +64,8 @@ export function buildAuditLogWhere(filters: AuditLogFilters): Prisma.AuditLogWhe
         { entity: { contains: q, mode: "insensitive" } },
         { entityId: { contains: q, mode: "insensitive" } },
         { meta: { contains: q, mode: "insensitive" } },
-        { actor: { name: { contains: q, mode: "insensitive" } } },
+        { actor: { forename: { contains: q, mode: "insensitive" } } },
+        { actor: { surname: { contains: q, mode: "insensitive" } } },
         { actor: { email: { contains: q, mode: "insensitive" } } },
       ],
     })
@@ -78,7 +79,8 @@ export function buildAuditLogWhere(filters: AuditLogFilters): Prisma.AuditLogWhe
       OR: [
         { entityId: { contains: user, mode: "insensitive" } },
         { actorId: { contains: user, mode: "insensitive" } },
-        { actor: { name: { contains: user, mode: "insensitive" } } },
+        { actor: { forename: { contains: user, mode: "insensitive" } } },
+        { actor: { surname: { contains: user, mode: "insensitive" } } },
       ],
     })
   }

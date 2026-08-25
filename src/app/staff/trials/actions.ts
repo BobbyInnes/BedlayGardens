@@ -5,6 +5,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { logAudit } from "@/lib/audit"
 import type { TrialOutcome } from "@/generated/prisma/client"
+import { fullName } from "@/lib/format"
 
 export type StaffActionState = { status: "idle" | "error"; message?: string }
 
@@ -48,7 +49,7 @@ export async function setTrialOutcome(
     action: "SET_MEET_GREET_OUTCOME",
     entity: "TrialVisit",
     entityId: trialVisitId,
-    meta: `${trialVisit.dog.name} — ${outcome} — owner ${trialVisit.booking.customer.name} <${trialVisit.booking.customer.email}>`,
+    meta: `${trialVisit.dog.name} — ${outcome} — owner ${fullName(trialVisit.booking.customer)} <${trialVisit.booking.customer.email}>`,
   })
 
   revalidatePath("/staff/trials")

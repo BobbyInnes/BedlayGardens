@@ -7,6 +7,7 @@ import { startOfDay } from "@/lib/dates"
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
 import { ServiceAreaForm } from "@/components/admin/service-area-form"
 import { deleteVanRun } from "@/app/admin/van-runs/actions"
+import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
   title: "Van Runs | Admin",
@@ -48,7 +49,7 @@ export default async function AdminVanRunsPage() {
                   </p>
                   <p className="text-muted-foreground">
                     {run.stops.length}/{run.maxDogs} dogs
-                    {run.staff ? ` · ${run.staff.name}` : " · Unassigned"}
+                    {run.staff ? ` · ${fullName(run.staff)}` : " · Unassigned"}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

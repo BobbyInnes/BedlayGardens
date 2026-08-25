@@ -16,6 +16,7 @@ import {
 import type { User } from "@/generated/prisma/client"
 import type { AdminActionState } from "@/app/staff/team/actions"
 import { compressImage } from "@/lib/compress-image"
+import { fullName } from "@/lib/format"
 
 const initialState: AdminActionState = { status: "idle" }
 
@@ -67,9 +68,15 @@ export function StaffForm({
       action={formAction}
       className="max-w-md space-y-4"
     >
-      <div className="space-y-2">
-        <Label htmlFor="name">Name</Label>
-        <Input id="name" name="name" defaultValue={values?.name ?? staff?.name} required />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="forename">Forename</Label>
+          <Input id="forename" name="forename" defaultValue={values?.forename ?? staff?.forename} required />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="surname">Surname</Label>
+          <Input id="surname" name="surname" defaultValue={values?.surname ?? staff?.surname} required />
+        </div>
       </div>
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
@@ -103,7 +110,7 @@ export function StaffForm({
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={staff.photoUrl}
-            alt={staff.name}
+            alt={fullName(staff)}
             className="mb-2 size-24 rounded-lg object-cover"
           />
         )}
