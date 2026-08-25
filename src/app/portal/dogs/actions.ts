@@ -12,7 +12,7 @@ import { sendEmail } from "@/lib/email"
 import { getSettings } from "@/lib/settings"
 import { dogAddedEmail, dogUpdatedEmail } from "@/lib/email-templates"
 
-const MAX_DOG_AGE_YEARS = 18
+const MAX_DOG_AGE_YEARS = 15
 const MAX_DOG_WEIGHT_KG = 200
 
 const dogSchema = z.object({
@@ -46,6 +46,7 @@ const dogSchema = z.object({
   medicationNotes: z.string().trim().max(2000).optional(),
   behaviourNotes: z.string().trim().max(2000).optional(),
   allergies: z.string().trim().max(2000).optional(),
+  medicalHistorySummary: z.string().trim().max(2000).optional(),
   microchipNumber: z.string().trim().max(50).optional(),
   color: z.string().trim().max(100).optional(),
   // runType, temperament, and groupPlayApproved are deliberately not
@@ -65,6 +66,7 @@ export type DogFieldValues = {
   medicationNotes: string
   behaviourNotes: string
   allergies: string
+  medicalHistorySummary: string
   microchipNumber: string
   color: string
 }
@@ -91,6 +93,7 @@ function extractDogFormValues(formData: FormData): DogFieldValues {
     medicationNotes: String(formData.get("medicationNotes") ?? ""),
     behaviourNotes: String(formData.get("behaviourNotes") ?? ""),
     allergies: String(formData.get("allergies") ?? ""),
+    medicalHistorySummary: String(formData.get("medicalHistorySummary") ?? ""),
     microchipNumber: String(formData.get("microchipNumber") ?? ""),
     color: String(formData.get("color") ?? ""),
   }
@@ -110,6 +113,7 @@ type MedicationRowInput = {
   name: string
   amount: string | null
   am: boolean
+  noon: boolean
   pm: boolean
   specificTime: string | null
   sortOrder: number
@@ -117,8 +121,8 @@ type MedicationRowInput = {
 
 // Medical history rows are submitted as indexed fields (med-name-0, med-amount-0, …)
 // rather than a JSON blob, following the form's existing plain-FormData conventions.
-// AM, PM, and a specific time are independent peer inputs — the time field is only
-// present in the DOM (and thus submitted) when its "Specific time" checkbox is on.
+// AM, noon, PM, and a specific time are independent peer inputs — the time field is
+// only present in the DOM (and thus submitted) when its "Specific time" checkbox is on.
 function extractMedicationRows(formData: FormData): MedicationRowInput[] {
   const count = Number(formData.get("med-count") ?? 0)
   const rows: MedicationRowInput[] = []
@@ -131,6 +135,7 @@ function extractMedicationRows(formData: FormData): MedicationRowInput[] {
       name: name.slice(0, 200),
       amount: amount ? amount.slice(0, 100) : null,
       am: formData.get(`med-am-${i}`) === "on",
+      noon: formData.get(`med-noon-${i}`) === "on",
       pm: formData.get(`med-pm-${i}`) === "on",
       specificTime: specificTime ? specificTime.slice(0, 10) : null,
       sortOrder: rows.length,
@@ -209,6 +214,7 @@ export async function createDog(
       medicationNotes: data.medicationNotes || null,
       behaviourNotes: data.behaviourNotes || null,
       allergies: data.allergies || null,
+      medicalHistorySummary: data.medicalHistorySummary || null,
       microchipNumber: data.microchipNumber || null,
       color: data.color || null,
       medications: medicationRows.length > 0 ? { create: medicationRows } : undefined,
@@ -295,6 +301,7 @@ export async function updateDog(
     medicationNotes: dog.medicationNotes,
     behaviourNotes: data.behaviourNotes || null,
     allergies: data.allergies || null,
+    medicalHistorySummary: data.medicalHistorySummary || null,
     microchipNumber: data.microchipNumber || null,
     color: data.color || null,
     photoUrl,
@@ -337,6 +344,7 @@ export async function updateDog(
       medicationNotes: "Medication notes",
       behaviourNotes: "Behaviour notes",
       allergies: "Allergies",
+      medicalHistorySummary: "Medical history summary",
       microchipNumber: "Microchip number",
       color: "Colour",
       photoUrl: "Photo",

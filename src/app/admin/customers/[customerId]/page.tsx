@@ -319,24 +319,28 @@ export default async function AdminCustomerDetailPage({
                             <dd className="text-foreground">{dog.medicationNotes}</dd>
                           </div>
                         )}
-                        {dog.medications.length > 0 && (
+                        {(dog.medicalHistorySummary || dog.medications.length > 0) && (
                           <div className="sm:col-span-3">
                             <dt className="text-xs">Medical history</dt>
                             <dd className="text-foreground">
-                              <ul className="list-disc space-y-0.5 pl-4">
-                                {dog.medications.map((med) => (
-                                  <li key={med.id}>
-                                    {med.name}
-                                    {med.amount ? ` — ${med.amount}` : ""}
-                                    {" ("}
-                                    {med.specificTime
-                                      ? med.specificTime
-                                      : [med.am && "AM", med.pm && "PM"].filter(Boolean).join(" & ") ||
-                                        "no schedule set"}
-                                    {")"}
-                                  </li>
-                                ))}
-                              </ul>
+                              {dog.medicalHistorySummary && <p>{dog.medicalHistorySummary}</p>}
+                              {dog.medications.length > 0 && (
+                                <ul className="list-disc space-y-0.5 pl-4">
+                                  {dog.medications.map((med) => (
+                                    <li key={med.id}>
+                                      {med.name}
+                                      {med.amount ? ` — ${med.amount}` : ""}
+                                      {" ("}
+                                      {med.specificTime
+                                        ? med.specificTime
+                                        : [med.am && "AM", med.noon && "Noon", med.pm && "PM"]
+                                            .filter(Boolean)
+                                            .join(" & ") || "no schedule set"}
+                                      {")"}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
                             </dd>
                           </div>
                         )}

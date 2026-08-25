@@ -230,24 +230,30 @@ export default async function DogsPage({
                 })}
                 <dt className="text-muted-foreground">Allergies:</dt>
                 <dd className="font-medium">{selectedDog.allergies || "None"}</dd>
-                {selectedDog.medications.length > 0 && (
+                {(selectedDog.medicalHistorySummary || selectedDog.medications.length > 0) && (
                   <>
                     <dt className="col-span-2 text-muted-foreground">Medical history:</dt>
                     <dd className="col-span-2">
-                      <ul className="list-disc space-y-0.5 pl-4 font-medium">
-                        {selectedDog.medications.map((med) => (
-                          <li key={med.id}>
-                            {med.name}
-                            {med.amount ? ` — ${med.amount}` : ""}
-                            {" ("}
-                            {med.specificTime
-                              ? med.specificTime
-                              : [med.am && "AM", med.pm && "PM"].filter(Boolean).join(" & ") ||
-                                "no schedule set"}
-                            {")"}
-                          </li>
-                        ))}
-                      </ul>
+                      {selectedDog.medicalHistorySummary && (
+                        <p className="font-medium">{selectedDog.medicalHistorySummary}</p>
+                      )}
+                      {selectedDog.medications.length > 0 && (
+                        <ul className="list-disc space-y-0.5 pl-4 font-medium">
+                          {selectedDog.medications.map((med) => (
+                            <li key={med.id}>
+                              {med.name}
+                              {med.amount ? ` — ${med.amount}` : ""}
+                              {" ("}
+                              {med.specificTime
+                                ? med.specificTime
+                                : [med.am && "AM", med.noon && "Noon", med.pm && "PM"]
+                                    .filter(Boolean)
+                                    .join(" & ") || "no schedule set"}
+                              {")"}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </dd>
                   </>
                 )}

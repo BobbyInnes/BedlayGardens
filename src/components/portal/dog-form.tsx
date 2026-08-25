@@ -32,6 +32,7 @@ type MedicationRow = {
   amount: string
   mode: MedicationMode
   am: boolean
+  noon: boolean
   pm: boolean
   specificTime: string
 }
@@ -45,6 +46,7 @@ function newMedicationRow(): MedicationRow {
     amount: "",
     mode: "checkboxes",
     am: false,
+    noon: false,
     pm: false,
     specificTime: "",
   }
@@ -58,6 +60,7 @@ function medicationRowsFromDog(medications: DogMedication[] | undefined): Medica
     amount: med.amount ?? "",
     mode: med.specificTime ? "time" : "checkboxes",
     am: med.am,
+    noon: med.noon,
     pm: med.pm,
     specificTime: med.specificTime ?? "",
   }))
@@ -152,7 +155,7 @@ export function DogForm({
   }
 
   const today = new Date()
-  const minDob = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate())
+  const minDob = new Date(today.getFullYear() - 15, today.getMonth(), today.getDate())
 
   const knownBreed = dog?.breed && (DOG_BREEDS as readonly string[]).includes(dog.breed)
   const [breedChoice, setBreedChoice] = useState<string>(
@@ -356,6 +359,21 @@ export function DogForm({
       <div className="space-y-3 rounded-lg bg-muted p-4">
         <input type="hidden" name="med-count" value={medicationRows.length} />
         <Label>Medical history</Label>
+
+        <div className="space-y-1">
+          <Label htmlFor="medicalHistorySummary" className="text-xs font-normal">
+            Summary
+          </Label>
+          <Textarea
+            id="medicalHistorySummary"
+            name="medicalHistorySummary"
+            defaultValue={
+              values ? values.medicalHistorySummary : (dog?.medicalHistorySummary ?? "")
+            }
+            rows={2}
+          />
+        </div>
+
         <div className="space-y-3">
           {medicationRows.map((row, index) => (
             <div key={row.key} className="space-y-3 rounded-md border border-border bg-background p-3">
@@ -408,6 +426,19 @@ export function DogForm({
                   />
                   <Label htmlFor={`med-am-${index}`} className="font-normal">
                     AM
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    id={`med-noon-${index}`}
+                    name={`med-noon-${index}`}
+                    type="checkbox"
+                    checked={row.noon}
+                    onChange={(e) => updateMedicationRow(index, { noon: e.target.checked })}
+                    className="size-4 rounded border-input"
+                  />
+                  <Label htmlFor={`med-noon-${index}`} className="font-normal">
+                    Noon
                   </Label>
                 </div>
                 <div className="flex items-center gap-2">

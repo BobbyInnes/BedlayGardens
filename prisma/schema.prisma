@@ -308,6 +308,7 @@ model Dog {
   medicationNotes  String?
   behaviourNotes   String?
   allergies        String?
+  medicalHistorySummary String?
   microchipNumber  String?
   color            String?
   runType          String?
@@ -342,6 +343,7 @@ model DogMedication {
   name         String
   amount       String?
   am           Boolean  @default(false)
+  noon         Boolean  @default(false)
   pm           Boolean  @default(false)
   specificTime String?
   sortOrder    Int      @default(0)
