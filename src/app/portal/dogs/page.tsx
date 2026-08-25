@@ -8,7 +8,13 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DeleteDogButton } from "@/components/portal/delete-dog-button"
 import { formatCustomerNumber, formatDogNumber } from "@/lib/customer-dog-numbers"
-import type { Dog, DogFeedingItem, DogMedication, VaccinationRecord } from "@/generated/prisma/client"
+import type {
+  Dog,
+  DogFeedingItem,
+  DogMedication,
+  TrialVisit,
+  VaccinationRecord,
+} from "@/generated/prisma/client"
 
 export const metadata: Metadata = {
   title: "My Dogs",
@@ -82,6 +88,9 @@ export default async function DogsPage({
         vaccinationRecords: true,
         medications: { orderBy: { sortOrder: "asc" } },
         feedingItems: { orderBy: { sortOrder: "asc" } },
+        // Most recent Meet & Greet evaluation only — the edit-dog page shows
+        // the full history if needed.
+        trialVisits: { orderBy: { completedAt: "desc" }, take: 1 },
       },
     }),
   ])
@@ -91,6 +100,7 @@ export default async function DogsPage({
         vaccinationRecords: VaccinationRecord[]
         medications: DogMedication[]
         feedingItems: DogFeedingItem[]
+        trialVisits: TrialVisit[]
       })
     | undefined
 
@@ -219,15 +229,6 @@ export default async function DogsPage({
                 Medical Status
               </h3>
               <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-sm">
-                {selectedDog.vaccinationRecords.map((record) => {
-                  const status = vaccineStatus(record)
-                  return (
-                    <Fragment key={record.id}>
-                      <dt className="text-muted-foreground">{record.type}:</dt>
-                      <dd className={`font-medium ${TONE_TEXT_CLASSES[status.tone]}`}>{status.label}</dd>
-                    </Fragment>
-                  )
-                })}
                 <dt className="text-muted-foreground">Allergies:</dt>
                 <dd className="font-medium">{selectedDog.allergies || "None"}</dd>
                 {(selectedDog.medicalHistorySummary || selectedDog.medications.length > 0) && (
@@ -305,7 +306,70 @@ export default async function DogsPage({
             </div>
           )}
         </div>
-      ) : (
+      ) : null}
+
+      {selectedDog && (
+        <div className="space-y-3 rounded-lg border border-border bg-card p-5">
+          <h2 className="text-lg font-semibold">Vaccination Information</h2>
+          {selectedDog.vaccinationRecords.length > 0 ? (
+            <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-sm">
+              {selectedDog.vaccinationRecords.map((record) => {
+                const status = vaccineStatus(record)
+                return (
+                  <Fragment key={record.id}>
+                    <dt className="text-muted-foreground">{record.type}:</dt>
+                    <dd className="font-medium">
+                      <span className={TONE_TEXT_CLASSES[status.tone]}>{status.label}</span>
+                      {" — given "}
+                      {record.dateGiven.toLocaleDateString("en-GB")}
+                      {", expires "}
+                      {record.expiryDate.toLocaleDateString("en-GB")}
+                    </dd>
+                  </Fragment>
+                )
+              })}
+            </dl>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No vaccination details on file yet.
+            </p>
+          )}
+        </div>
+      )}
+
+      {selectedDog && (() => {
+        const trial = selectedDog.trialVisits[0]
+        return (
+          <div className="space-y-3 rounded-lg border border-border bg-card p-5">
+            <h2 className="text-lg font-semibold">Evaluation Information</h2>
+            <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-sm">
+              <dt className="text-muted-foreground">Evaluation Complete:</dt>
+              <dd className="font-medium">{trial ? (trial.outcome ? "Yes" : "No") : "—"}</dd>
+              <dt className="text-muted-foreground">Evaluation Failed:</dt>
+              <dd className="font-medium">
+                {trial ? (trial.outcome === "NOT_SUITABLE" ? "Yes" : "No") : "—"}
+              </dd>
+              <dt className="text-muted-foreground">Evaluation Date:</dt>
+              <dd className="font-medium">
+                {trial?.completedAt ? trial.completedAt.toLocaleDateString("en-GB") : "—"}
+              </dd>
+              <dt className="text-muted-foreground">Valid Until:</dt>
+              <dd className="font-medium">
+                {trial?.validUntil ? trial.validUntil.toLocaleDateString("en-GB") : "—"}
+              </dd>
+              <dt className="col-span-2 text-muted-foreground">Evaluation Notes:</dt>
+              <dd className="col-span-2 font-medium">{trial?.notes || "—"}</dd>
+            </dl>
+            {!trial && (
+              <p className="text-sm text-muted-foreground">
+                This will be completed after a Meet &amp; Greet.
+              </p>
+            )}
+          </div>
+        )
+      })()}
+
+      {!selectedDog && (
         <p className="text-sm text-muted-foreground">No dogs yet. Add a profile to start booking.</p>
       )}
     </div>

@@ -127,6 +127,11 @@ export default async function StaffTrialsPage({
                     {trial.outcome ? TRIAL_OUTCOME_LABELS[trial.outcome] : ""}
                   </Badge>
                 </div>
+                {trial.validUntil && (
+                  <p className="text-muted-foreground">
+                    Valid until {trial.validUntil.toLocaleDateString("en-GB")}
+                  </p>
+                )}
                 {trial.notes && <p className="text-muted-foreground">{trial.notes}</p>}
               </li>
             ))}

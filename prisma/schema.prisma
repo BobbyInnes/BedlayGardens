@@ -818,6 +818,9 @@ model TrialVisit {
   outcome     TrialOutcome?
   notes       String?
   completedAt DateTime?
+  // How long a PASSED evaluation remains valid before a dog needs
+  // re-assessing. Optional — staff set it alongside the outcome.
+  validUntil  DateTime?
 }
 
 model Review {

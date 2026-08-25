@@ -19,7 +19,8 @@ async function requireStaff() {
 export async function setTrialOutcome(
   trialVisitId: string,
   outcome: TrialOutcome,
-  notes: string
+  notes: string,
+  validUntil: string
 ): Promise<StaffActionState> {
   const session = await requireStaff()
 
@@ -34,7 +35,12 @@ export async function setTrialOutcome(
 
   await prisma.trialVisit.update({
     where: { id: trialVisitId },
-    data: { outcome, notes: notes.trim() || null, completedAt: new Date() },
+    data: {
+      outcome,
+      notes: notes.trim() || null,
+      completedAt: new Date(),
+      validUntil: validUntil ? new Date(validUntil) : null,
+    },
   })
 
   await logAudit({

@@ -2,6 +2,8 @@
 
 import * as React from "react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
@@ -17,13 +19,14 @@ import { TRIAL_OUTCOME_LABELS } from "@/lib/trial-outcome"
 export function TrialOutcomeForm({ trialVisitId }: { trialVisitId: string }) {
   const [outcome, setOutcome] = React.useState<TrialOutcome>("PASSED")
   const [notes, setNotes] = React.useState("")
+  const [validUntil, setValidUntil] = React.useState("")
   const [pending, setPending] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
   async function handleSave() {
     setPending(true)
     setError(null)
-    const result = await setTrialOutcome(trialVisitId, outcome, notes)
+    const result = await setTrialOutcome(trialVisitId, outcome, notes, validUntil)
     if (result.status === "error") setError(result.message ?? "Something went wrong.")
     setPending(false)
   }
@@ -43,6 +46,18 @@ export function TrialOutcomeForm({ trialVisitId }: { trialVisitId: string }) {
             ))}
           </SelectContent>
         </Select>
+        <div className="space-y-1">
+          <Label htmlFor={`valid-until-${trialVisitId}`} className="text-xs font-normal">
+            Valid until (optional)
+          </Label>
+          <Input
+            id={`valid-until-${trialVisitId}`}
+            type="date"
+            value={validUntil}
+            onChange={(e) => setValidUntil(e.target.value)}
+            className="w-40"
+          />
+        </div>
         <Button type="button" size="sm" disabled={pending} onClick={handleSave}>
           {pending ? "Saving…" : "Save outcome"}
         </Button>
