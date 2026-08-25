@@ -44,13 +44,27 @@ function formatAge(age: { years: number; months: number } | null): string {
   return `${parts.join(" ")} Old `
 }
 
-function vaccineStatus(record: VaccinationRecord): { label: string; tone: "ok" | "warn" | "bad" } {
+type VaccineStatusKind = "expired" | "unverified" | "expiring_soon" | "valid"
+
+// A vaccine's expiry date is only meaningful once staff have actually
+// verified the uploaded certificate — until then it reads as "Awaiting
+// verification" regardless of dates, never as Valid/Expiring Soon.
+function vaccineStatus(
+  record: VaccinationRecord
+): { label: string; tone: "ok" | "warn" | "bad"; kind: VaccineStatusKind } {
   const now = new Date()
   const soon = new Date(now.getTime() + EXPIRING_SOON_DAYS * 24 * 60 * 60 * 1000)
   const monthYear = record.expiryDate.toLocaleDateString("en-GB", { month: "short", year: "numeric" })
-  if (record.expiryDate < now) return { label: `Expired (${monthYear})`, tone: "bad" }
-  if (record.expiryDate < soon) return { label: `Expiring Soon (${monthYear})`, tone: "warn" }
-  return { label: `Valid (${monthYear})`, tone: "ok" }
+  if (record.expiryDate < now || record.status === "EXPIRED") {
+    return { label: `Expired (${monthYear})`, tone: "bad", kind: "expired" }
+  }
+  if (record.status === "UNVERIFIED") {
+    return { label: "Awaiting verification", tone: "warn", kind: "unverified" }
+  }
+  if (record.expiryDate < soon) {
+    return { label: `Expiring Soon (${monthYear})`, tone: "warn", kind: "expiring_soon" }
+  }
+  return { label: `Valid (${monthYear})`, tone: "ok", kind: "valid" }
 }
 
 function vaccineSummary(records: VaccinationRecord[]): { text: string; tone: "ok" | "warn" | "bad" | "none" } {
@@ -59,7 +73,10 @@ function vaccineSummary(records: VaccinationRecord[]): { text: string; tone: "ok
   for (const record of records) {
     const status = vaccineStatus(record)
     if (status.tone === "bad") return { text: `${record.type} Expired`, tone: "bad" }
-    if (status.tone === "warn") worst = { text: `${record.type} Expiring Soon`, tone: "warn" }
+    if (status.kind === "unverified") worst = { text: `${record.type} Awaiting Verification`, tone: "warn" }
+    else if (status.kind === "expiring_soon" && worst.tone === "ok") {
+      worst = { text: `${record.type} Expiring Soon`, tone: "warn" }
+    }
   }
   return worst
 }
@@ -231,33 +248,35 @@ export default async function DogsPage({
               <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-sm">
                 <dt className="text-muted-foreground">Allergies:</dt>
                 <dd className="font-medium">{selectedDog.allergies || "None"}</dd>
-                {(selectedDog.medicalHistorySummary || selectedDog.medications.length > 0) && (
-                  <>
-                    <dt className="col-span-2 text-muted-foreground">Medical history:</dt>
-                    <dd className="col-span-2">
-                      {selectedDog.medicalHistorySummary && (
-                        <p className="font-medium">{selectedDog.medicalHistorySummary}</p>
-                      )}
-                      {selectedDog.medications.length > 0 && (
-                        <ul className="list-disc space-y-0.5 pl-4 font-medium">
-                          {selectedDog.medications.map((med) => (
-                            <li key={med.id}>
-                              {med.name}
-                              {med.amount ? ` — ${med.amount}` : ""}
-                              {" ("}
-                              {med.specificTime
-                                ? med.specificTime
-                                : [med.am && "AM", med.noon && "Noon", med.pm && "PM"]
-                                    .filter(Boolean)
-                                    .join(" & ") || "no schedule set"}
-                              {")"}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </dd>
-                  </>
-                )}
+                <dt className="col-span-2 text-muted-foreground">Medical history:</dt>
+                <dd className="col-span-2 space-y-2">
+                  <div>
+                    <span className="text-muted-foreground">Summary: </span>
+                    <span className="font-medium">{selectedDog.medicalHistorySummary || "None"}</span>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Medications</p>
+                    {selectedDog.medications.length > 0 ? (
+                      <ul className="list-disc space-y-0.5 pl-4 font-medium">
+                        {selectedDog.medications.map((med) => (
+                          <li key={med.id}>
+                            {med.name}
+                            {med.amount ? ` — ${med.amount}` : ""}
+                            {" ("}
+                            {med.specificTime
+                              ? med.specificTime
+                              : [med.am && "AM", med.noon && "Noon", med.pm && "PM"]
+                                  .filter(Boolean)
+                                  .join(" & ") || "no schedule set"}
+                            {")"}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="font-medium">None</p>
+                    )}
+                  </div>
+                </dd>
               </dl>
             </div>
 
@@ -341,7 +360,14 @@ export default async function DogsPage({
         const trial = selectedDog.trialVisits[0]
         return (
           <div className="space-y-3 rounded-lg border border-border bg-card p-5">
-            <h2 className="text-lg font-semibold">Evaluation Information</h2>
+            <h2 className="text-lg font-semibold">
+              Evaluation Information
+              {!trial?.outcome && (
+                <span className="ml-2 text-sm font-normal text-destructive">
+                  (Evaluation is outstanding)
+                </span>
+              )}
+            </h2>
             <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-sm">
               <dt className="text-muted-foreground">Evaluation Complete:</dt>
               <dd className="font-medium">{trial ? (trial.outcome ? "Yes" : "No") : "—"}</dd>

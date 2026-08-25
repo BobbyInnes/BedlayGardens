@@ -319,12 +319,16 @@ export default async function AdminCustomerDetailPage({
                             <dd className="text-foreground">{dog.medicationNotes}</dd>
                           </div>
                         )}
-                        {(dog.medicalHistorySummary || dog.medications.length > 0) && (
-                          <div className="sm:col-span-3">
-                            <dt className="text-xs">Medical history</dt>
-                            <dd className="text-foreground">
-                              {dog.medicalHistorySummary && <p>{dog.medicalHistorySummary}</p>}
-                              {dog.medications.length > 0 && (
+                        <div className="sm:col-span-3">
+                          <dt className="text-xs">Medical history</dt>
+                          <dd className="text-foreground space-y-2">
+                            <div>
+                              <span className="text-xs text-muted-foreground">Summary: </span>
+                              {dog.medicalHistorySummary || "None"}
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Medications</p>
+                              {dog.medications.length > 0 ? (
                                 <ul className="list-disc space-y-0.5 pl-4">
                                   {dog.medications.map((med) => (
                                     <li key={med.id}>
@@ -340,10 +344,12 @@ export default async function AdminCustomerDetailPage({
                                     </li>
                                   ))}
                                 </ul>
+                              ) : (
+                                <p>None</p>
                               )}
-                            </dd>
-                          </div>
-                        )}
+                            </div>
+                          </dd>
+                        </div>
                         {dog.behaviourNotes && (
                           <div className="sm:col-span-3">
                             <dt className="text-xs">Behavioural notes</dt>
