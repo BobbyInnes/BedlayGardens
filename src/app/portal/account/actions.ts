@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import bcrypt from "bcryptjs"
 import { z } from "zod"
-import { Prisma } from "@/generated/prisma/client"
+import { Prisma, type NotificationChannel } from "@/generated/prisma/client"
 import { auth, signOut } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { stripe, getSiteUrl } from "@/lib/stripe"
@@ -13,6 +13,11 @@ import { setOptOut } from "@/lib/notification-preferences"
 import { logEntityChange } from "@/lib/audit"
 
 export type ActionState = { status: "idle" | "success" | "error"; message?: string }
+
+// The channel is echoed back on success so the UI can trust the action's own
+// response as the source of truth, rather than depending on the page
+// re-fetching fresh props after the mutation (which proved unreliable here).
+export type NotificationActionState = ActionState & { channel?: NotificationChannel }
 
 const profileSchema = z
   .object({
@@ -255,13 +260,13 @@ export async function changePassword(
 }
 
 const notificationPreferenceSchema = z.object({
-  channel: z.enum(["EMAIL", "SMS", "BOTH"]),
+  channel: z.enum(["EMAIL", "SMS", "BOTH", "NONE"]),
 })
 
 export async function updateNotificationPreference(
-  _prevState: ActionState,
+  _prevState: NotificationActionState,
   formData: FormData
-): Promise<ActionState> {
+): Promise<NotificationActionState> {
   const session = await auth()
   if (!session?.user) return { status: "error", message: "Unauthorized" }
 
@@ -270,7 +275,7 @@ export async function updateNotificationPreference(
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
   }
 
-  if (parsed.data.channel !== "EMAIL") {
+  if (parsed.data.channel === "SMS" || parsed.data.channel === "BOTH") {
     const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user?.phone) {
       return { status: "error", message: "Add a phone number above before enabling SMS." }
@@ -283,7 +288,8 @@ export async function updateNotificationPreference(
     create: { customerId: session.user.id, channel: parsed.data.channel },
   })
 
-  return { status: "success", message: "Notification preference saved." }
+  revalidatePath("/portal/account")
+  return { status: "success", message: "Notification preference saved.", channel: parsed.data.channel }
 }
 
 export async function setAbandonedBookingOptOut(optedOut: boolean): Promise<ActionState> {
@@ -291,6 +297,7 @@ export async function setAbandonedBookingOptOut(optedOut: boolean): Promise<Acti
   if (!session?.user) return { status: "error", message: "Unauthorized" }
 
   await setOptOut(session.user.id, "ABANDONED_BOOKING_REMINDER", optedOut)
+  revalidatePath("/portal/account")
   return { status: "success", message: optedOut ? "You won't receive these reminders." : "Reminders re-enabled." }
 }
 
