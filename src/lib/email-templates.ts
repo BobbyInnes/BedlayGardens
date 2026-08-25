@@ -59,6 +59,9 @@ function layout(branding: EmailBranding, title: string, bodyHtml: string): strin
       <div style="padding: 24px 0; border-bottom: 2px solid #3f5a3a;">
         <img src="cid:logo" alt="${businessName}" style="height: 40px; margin-bottom: 8px;" />
         <h1 style="margin: 0; font-size: 20px; color: #3f5a3a;">${businessName}</h1>
+        <p style="margin: 4px 0 0; font-size: 13px; color: #666;">
+          ${branding.business_phone ? `Tel-No: ${branding.business_phone}` : ""}${branding.business_phone && branding.business_email ? " · " : ""}${branding.business_email ? `Email: ${branding.business_email}` : ""}
+        </p>
       </div>
       <div style="padding: 24px 0;">
         <h2 style="font-size: 18px; margin: 0 0 12px;">${title}</h2>
@@ -66,9 +69,6 @@ function layout(branding: EmailBranding, title: string, bodyHtml: string): strin
       </div>
       <div style="padding: 16px 0; border-top: 1px solid #ddd; font-size: 12px; color: #666;">
         <p style="margin: 0 0 4px;">${businessName}${addressLine ? ` — ${addressLine}` : ""}</p>
-        <p style="margin: 0;">
-          ${branding.business_phone ?? ""}${branding.business_phone && branding.business_email ? " · " : ""}${branding.business_email ?? ""}
-        </p>
         ${closingBlock(branding)}
       </div>
     </div>
@@ -750,9 +750,16 @@ function buildPaymentReceiptVars(
   // in the bookingMetaBlock above instead (Booking Ref/Booking Dates/
   // Customer Ref), so this table stays focused on the payment itself
   // rather than repeating booking-identity fields already shown once.
+  // Only a BALANCE receipt is settling a payment made after an earlier
+  // deposit — show that deposit here for context. A DEPOSIT receipt is the
+  // deposit itself (already shown as "Amount Paid" below), and FULL/INVOICE
+  // payments never had a separate deposit collected beforehand.
   const rows: [string, string][] = [
-    ["Dog(s)", dogLabel],
-    ["Service", booking.serviceName],
+    ["Dog names", dogLabel],
+    ["Service purchased", booking.serviceName],
+    ...(paymentType === "BALANCE"
+      ? ([["Deposit Paid", `${formatPence(booking.depositPence)} (previously paid)`]] as [string, string][])
+      : []),
     ["Amount Paid", `${formatPence(amountPence)} (${label})`],
     ["Total Booking Cost", formatPence(booking.totalPence)],
   ]
