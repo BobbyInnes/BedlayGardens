@@ -912,7 +912,6 @@ export function vaccinationApprovedEmail(
       `
         <p>Good news — the ${vaccineType} certificate you uploaded for ${dogName} has been checked and verified.</p>
         <p>It's valid until ${expiryDate.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}.</p>
-        <p>No action needed — ${dogName} is ready to book.</p>
       `
     ),
   }
