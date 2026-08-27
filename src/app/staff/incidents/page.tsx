@@ -59,6 +59,8 @@ export default async function StaffIncidentsPage() {
                 <p className="text-muted-foreground">{incident.description}</p>
                 <p className="text-xs text-muted-foreground">
                   {fullName(incident.reportedBy)} — {incident.createdAt.toLocaleDateString("en-GB")}
+                  {" — "}
+                  Owner informed: {incident.ownerInformed ? "Yes" : "No"}
                 </p>
               </li>
             ))}

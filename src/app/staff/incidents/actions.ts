@@ -40,6 +40,7 @@ export async function createIncident(
       reportedById: session.user.id,
       severity: parsed.data.severity,
       description: parsed.data.description,
+      ownerInformed: formData.get("ownerInformed") === "on",
     },
   })
 

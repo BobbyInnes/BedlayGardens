@@ -67,6 +67,11 @@ export function IncidentForm({ inHouseDogs }: { inHouseDogs: InHouseDog[] }) {
         <Textarea id="description" name="description" rows={3} required />
       </div>
 
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="ownerInformed" className="size-4 rounded border-input" />
+        Owner informed
+      </label>
+
       <Button type="submit" disabled={pending}>
         {pending ? "Logging…" : "Log incident"}
       </Button>

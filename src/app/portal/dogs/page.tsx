@@ -13,7 +13,9 @@ import type {
   Dog,
   DogFeedingItem,
   DogMedication,
+  IncidentReport,
   TrialVisit,
+  User,
   VaccinationRecord,
 } from "@/generated/prisma/client"
 
@@ -109,6 +111,7 @@ export default async function DogsPage({
         // Most recent Meet & Greet evaluation only — the edit-dog page shows
         // the full history if needed.
         trialVisits: { orderBy: { completedAt: "desc" }, take: 1 },
+        incidentReports: { include: { reportedBy: true }, orderBy: { createdAt: "desc" } },
       },
     }),
   ])
@@ -119,6 +122,7 @@ export default async function DogsPage({
         medications: DogMedication[]
         feedingItems: DogFeedingItem[]
         trialVisits: TrialVisit[]
+        incidentReports: (IncidentReport & { reportedBy: User })[]
       })
     | undefined
 
@@ -391,6 +395,54 @@ export default async function DogsPage({
           </div>
         )
       })()}
+
+      {selectedDog && (
+        <div className="space-y-3 rounded-lg border border-border bg-card p-5">
+          <h2 className="text-lg font-semibold">Incident Reports</h2>
+          {selectedDog.incidentReports.length > 0 ? (
+            <ul className="space-y-4">
+              {selectedDog.incidentReports.map((incident) => (
+                <li key={incident.id} className="space-y-2 border-t border-border pt-3 first:border-t-0 first:pt-0">
+                  <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-sm">
+                    <dt className="text-muted-foreground">Severity:</dt>
+                    <dd className="font-medium">
+                      <Badge
+                        variant={
+                          incident.severity === "High"
+                            ? "destructive"
+                            : incident.severity === "Medium"
+                              ? "secondary"
+                              : "outline"
+                        }
+                      >
+                        {incident.severity}
+                      </Badge>
+                    </dd>
+                    <dt className="text-muted-foreground">Date &amp; Time:</dt>
+                    <dd className="font-medium">
+                      {incident.createdAt.toLocaleString("en-GB", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </dd>
+                    <dt className="text-muted-foreground">Recorded By:</dt>
+                    <dd className="font-medium">{fullName(incident.reportedBy)}</dd>
+                    <dt className="text-muted-foreground">Owner Informed:</dt>
+                    <dd className="font-medium">{incident.ownerInformed ? "Yes" : "No"}</dd>
+                    <dt className="col-span-2 text-muted-foreground">Description:</dt>
+                    <dd className="col-span-2 font-medium">{incident.description}</dd>
+                  </dl>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">No incidents have been reported.</p>
+          )}
+        </div>
+      )}
 
       {!selectedDog && (
         <p className="text-sm text-muted-foreground">No dogs yet. Add a profile to start booking.</p>

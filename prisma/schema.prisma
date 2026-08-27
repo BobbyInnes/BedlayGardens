@@ -192,8 +192,16 @@ model User {
   vetCity                      String?
   vetPostcode                  String?
   vetEmail                     String?
-  emergencyContactName         String?
+  // Name/phone split (2026-08-26) to match the customer's own Contact
+  // details fields — see the equivalent comments above on salutation/
+  // forename/surname/homePhone/phone/workPhone. emergencyContactPhone
+  // (pre-existing) means Mobile specifically.
+  emergencyContactSalutation   String?
+  emergencyContactForename     String?
+  emergencyContactSurname      String?
+  emergencyContactHomePhone    String?
   emergencyContactPhone        String?
+  emergencyContactWorkPhone    String?
   emergencyContactAddressLine1 String?
   emergencyContactAddressLine2 String?
   emergencyContactCity         String?
@@ -630,6 +638,10 @@ model IncidentReport {
   reportedBy   User     @relation("IncidentReportedBy", fields: [reportedById], references: [id])
   description  String
   severity     String
+  // Whether the owner was informed of this incident (e.g. by phone) at the
+  // time it was logged — set once via a checkbox on the staff logging form,
+  // shown alongside the incident on the customer's My Dogs page.
+  ownerInformed Boolean @default(false)
   createdAt    DateTime @default(now())
 
   @@index([dogId])

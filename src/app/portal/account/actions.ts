@@ -105,8 +105,12 @@ export async function updateProfile(
 }
 
 const emergencyContactSchema = z.object({
-  emergencyContactName: z.string().trim().max(200).optional().or(z.literal("")),
+  emergencyContactSalutation: z.enum(SALUTATIONS).optional().or(z.literal("")),
+  emergencyContactForename: z.string().trim().max(100).optional().or(z.literal("")),
+  emergencyContactSurname: z.string().trim().max(100).optional().or(z.literal("")),
+  emergencyContactHomePhone: z.string().trim().max(50).optional().or(z.literal("")),
   emergencyContactPhone: z.string().trim().max(50).optional().or(z.literal("")),
+  emergencyContactWorkPhone: z.string().trim().max(50).optional().or(z.literal("")),
   emergencyContactAddressLine1: z.string().trim().max(200).optional().or(z.literal("")),
   emergencyContactAddressLine2: z.string().trim().max(200).optional().or(z.literal("")),
   emergencyContactCity: z.string().trim().max(100).optional().or(z.literal("")),
@@ -121,8 +125,12 @@ export async function updateEmergencyContact(
   if (!session?.user) return { status: "error", message: "Unauthorized" }
 
   const parsed = emergencyContactSchema.safeParse({
-    emergencyContactName: formData.get("emergencyContactName"),
+    emergencyContactSalutation: formData.get("emergencyContactSalutation"),
+    emergencyContactForename: formData.get("emergencyContactForename"),
+    emergencyContactSurname: formData.get("emergencyContactSurname"),
+    emergencyContactHomePhone: formData.get("emergencyContactHomePhone"),
     emergencyContactPhone: formData.get("emergencyContactPhone"),
+    emergencyContactWorkPhone: formData.get("emergencyContactWorkPhone"),
     emergencyContactAddressLine1: formData.get("emergencyContactAddressLine1"),
     emergencyContactAddressLine2: formData.get("emergencyContactAddressLine2"),
     emergencyContactCity: formData.get("emergencyContactCity"),
@@ -134,8 +142,12 @@ export async function updateEmergencyContact(
 
   const before = await prisma.user.findUniqueOrThrow({ where: { id: session.user.id } })
   const after = {
-    emergencyContactName: parsed.data.emergencyContactName || null,
+    emergencyContactSalutation: parsed.data.emergencyContactSalutation || null,
+    emergencyContactForename: parsed.data.emergencyContactForename || null,
+    emergencyContactSurname: parsed.data.emergencyContactSurname || null,
+    emergencyContactHomePhone: parsed.data.emergencyContactHomePhone || null,
     emergencyContactPhone: parsed.data.emergencyContactPhone || null,
+    emergencyContactWorkPhone: parsed.data.emergencyContactWorkPhone || null,
     emergencyContactAddressLine1: parsed.data.emergencyContactAddressLine1 || null,
     emergencyContactAddressLine2: parsed.data.emergencyContactAddressLine2 || null,
     emergencyContactCity: parsed.data.emergencyContactCity || null,
@@ -153,8 +165,12 @@ export async function updateEmergencyContact(
     before,
     after,
     labels: {
-      emergencyContactName: "Emergency contact name",
-      emergencyContactPhone: "Emergency contact phone",
+      emergencyContactSalutation: "Emergency contact title",
+      emergencyContactForename: "Emergency contact forename",
+      emergencyContactSurname: "Emergency contact surname",
+      emergencyContactHomePhone: "Emergency contact home phone",
+      emergencyContactPhone: "Emergency contact mobile phone",
+      emergencyContactWorkPhone: "Emergency contact works phone",
       emergencyContactAddressLine1: "Emergency contact address line 1",
       emergencyContactAddressLine2: "Emergency contact address line 2",
       emergencyContactCity: "Emergency contact town/city",
@@ -368,8 +384,12 @@ export async function deleteAccount() {
           vetCity: null,
           vetPostcode: null,
           vetEmail: null,
-          emergencyContactName: null,
+          emergencyContactSalutation: null,
+          emergencyContactForename: null,
+          emergencyContactSurname: null,
+          emergencyContactHomePhone: null,
           emergencyContactPhone: null,
+          emergencyContactWorkPhone: null,
           emergencyContactAddressLine1: null,
           emergencyContactAddressLine2: null,
           emergencyContactCity: null,

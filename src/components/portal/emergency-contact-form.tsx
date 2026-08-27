@@ -6,19 +6,28 @@ import { Input } from "@/components/ui/input"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { Label } from "@/components/ui/label"
 import { updateEmergencyContact, type ActionState } from "@/app/portal/account/actions"
+import { SALUTATIONS } from "@/lib/salutations"
 
 const initialState: ActionState = { status: "idle" }
 
 export function EmergencyContactForm({
-  name,
+  salutation,
+  forename,
+  surname,
+  homePhone,
   phone,
+  workPhone,
   addressLine1,
   addressLine2,
   addressCity,
   addressPostcode,
 }: {
-  name: string
+  salutation: string
+  forename: string
+  surname: string
+  homePhone: string
   phone: string
+  workPhone: string
   addressLine1: string
   addressLine2: string
   addressCity: string
@@ -28,14 +37,44 @@ export function EmergencyContactForm({
 
   return (
     <form action={formAction} className="max-w-md space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 grid-cols-[100px_1fr_1fr]">
         <div className="space-y-2">
-          <Label htmlFor="emergencyContactName">Name</Label>
-          <Input id="emergencyContactName" name="emergencyContactName" defaultValue={name} />
+          <Label htmlFor="emergencyContactSalutation">Title</Label>
+          <select
+            id="emergencyContactSalutation"
+            name="emergencyContactSalutation"
+            defaultValue={salutation}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+          >
+            <option value="">—</option>
+            {SALUTATIONS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="emergencyContactPhone">Phone number</Label>
+          <Label htmlFor="emergencyContactForename">Forename</Label>
+          <Input id="emergencyContactForename" name="emergencyContactForename" defaultValue={forename} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="emergencyContactSurname">Surname</Label>
+          <Input id="emergencyContactSurname" name="emergencyContactSurname" defaultValue={surname} />
+        </div>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="space-y-2">
+          <Label htmlFor="emergencyContactHomePhone">Home Tel-No</Label>
+          <PhoneInput id="emergencyContactHomePhone" name="emergencyContactHomePhone" defaultValue={homePhone} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="emergencyContactPhone">Mobile Tel-No</Label>
           <PhoneInput id="emergencyContactPhone" name="emergencyContactPhone" defaultValue={phone} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="emergencyContactWorkPhone">Works Tel-No</Label>
+          <PhoneInput id="emergencyContactWorkPhone" name="emergencyContactWorkPhone" defaultValue={workPhone} />
         </div>
       </div>
 

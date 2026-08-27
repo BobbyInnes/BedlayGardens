@@ -66,8 +66,12 @@ export default async function AccountPage() {
             </p>
           </div>
           <EmergencyContactForm
-            name={user?.emergencyContactName ?? ""}
+            salutation={user?.emergencyContactSalutation ?? ""}
+            forename={user?.emergencyContactForename ?? ""}
+            surname={user?.emergencyContactSurname ?? ""}
+            homePhone={user?.emergencyContactHomePhone ?? ""}
             phone={user?.emergencyContactPhone ?? ""}
+            workPhone={user?.emergencyContactWorkPhone ?? ""}
             addressLine1={user?.emergencyContactAddressLine1 ?? ""}
             addressLine2={user?.emergencyContactAddressLine2 ?? ""}
             addressCity={user?.emergencyContactCity ?? ""}

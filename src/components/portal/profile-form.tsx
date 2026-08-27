@@ -39,7 +39,7 @@ export function ProfileForm({
     <form action={formAction} className="max-w-md space-y-4">
       <div className="grid gap-4 grid-cols-[100px_1fr_1fr]">
         <div className="space-y-2">
-          <Label htmlFor="salutation">Salutation</Label>
+          <Label htmlFor="salutation">Title</Label>
           <select
             id="salutation"
             name="salutation"
@@ -65,15 +65,15 @@ export function ProfileForm({
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-2">
-          <Label htmlFor="homePhone">Home Telephone No</Label>
+          <Label htmlFor="homePhone">Home Tel-No</Label>
           <PhoneInput id="homePhone" name="homePhone" defaultValue={homePhone} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="phone">Mobile Telephone No</Label>
+          <Label htmlFor="phone">Mobile Tel-No</Label>
           <PhoneInput id="phone" name="phone" defaultValue={phone} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="workPhone">Works Telephone No</Label>
+          <Label htmlFor="workPhone">Works Tel-No</Label>
           <PhoneInput id="workPhone" name="workPhone" defaultValue={workPhone} />
         </div>
       </div>

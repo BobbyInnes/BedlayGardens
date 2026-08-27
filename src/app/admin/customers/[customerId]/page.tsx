@@ -201,7 +201,18 @@ export default async function AdminCustomerDetailPage({
               <div className="sm:col-span-3">
                 <dt className="text-xs">Emergency contact</dt>
                 <dd className="text-foreground">
-                  {[customer.emergencyContactName, customer.emergencyContactPhone]
+                  {[
+                    [customer.emergencyContactForename, customer.emergencyContactSurname]
+                      .filter(Boolean)
+                      .join(" "),
+                    [
+                      customer.emergencyContactHomePhone,
+                      customer.emergencyContactPhone,
+                      customer.emergencyContactWorkPhone,
+                    ]
+                      .filter(Boolean)
+                      .join(" / "),
+                  ]
                     .filter(Boolean)
                     .join(" — ") || "—"}
                   {[

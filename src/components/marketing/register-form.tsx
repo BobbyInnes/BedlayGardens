@@ -21,7 +21,7 @@ export function RegisterForm() {
     <form key={values ? JSON.stringify(values) : "initial"} action={formAction} className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-[120px_1fr_1fr]">
         <div className="space-y-2">
-          <Label htmlFor="salutation">Salutation</Label>
+          <Label htmlFor="salutation">Title</Label>
           <select
             id="salutation"
             name="salutation"
@@ -86,15 +86,15 @@ export function RegisterForm() {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-2">
-          <Label htmlFor="homePhone">Home Telephone No</Label>
+          <Label htmlFor="homePhone" className="whitespace-nowrap">Home Tel-No</Label>
           <PhoneInput id="homePhone" name="homePhone" defaultValue={values?.homePhone} autoComplete="tel" />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="phone">Mobile Telephone No</Label>
+          <Label htmlFor="phone" className="whitespace-nowrap">Mobile Tel-No</Label>
           <PhoneInput id="phone" name="phone" defaultValue={values?.phone} autoComplete="tel" />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="workPhone">Works Telephone No</Label>
+          <Label htmlFor="workPhone" className="whitespace-nowrap">Works Tel-No</Label>
           <PhoneInput id="workPhone" name="workPhone" defaultValue={values?.workPhone} />
         </div>
       </div>
