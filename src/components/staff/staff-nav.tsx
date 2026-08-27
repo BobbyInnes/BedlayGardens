@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, ClipboardList, TreePine, Truck, AlertTriangle, HeartHandshake, Camera, Syringe, Home, Users } from "lucide-react"
+import { LayoutDashboard, ClipboardList, TreePine, Truck, AlertTriangle, HeartHandshake, Camera, Syringe, ShieldCheck, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
@@ -44,11 +44,11 @@ export function StaffNav() {
       <div className="my-2 border-t border-border md:mx-3" />
 
       <Link
-        href="/"
+        href="/admin"
         className="flex shrink-0 items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium whitespace-nowrap text-muted-foreground hover:bg-muted hover:text-foreground"
       >
-        <Home className="size-4" aria-hidden="true" />
-        Home Page
+        <ShieldCheck className="size-4" aria-hidden="true" />
+        Admin Control Page
       </Link>
     </nav>
   )
