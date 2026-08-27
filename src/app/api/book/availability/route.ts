@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
+import { prisma } from "@/lib/prisma"
 import {
   findAvailableKennelUnit,
   isDaycareAvailable,
@@ -7,6 +8,7 @@ import {
   listAvailableVanRuns,
   listAvailableWalkSlots,
 } from "@/lib/availability"
+import { largestDogSize } from "@/lib/dog-size-colors"
 
 export async function GET(request: Request) {
   const session = await auth()
@@ -24,7 +26,16 @@ export async function GET(request: Request) {
     if (!startDate || !endDate) {
       return NextResponse.json({ error: "Missing dates" }, { status: 400 })
     }
-    const unit = await findAvailableKennelUnit(new Date(startDate), new Date(endDate), dogCount)
+    const dogIds = searchParams.get("dogIds")?.split(",").filter(Boolean) ?? []
+    const dogs = dogIds.length > 0
+      ? await prisma.dog.findMany({ where: { id: { in: dogIds } }, select: { size: true } })
+      : []
+    const unit = await findAvailableKennelUnit(
+      new Date(startDate),
+      new Date(endDate),
+      dogCount,
+      largestDogSize(dogs.map((d) => d.size))
+    )
     return NextResponse.json({ available: !!unit })
   }
 

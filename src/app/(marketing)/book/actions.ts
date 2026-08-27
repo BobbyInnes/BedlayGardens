@@ -20,6 +20,7 @@ import { bookingConfirmationEmail, bookingConfirmationDepositInvoiceEmail } from
 import { logAudit } from "@/lib/audit"
 import { fullName } from "@/lib/format"
 import { GROUP_BLOCKING_FLAGS, SHARED_KENNEL_BLOCKING_FLAGS, DOG_FLAG_LABELS } from "@/lib/dog-flags"
+import { largestDogSize } from "@/lib/dog-size-colors"
 import { hasCurrentSignedAgreement } from "@/lib/agreement"
 import { checkTrialGate } from "@/lib/trial"
 import { getApplicablePriceRules, minNightsRequired } from "@/lib/price-rules"
@@ -283,7 +284,12 @@ export async function resolveBookingCreation(
 
     const MAX_ATTEMPTS = 5
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-      const candidate = await findAvailableKennelUnit(startDate, endDate, dogs.length)
+      const candidate = await findAvailableKennelUnit(
+        startDate,
+        endDate,
+        dogs.length,
+        largestDogSize(dogs.map((d) => d.size))
+      )
       if (!candidate) {
         return { status: "error", message: "No accommodation is available for these dates." }
       }

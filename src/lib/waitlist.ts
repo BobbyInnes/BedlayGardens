@@ -66,11 +66,12 @@ export async function offerNextInLine(
 export async function checkWaitlistAfterVaccination(dogId: string): Promise<void> {
   const entries = await prisma.waitlistEntry.findMany({
     where: { dogId, status: "WAITING", endDate: { not: null } },
+    include: { dog: true },
   })
   for (const entry of entries) {
     const gate = await checkVaccinationGate([dogId], entry.endDate!)
     if (!gate.ok) continue
-    const kennel = await findAvailableKennelUnit(entry.date, entry.endDate!, 1)
+    const kennel = await findAvailableKennelUnit(entry.date, entry.endDate!, 1, entry.dog.size)
     if (!kennel) continue
     await offerNextInLine(entry.serviceId, entry.date, entry.endDate)
   }

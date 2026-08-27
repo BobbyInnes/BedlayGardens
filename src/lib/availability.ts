@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma"
+import type { DogSize } from "@/generated/prisma/client"
 import { addDays, isWeekend, nightsBetween, startOfDay, toDateInputValue } from "@/lib/dates"
+import { DOG_SIZE_ORDER } from "@/lib/dog-size-colors"
 
 async function isSiteWideBlocked(dates: Date[]): Promise<boolean> {
   const count = await prisma.blockedDate.count({
@@ -9,15 +11,18 @@ async function isSiteWideBlocked(dates: Date[]): Promise<boolean> {
 }
 
 /**
- * Returns the first active kennel unit big enough for `dogCount` that is free
- * for every night of the stay (not blocked, no existing occupancy). Does not
- * reserve anything — call this for a preview; booking creation re-checks and
+ * Returns the first active kennel unit big enough for `dogCount` — and, when
+ * `requiredSize` is given, rated at least that size (a LARGE dog can't go in
+ * a SMALL kennel just because it fits one dog) — that is free for every
+ * night of the stay (not blocked, no existing occupancy). Does not reserve
+ * anything — call this for a preview; booking creation re-checks and
  * reserves atomically inside a transaction.
  */
 export async function findAvailableKennelUnit(
   startDate: Date,
   endDate: Date,
-  dogCount: number
+  dogCount: number,
+  requiredSize: DogSize | null = null
 ) {
   const nights = nightsBetween(startDate, endDate)
   if (nights.length === 0) return null
@@ -28,7 +33,16 @@ export async function findAvailableKennelUnit(
     orderBy: { dogCapacity: "asc" },
   })
 
+  const requiredRank = requiredSize ? DOG_SIZE_ORDER.indexOf(requiredSize) : -1
+
   for (const unit of units) {
+    if (requiredRank >= 0) {
+      // Unit sizes are free text (KennelUnit.size isn't the DogSize enum),
+      // so an unrecognised value is treated as too small to trust rather
+      // than silently assumed to fit.
+      const unitRank = DOG_SIZE_ORDER.indexOf(unit.size as DogSize)
+      if (unitRank < requiredRank) continue
+    }
     const [blocked, occupied] = await Promise.all([
       prisma.blockedDate.count({ where: { kennelUnitId: unit.id, date: { in: nights } } }),
       prisma.kennelOccupancy.count({ where: { kennelUnitId: unit.id, date: { in: nights } } }),

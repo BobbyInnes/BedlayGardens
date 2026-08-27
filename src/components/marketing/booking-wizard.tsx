@@ -179,6 +179,7 @@ export function BookingWizard({
           startDate,
           endDate,
           dogCount: String(dogCount),
+          dogIds: selectedDogIds.join(","),
         })
         const res = await fetch(`/api/book/availability?${params}`)
         const data = await res.json()

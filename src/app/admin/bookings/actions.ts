@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma"
 import { stripe, getSiteUrl } from "@/lib/stripe"
 import { startOfDay, nightsBetween } from "@/lib/dates"
 import { findAvailableKennelUnit, isDaycareAvailable } from "@/lib/availability"
+import { largestDogSize } from "@/lib/dog-size-colors"
 import { computeBookingPrice } from "@/lib/booking-pricing"
 import { paymentFieldsFor } from "@/lib/payment-timing"
 import { getSetting, getSettings } from "@/lib/settings"
@@ -287,7 +288,7 @@ export async function modifyBookingDates(
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { service: true, bookingDogs: true, customer: true },
+    include: { service: true, bookingDogs: { include: { dog: true } }, customer: true },
   })
   if (!booking) return { status: "error", message: "Booking not found." }
   if (NON_MODIFIABLE_STATUSES.includes(booking.status)) {
@@ -295,6 +296,7 @@ export async function modifyBookingDates(
   }
 
   const dogCount = booking.bookingDogs.length
+  const requiredSize = largestDogSize(booking.bookingDogs.map((bd) => bd.dog.size))
   let afterDates: { startDate: Date; endDate: Date } | null = null
 
   if (booking.service.slug === "overnight-boarding") {
@@ -361,7 +363,7 @@ export async function modifyBookingDates(
     try {
       const MAX_ATTEMPTS = 5
       for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-        const candidate = await findAvailableKennelUnit(startDate, endDate, dogCount)
+        const candidate = await findAvailableKennelUnit(startDate, endDate, dogCount, requiredSize)
         if (!candidate) {
           noKennelAvailable = true
           break
