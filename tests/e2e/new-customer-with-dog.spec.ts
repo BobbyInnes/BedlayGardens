@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process"
 import { test, expect } from "@playwright/test"
 import {
-  E2E_NEW_CUSTOMER_NAME,
+  E2E_NEW_CUSTOMER_FORENAME,
+  E2E_NEW_CUSTOMER_SURNAME,
   E2E_NEW_CUSTOMER_EMAIL,
   E2E_NEW_CUSTOMER_PASSWORD,
   E2E_NEW_CUSTOMER_DOG_NAME,
@@ -21,10 +22,11 @@ test.afterAll(resetCustomer)
 
 test("new customer registers, adds a dog, and adds a vaccination record", async ({ page }) => {
   await page.goto("/register")
-  await page.getByLabel("Name", { exact: true }).fill(E2E_NEW_CUSTOMER_NAME)
+  await page.getByLabel("Forename", { exact: true }).fill(E2E_NEW_CUSTOMER_FORENAME)
+  await page.getByLabel("Surname", { exact: true }).fill(E2E_NEW_CUSTOMER_SURNAME)
   await page.getByLabel("Email").fill(E2E_NEW_CUSTOMER_EMAIL)
   await page.getByLabel("Password").fill(E2E_NEW_CUSTOMER_PASSWORD)
-  await page.getByLabel("Telephone number").fill("01234 567890")
+  await page.getByLabel("Mobile Tel-No").fill("01234 567890")
   await page.getByLabel("Address line 1").fill("1 Test Street")
   await page.getByRole("button", { name: "Create account" }).click()
 
