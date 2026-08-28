@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { Prisma, type PaymentTiming } from "@/generated/prisma/client"
+import { isDriverAdapterError } from "@prisma/driver-adapter-utils"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { nightsBetween, startOfDay, isPastDaycareHalfDayAmCutoff } from "@/lib/dates"
@@ -65,8 +66,16 @@ function isUniqueConstraintError(error: unknown): boolean {
 
 // P2034: Postgres aborted the transaction for a write conflict — the outcome
 // of a "SERIALIZABLE" transaction that raced another one over the same rows.
+// With the driver-adapter architecture (@prisma/adapter-neon) this doesn't
+// get wrapped into a PrismaClientKnownRequestError at all — it surfaces as
+// DriverAdapterError with cause.kind "TransactionWriteConflict" for the same
+// underlying Postgres SQLSTATE 40001, so both shapes need checking or this
+// retry loop silently never fires and the raw error reaches the customer as
+// an application error instead of a clean "just filled up" message.
 function isSerializationError(error: unknown): boolean {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034"
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") return true
+  if (isDriverAdapterError(error) && error.cause.kind === "TransactionWriteConflict") return true
+  return false
 }
 
 // Day care and meet & greet capacity are both enforced by counting existing
