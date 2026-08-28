@@ -17,6 +17,7 @@ export const metadata: Metadata = {
   title: "Services & Pricing",
   description:
     "Home boarding, day care, secure forest walks, dog walking, and meet & greet pricing at Bedlay Gardens.",
+  alternates: { canonical: "/services" },
 }
 
 export const revalidate = 60

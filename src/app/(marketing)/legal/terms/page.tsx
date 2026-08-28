@@ -6,6 +6,7 @@ import { sanitizeRichText } from "@/lib/sanitize-html"
 export const metadata: Metadata = {
   title: "Terms & Conditions",
   description: "Booking, payment, and cancellation terms for Bedlay Gardens LTD.",
+  alternates: { canonical: "/legal/terms" },
 }
 
 export const revalidate = 60

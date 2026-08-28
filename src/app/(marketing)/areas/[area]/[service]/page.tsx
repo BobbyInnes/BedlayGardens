@@ -29,7 +29,7 @@ export async function generateMetadata({
   const { area, service } = data
   const title = `${service.name} near ${area.name}`
   const description = `${service.name} for dogs near ${area.name}, based at our secure countryside site in Chryston. Real-time availability and simple online booking.`
-  return { title, description }
+  return { title, description, alternates: { canonical: `/areas/${area.slug}/${service.slug}` } }
 }
 
 export default async function LocalAreaServicePage({

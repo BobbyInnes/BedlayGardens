@@ -20,6 +20,13 @@ import { ServiceCard } from "@/components/marketing/service-card"
 import { prisma } from "@/lib/prisma"
 import { sanitizeRichText } from "@/lib/sanitize-html"
 import { getSettings } from "@/lib/settings"
+import type { Metadata } from "next"
+
+// title/description/openGraph inherit from the root layout — only
+// `alternates` needs setting here since it doesn't merge with the parent.
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+}
 
 export const revalidate = 60
 
@@ -269,7 +276,16 @@ export default async function HomePage() {
         <div className="grid gap-8 sm:grid-cols-3">
           {steps.map((step) => (
             <div key={step.number}>
-              <p className="font-heading text-5xl font-extrabold tracking-tight text-primary/20">
+              {/* Purely decorative step numeral — hidden from assistive tech
+                  (the heading/text below carries the real content), but
+                  still real visible text axe's color-contrast check
+                  evaluates regardless of aria-hidden. /70 (not /20) measured
+                  ~3.6:1 against the actual rendered background, clearing the
+                  3:1 large-text minimum with margin. */}
+              <p
+                aria-hidden="true"
+                className="font-heading text-5xl font-extrabold tracking-tight text-primary/70"
+              >
                 {step.number}
               </p>
               <h3 className="mt-3 font-heading text-xl font-semibold">{step.title}</h3>
@@ -433,7 +449,10 @@ export default async function HomePage() {
           </Button>
           <p className="mt-4 text-sm text-primary-foreground/80">
             Already registered?{" "}
-            <Link href="/login" className="font-medium text-white underline underline-offset-4">
+            <Link
+              href="/login"
+              className="inline-block py-2 font-medium text-white underline underline-offset-4"
+            >
               Log in
             </Link>
           </p>

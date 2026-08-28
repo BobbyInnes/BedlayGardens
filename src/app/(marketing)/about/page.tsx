@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   title: "About Us",
   description:
     "The story, team, and facilities behind Bedlay Gardens LTD's countryside dog boarding.",
+  alternates: { canonical: "/about" },
 }
 
 export const revalidate = 60

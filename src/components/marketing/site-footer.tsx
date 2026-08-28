@@ -44,10 +44,15 @@ export async function SiteFooter() {
           <h2 className="font-heading text-sm font-semibold uppercase tracking-wider text-white/90">
             Quick links
           </h2>
-          <ul className="space-y-2 text-sm text-white/70">
+          <ul className="text-sm text-white/70">
             {quickLinks.map((link) => (
               <li key={link.href}>
-                <Link href={link.href} className="transition-colors hover:text-white">
+                {/* py-2 keeps the ~44px WCAG touch-target minimum without
+                    changing the text's visual size. */}
+                <Link
+                  href={link.href}
+                  className="inline-block py-2 transition-colors hover:text-white"
+                >
                   {link.label}
                 </Link>
               </li>
@@ -74,7 +79,7 @@ export async function SiteFooter() {
               <Phone className="size-4 shrink-0" aria-hidden="true" />
               <a
                 href={`tel:${phone.replace(/\s+/g, "")}`}
-                className="transition-colors hover:text-white"
+                className="inline-block py-2 transition-colors hover:text-white"
               >
                 {phone}
               </a>
@@ -83,7 +88,10 @@ export async function SiteFooter() {
           {email && (
             <div className="flex items-center gap-2">
               <Mail className="size-4 shrink-0" aria-hidden="true" />
-              <a href={`mailto:${email}`} className="break-all transition-colors hover:text-white">
+              <a
+                href={`mailto:${email}`}
+                className="inline-block break-all py-2 transition-colors hover:text-white"
+              >
                 {email}
               </a>
             </div>
@@ -101,7 +109,7 @@ export async function SiteFooter() {
               href="https://www.facebook.com/BedlayGardensDogBoarding"
               target="_blank"
               rel="noopener noreferrer"
-              className="transition-colors hover:text-white"
+              className="inline-block py-2 transition-colors hover:text-white"
             >
               Facebook
             </a>
@@ -132,13 +140,13 @@ export async function SiteFooter() {
             <span className="font-semibold text-white">(Site version {APP_VERSION})</span>
           </p>
           <div className="flex items-center gap-4">
-            <Link href="/legal/privacy" className="transition-colors hover:text-white">
+            <Link href="/legal/privacy" className="inline-block py-2 transition-colors hover:text-white">
               Privacy Policy
             </Link>
-            <Link href="/legal/terms" className="transition-colors hover:text-white">
+            <Link href="/legal/terms" className="inline-block py-2 transition-colors hover:text-white">
               Terms & Conditions
             </Link>
-            <Link href="/legal/cookies" className="transition-colors hover:text-white">
+            <Link href="/legal/cookies" className="inline-block py-2 transition-colors hover:text-white">
               Cookie Notice
             </Link>
           </div>

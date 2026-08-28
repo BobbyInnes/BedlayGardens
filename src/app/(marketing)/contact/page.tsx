@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "Contact Us",
   description:
     "Get in touch with Bedlay Gardens LTD — address, phone, opening hours, and a contact form.",
+  alternates: { canonical: "/contact" },
 }
 
 export const revalidate = 60

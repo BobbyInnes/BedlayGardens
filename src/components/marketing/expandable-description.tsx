@@ -34,7 +34,7 @@ export function ExpandableDescription({ html }: { html: string }) {
         <button
           type="button"
           onClick={() => setExpanded((value) => !value)}
-          className="mt-1 text-sm font-medium text-primary hover:underline"
+          className="-ml-0.5 inline-block py-2 pl-0.5 text-sm font-medium text-primary hover:underline"
         >
           {expanded ? "Show less" : "Read more"}
         </button>

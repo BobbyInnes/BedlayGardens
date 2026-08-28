@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: "Gallery",
   description:
     "Photos and videos of our accommodation, secure forest walks, van runs, and happy guests at Bedlay Gardens LTD.",
+  alternates: { canonical: "/gallery" },
 }
 
 export const revalidate = 60

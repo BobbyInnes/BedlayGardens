@@ -4,6 +4,7 @@ import { LegalPage } from "@/components/marketing/legal-page"
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description: "How Bedlay Gardens LTD collects, uses, and protects your personal data.",
+  alternates: { canonical: "/legal/privacy" },
 }
 
 export default function PrivacyPolicyPage() {

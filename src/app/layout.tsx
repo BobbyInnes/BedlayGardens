@@ -33,6 +33,9 @@ export const metadata: Metadata = {
     siteName: "Bedlay Gardens LTD",
     type: "website",
     locale: "en_GB",
+    // Sitewide fallback so every page has a share preview image — no route
+    // currently overrides `openGraph`, so this covers all of them.
+    images: [{ url: "/images/logo.png" }],
   },
 };
 
