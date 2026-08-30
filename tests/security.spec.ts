@@ -61,6 +61,7 @@ test('no mixed content on any page', async ({ page }) => {
 });
 
 test('external links with target=_blank use rel="noopener"', async ({ page }) => {
+  test.setTimeout(180_000); // loops every discovered page like links.spec.ts — the default 30s isn't enough
   const bad: string[] = [];
   for (const url of pageUrls) {
     await page.goto(url, { waitUntil: 'domcontentloaded' });
