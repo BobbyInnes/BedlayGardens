@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import type { DogSize } from "@/generated/prisma/client"
 import { addDays, isWeekend, nightsBetween, startOfDay, toDateInputValue } from "@/lib/dates"
 import { DOG_SIZE_ORDER } from "@/lib/dog-size-colors"
+import { kennelSizeRank } from "@/lib/kennel-size"
 
 async function isSiteWideBlocked(dates: Date[]): Promise<boolean> {
   const count = await prisma.blockedDate.count({
@@ -37,11 +38,10 @@ export async function findAvailableKennelUnit(
 
   for (const unit of units) {
     if (requiredRank >= 0) {
-      // Unit sizes are free text (KennelUnit.size isn't the DogSize enum),
-      // so an unrecognised value is treated as too small to trust rather
-      // than silently assumed to fit.
-      const unitRank = DOG_SIZE_ORDER.indexOf(unit.size as DogSize)
-      if (unitRank < requiredRank) continue
+      // kennelSizeRank returns null for text it can't map to a size (e.g.
+      // "Kennel"-type labels) — treated as fits any size, not excluded.
+      const unitRank = kennelSizeRank(unit.size)
+      if (unitRank !== null && unitRank < requiredRank) continue
     }
     const [blocked, occupied] = await Promise.all([
       prisma.blockedDate.count({ where: { kennelUnitId: unit.id, date: { in: nights } } }),
