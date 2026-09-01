@@ -61,3 +61,6 @@ next-env.d.ts
 # admin-uploaded public media (gallery/hero images and videos)
 /public/uploads/*
 !/public/uploads/.gitkeep
+
+.vercel
+.env*
