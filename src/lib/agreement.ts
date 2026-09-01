@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { fullName } from "@/lib/format"
 
 // documentUrl: { not: null } excludes an active row left over from before
 // the switch to PDF uploads (or any active row an admin somehow left without
@@ -21,6 +22,28 @@ export async function hasCurrentSignedAgreement(customerId: string): Promise<boo
     where: { customerId, agreementId: active.id },
   })
   return !!signed
+}
+
+// Case/whitespace-insensitive, and tolerant of a typed period after an
+// abbreviated salutation ("Mr." vs "Mr") — not a security boundary, just
+// normalizing incidental formatting differences before comparing.
+function normalizeName(value: string): string {
+  return value.trim().toLowerCase().replace(/\./g, "").replace(/\s+/g, " ")
+}
+
+// The customer types their own name to sign the agreement — accept it with
+// or without their salutation (both "Jane Smith" and "Mrs Jane Smith" pass
+// for a customer with salutation "Mrs"), but reject a name that doesn't
+// match their account at all, so a typo'd or random signature can't be
+// recorded as a legally-binding agreement.
+export function matchesCustomerName(
+  signedName: string,
+  customer: { salutation?: string | null; forename: string; surname: string }
+): boolean {
+  const typed = normalizeName(signedName)
+  if (typed === normalizeName(fullName(customer))) return true
+  if (!customer.salutation) return false
+  return typed === normalizeName(`${customer.salutation} ${fullName(customer)}`)
 }
 
 // Agreement.version has always been a plain numeric string ("1", "2", …) —

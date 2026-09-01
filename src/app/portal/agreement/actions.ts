@@ -5,7 +5,7 @@ import { redirect } from "next/navigation"
 import { z } from "zod"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { getActiveAgreement } from "@/lib/agreement"
+import { getActiveAgreement, matchesCustomerName } from "@/lib/agreement"
 import { generateAgreementPdf } from "@/lib/agreement-pdf"
 import { saveUpload } from "@/lib/storage"
 import { getSetting } from "@/lib/settings"
@@ -16,7 +16,12 @@ const signSchema = z.object({
   agreementId: z.string().min(1),
   signedName: z.string().trim().min(2, "Enter your full name to sign"),
   agree: z.literal("on", { message: "You must confirm you agree" }),
-  returnTo: z.string().optional(),
+  // FormData.get() returns null (not undefined) for an absent field — which
+  // is what happens whenever this page is reached without a `?returnTo=`
+  // param (the hidden input only renders when one's present, see
+  // SignAgreementForm) — so .optional() alone rejects that case; .nullish()
+  // accepts both.
+  returnTo: z.string().nullish(),
 })
 
 export async function signAgreement(
@@ -42,6 +47,18 @@ export async function signAgreement(
   }
   if (!agreement.documentUrl) {
     return { status: "error", message: "No agreement document is currently published." }
+  }
+
+  const customer = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { salutation: true, forename: true, surname: true },
+  })
+  if (!customer) return { status: "error", message: "Please log in." }
+  if (!matchesCustomerName(parsed.data.signedName, customer)) {
+    return {
+      status: "error",
+      message: "The name you typed doesn't match the name on your account — please sign with your own name.",
+    }
   }
 
   const headerList = await headers()

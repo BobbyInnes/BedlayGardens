@@ -183,7 +183,12 @@ async function main() {
   // ---------------------------------------------------------------------
   // BOARDING AGREEMENT
   // ---------------------------------------------------------------------
-  const agreement = await prisma.agreement.create({ data: { version: '1', text: 'Standard boarding terms & liability waiver (placeholder text).', publishedAt: new Date(), active: true } });
+  // documentUrl is required for getActiveAgreement()/hasCurrentSignedAgreement()
+  // to pick this row up at all (see the comment on getActiveAgreement in
+  // src/lib/agreement.ts) — without it Bob/Carol/Dave below wouldn't actually
+  // be gated, defeating the "booking blocked, needs signature" case this seed
+  // is meant to cover.
+  const agreement = await prisma.agreement.create({ data: { version: '1', text: 'Standard boarding terms & liability waiver (placeholder text).', documentUrl: '/uploads/agreements/boarding-terms-v1.pdf', publishedAt: new Date(), active: true } });
   await prisma.signedAgreement.create({ data: { agreementId: agreement.id, customerId: alice.id, signedName: 'Alice Walker', signedAt: daysFromNow(-30), ipAddress: '203.0.113.5', pdfUrl: '/uploads/agreements/alice-signed.pdf' } });
   await prisma.signedAgreement.create({ data: { agreementId: agreement.id, customerId: erin.id, signedName: 'Erin Campbell', signedAt: daysFromNow(-60), ipAddress: '203.0.113.9', pdfUrl: '/uploads/agreements/erin-signed.pdf' } });
   // Bob, Carol, Dave deliberately have NOT signed — tests "booking blocked, needs signature" path

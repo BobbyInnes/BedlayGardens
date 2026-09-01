@@ -11,6 +11,11 @@ import {
   E2E_ADMIN_PASSWORD,
   E2E_STAFF_EMAIL,
   E2E_STAFF_PASSWORD,
+  E2E_AGREEMENT_CUSTOMER_EMAIL,
+  E2E_AGREEMENT_CUSTOMER_PASSWORD,
+  E2E_AGREEMENT_CUSTOMER_SALUTATION,
+  E2E_AGREEMENT_CUSTOMER_FORENAME,
+  E2E_AGREEMENT_CUSTOMER_SURNAME,
   SEED_IDS_PATH,
   type SeedIds,
 } from "./fixtures"
@@ -42,14 +47,15 @@ async function seed() {
   const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL })
   const prisma = new PrismaClient({ adapter })
 
-  for (const email of [E2E_CUSTOMER_EMAIL, E2E_ADMIN_EMAIL, E2E_STAFF_EMAIL]) {
+  for (const email of [E2E_CUSTOMER_EMAIL, E2E_ADMIN_EMAIL, E2E_STAFF_EMAIL, E2E_AGREEMENT_CUSTOMER_EMAIL]) {
     await resetUser(prisma, email)
   }
 
-  const [customerHash, adminHash, staffHash] = await Promise.all([
+  const [customerHash, adminHash, staffHash, agreementCustomerHash] = await Promise.all([
     bcrypt.hash(E2E_CUSTOMER_PASSWORD, 10),
     bcrypt.hash(E2E_ADMIN_PASSWORD, 10),
     bcrypt.hash(E2E_STAFF_PASSWORD, 10),
+    bcrypt.hash(E2E_AGREEMENT_CUSTOMER_PASSWORD, 10),
   ])
 
   const customer = await prisma.user.create({
@@ -100,6 +106,20 @@ async function seed() {
       emailVerified: new Date(),
       jobTitle: "Carer",
       active: true,
+    },
+  })
+
+  // Deliberately not given a SignedAgreement (unlike `customer` above) so
+  // agreement-name-match.spec.ts always finds the sign form still showing.
+  await prisma.user.create({
+    data: {
+      salutation: E2E_AGREEMENT_CUSTOMER_SALUTATION,
+      forename: E2E_AGREEMENT_CUSTOMER_FORENAME,
+      surname: E2E_AGREEMENT_CUSTOMER_SURNAME,
+      email: E2E_AGREEMENT_CUSTOMER_EMAIL,
+      passwordHash: agreementCustomerHash,
+      role: "CUSTOMER",
+      emailVerified: new Date(),
     },
   })
 
