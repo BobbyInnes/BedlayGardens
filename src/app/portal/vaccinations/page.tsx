@@ -127,7 +127,7 @@ export default async function VaccinationsPage({
                         <div>
                           <p className="font-medium">{record.type}</p>
                           <p className="text-muted-foreground">
-                            Given {record.dateGiven.toLocaleDateString("en-GB")} · Expires{" "}
+                            From Date: {record.dateGiven.toLocaleDateString("en-GB")} · Expiry Date:{" "}
                             {record.expiryDate.toLocaleDateString("en-GB")}
                           </p>
                         </div>

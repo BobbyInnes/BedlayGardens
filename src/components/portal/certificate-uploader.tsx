@@ -7,7 +7,7 @@ import { CheckCircle2, Loader2, UploadCloud, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { saveExtractedVaccinations } from "@/app/portal/vaccinations/upload/actions"
+import { saveExtractedVaccinations, type EntryFieldErrors } from "@/app/portal/vaccinations/upload/actions"
 
 type FileStatus = {
   id: string
@@ -32,6 +32,7 @@ export function CertificateUploader({ dogId }: { dogId: string }) {
   const [entries, setEntries] = React.useState<PendingEntry[]>([])
   const [saving, setSaving] = React.useState(false)
   const [saveError, setSaveError] = React.useState<string | null>(null)
+  const [entryErrors, setEntryErrors] = React.useState<Record<string, EntryFieldErrors>>({})
   const inputRef = React.useRef<HTMLInputElement>(null)
 
   async function processFile(file: File) {
@@ -105,21 +106,36 @@ export function CertificateUploader({ dogId }: { dogId: string }) {
     }
   }
 
+  function clearEntryError(id: string) {
+    setEntryErrors((prev) => {
+      if (!prev[id]) return prev
+      const rest = { ...prev }
+      delete rest[id]
+      return rest
+    })
+  }
+
   function updateEntry(id: string, changes: Partial<PendingEntry>) {
     setEntries((prev) => prev.map((entry) => (entry.id === id ? { ...entry, ...changes } : entry)))
+    // Whatever they just edited, let the next save re-validate it fresh
+    // rather than leaving a stale error highlighted on a field they changed.
+    clearEntryError(id)
   }
 
   function removeEntry(id: string) {
     setEntries((prev) => prev.filter((entry) => entry.id !== id))
+    clearEntryError(id)
   }
 
   async function handleSaveAll() {
     setSaving(true)
     setSaveError(null)
+    setEntryErrors({})
     try {
       const result = await saveExtractedVaccinations({
         dogId,
         entries: entries.map((entry) => ({
+          id: entry.id,
           type: entry.type,
           dateGiven: entry.dateGiven,
           expiryDate: entry.expiryDate,
@@ -128,6 +144,7 @@ export function CertificateUploader({ dogId }: { dogId: string }) {
       })
       if (result.status === "error") {
         setSaveError(result.message)
+        setEntryErrors(result.entryErrors ?? {})
         return
       }
       router.push("/portal/vaccinations")
@@ -189,52 +206,64 @@ export function CertificateUploader({ dogId }: { dogId: string }) {
           <p className="text-sm text-muted-foreground">
             Confirm or correct each field. Nothing is saved until you press Save.
           </p>
-          <div className="space-y-4">
-            {entries.map((entry) => (
-              <div key={entry.id} className="rounded-lg border border-border p-4">
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">{entry.fileName}</p>
-                  <button
-                    type="button"
-                    onClick={() => removeEntry(entry.id)}
-                    className="text-xs text-destructive hover:underline"
-                  >
-                    Remove
-                  </button>
+          <div className="max-w-2xl space-y-4">
+            {entries.map((entry) => {
+              const errors = entryErrors[entry.id]
+              return (
+                <div
+                  key={entry.id}
+                  className={`rounded-lg border p-4 ${errors ? "border-destructive" : "border-border"}`}
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">{entry.fileName}</p>
+                    <button
+                      type="button"
+                      onClick={() => removeEntry(entry.id)}
+                      className="text-xs text-destructive hover:underline"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <div className="w-48 space-y-1">
+                      <Label className="text-xs">Vaccine type</Label>
+                      <Input
+                        value={entry.type}
+                        onChange={(e) => updateEntry(entry.id, { type: e.target.value })}
+                        placeholder="e.g. DHPP"
+                        aria-invalid={!!errors?.type}
+                      />
+                      {errors?.type && <p className="text-xs text-destructive">{errors.type}</p>}
+                    </div>
+                    <div className="w-36 space-y-1">
+                      <Label className="text-xs">Date given</Label>
+                      <Input
+                        type="date"
+                        value={entry.dateGiven}
+                        onChange={(e) => updateEntry(entry.id, { dateGiven: e.target.value })}
+                        aria-invalid={!!errors?.dateGiven}
+                      />
+                      {errors?.dateGiven && <p className="text-xs text-destructive">{errors.dateGiven}</p>}
+                    </div>
+                    <div className="w-36 space-y-1">
+                      <Label className="text-xs">Expiry date</Label>
+                      <Input
+                        type="date"
+                        value={entry.expiryDate}
+                        onChange={(e) => updateEntry(entry.id, { expiryDate: e.target.value })}
+                        aria-invalid={!!errors?.expiryDate}
+                      />
+                      {errors?.expiryDate && <p className="text-xs text-destructive">{errors.expiryDate}</p>}
+                    </div>
+                  </div>
+                  {entry.vetPractice && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Vet practice on certificate: {entry.vetPractice}
+                    </p>
+                  )}
                 </div>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Vaccine type</Label>
-                    <Input
-                      value={entry.type}
-                      onChange={(e) => updateEntry(entry.id, { type: e.target.value })}
-                      placeholder="e.g. DHPP"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Date given</Label>
-                    <Input
-                      type="date"
-                      value={entry.dateGiven}
-                      onChange={(e) => updateEntry(entry.id, { dateGiven: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Expiry date</Label>
-                    <Input
-                      type="date"
-                      value={entry.expiryDate}
-                      onChange={(e) => updateEntry(entry.id, { expiryDate: e.target.value })}
-                    />
-                  </div>
-                </div>
-                {entry.vetPractice && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Vet practice on certificate: {entry.vetPractice}
-                  </p>
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           <Button onClick={handleSaveAll} disabled={!canSave}>

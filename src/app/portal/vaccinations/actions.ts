@@ -9,6 +9,7 @@ import { logAudit } from "@/lib/audit"
 import { saveUpload, deleteUpload } from "@/lib/storage"
 import { checkWaitlistAfterVaccination } from "@/lib/waitlist"
 import { notifyVaccinationReviewNeeded } from "@/lib/vaccination-review-notify"
+import { addYears, isMoreThanYearsAgo, activeDuplicateError } from "@/lib/vaccination-validation"
 import { FIXED_VACCINES } from "./vaccine-types"
 
 const rowSchema = z.object({
@@ -29,23 +30,6 @@ export type VaccinationFormState = {
   status: "idle" | "error"
   message?: string
   fieldErrors?: Record<string, string>
-}
-
-// Calendar-date add, not a fixed day count, so it's not thrown off by leap
-// years. Used both to derive a fixed vaccine's expiry from its from date.
-function addYears(dateStr: string, years: number): string {
-  const date = new Date(dateStr)
-  date.setFullYear(date.getFullYear() + years)
-  return date.toISOString().slice(0, 10)
-}
-
-// The from date itself shouldn't be able to predate today by more than this
-// many years (e.g. DHPP given "5 years ago"), independent of the validity
-// gap above.
-function isMoreThanYearsAgo(dateGiven: string, maxYears: number): boolean {
-  const cutoff = new Date()
-  cutoff.setFullYear(cutoff.getFullYear() - maxYears)
-  return new Date(dateGiven).getTime() < cutoff.getTime()
 }
 
 async function requireDogOwnership(dogId: string) {
@@ -76,18 +60,6 @@ export async function createVaccinationManual(
   const rows: PendingRow[] = []
   const fieldErrors: Record<string, string> = {}
 
-  // Don't let a new record be added for a vaccine the dog is already
-  // currently covered for — only once the existing one is closer to expiry
-  // (or has expired) should a replacement be added.
-  async function activeDuplicateError(type: string): Promise<string | null> {
-    const existing = await prisma.vaccinationRecord.findFirst({
-      where: { dogId, type: { equals: type, mode: "insensitive" }, expiryDate: { gte: new Date() } },
-      orderBy: { expiryDate: "desc" },
-    })
-    if (!existing) return null
-    return `${dog.name} already has a valid ${type} vaccination, expiring ${existing.expiryDate.toLocaleDateString("en-GB")}.`
-  }
-
   for (const vaccine of FIXED_VACCINES) {
     if (formData.get(`enabled_${vaccine.id}`) !== "on") continue
     const dateGiven = String(formData.get(`dateGiven_${vaccine.id}`) ?? "")
@@ -104,7 +76,7 @@ export async function createVaccinationManual(
         `From Date can't be more than ${years} year${years === 1 ? "" : "s"} ago for ${vaccine.type}. Please correct it.`
       continue
     }
-    const duplicateError = await activeDuplicateError(vaccine.type)
+    const duplicateError = await activeDuplicateError(dogId, dog.name, vaccine.type)
     if (duplicateError) {
       fieldErrors[`dateGiven_${vaccine.id}`] = duplicateError
       continue
@@ -127,7 +99,7 @@ export async function createVaccinationManual(
         fieldErrors[field] = issue.message
       }
     } else {
-      const duplicateError = await activeDuplicateError(parsed.data.type)
+      const duplicateError = await activeDuplicateError(dogId, dog.name, parsed.data.type)
       if (duplicateError) {
         fieldErrors.otherType = duplicateError
       } else {
