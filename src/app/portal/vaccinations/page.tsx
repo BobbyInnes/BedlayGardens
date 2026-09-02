@@ -92,7 +92,7 @@ export default async function VaccinationsPage({
                     {selectedDog.vaccinationRecords.map((record) => (
                       <li
                         key={record.id}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4 text-sm"
+                        className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-4 text-sm"
                       >
                         <div>
                           <p className="font-medium">{record.type}</p>
