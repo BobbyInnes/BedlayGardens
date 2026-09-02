@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { Trash2 } from "lucide-react"
+import { FileText, Trash2 } from "lucide-react"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
@@ -9,6 +9,12 @@ import { deleteVaccination } from "@/app/portal/vaccinations/actions"
 
 export const metadata: Metadata = {
   title: "Vaccinations",
+}
+
+const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".heic", ".heif"]
+
+function isImage(key: string): boolean {
+  return IMAGE_EXTENSIONS.some((ext) => key.toLowerCase().endsWith(ext))
 }
 
 function statusBadge(expiryDate: Date, status: string) {
@@ -94,6 +100,30 @@ export default async function VaccinationsPage({
                         key={record.id}
                         className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-4 text-sm"
                       >
+                        {record.documentUrl ? (
+                          isImage(record.documentUrl) ? (
+                            <Link href={`/api/files/${record.documentUrl}`} target="_blank">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={`/api/files/${record.documentUrl}`}
+                                alt={`${record.type} certificate`}
+                                className="size-14 shrink-0 rounded-md border border-border object-cover"
+                              />
+                            </Link>
+                          ) : (
+                            <Link
+                              href={`/api/files/${record.documentUrl}`}
+                              target="_blank"
+                              className="flex size-14 shrink-0 items-center justify-center rounded-md border border-border bg-muted"
+                            >
+                              <FileText className="size-6 text-muted-foreground" />
+                            </Link>
+                          )
+                        ) : (
+                          <div className="flex size-14 shrink-0 items-center justify-center rounded-md border border-dashed border-border text-[10px] text-muted-foreground">
+                            No file
+                          </div>
+                        )}
                         <div>
                           <p className="font-medium">{record.type}</p>
                           <p className="text-muted-foreground">

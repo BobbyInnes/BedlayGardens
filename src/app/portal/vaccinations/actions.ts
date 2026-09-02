@@ -143,7 +143,7 @@ export async function createVaccinationManual(
   }
 
   if (Object.keys(fieldErrors).length > 0) {
-    return { status: "error", fieldErrors, message: "Please fix the errors below." }
+    return { status: "error", fieldErrors, message: "Please fix the errors highlighted." }
   }
 
   if (rows.length === 0) {
