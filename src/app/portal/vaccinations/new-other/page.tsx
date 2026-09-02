@@ -5,10 +5,10 @@ import { prisma } from "@/lib/prisma"
 import { VaccinationManualForm } from "@/components/portal/vaccination-manual-form"
 
 export const metadata: Metadata = {
-  title: "Add Mandatory Vaccines",
+  title: "Add Other Vaccine",
 }
 
-export default async function NewVaccinationPage({
+export default async function NewOtherVaccinationPage({
   searchParams,
 }: {
   searchParams: Promise<{ dogId?: string }>
@@ -24,15 +24,9 @@ export default async function NewVaccinationPage({
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">
-        Add mandatory vaccines for {dog.name}
+        Add other vaccine for {dog.name}
       </h1>
-      <p className="text-rose-400 font-bold">
-        At Bedlay Gardens, it is mandatory for your dog to have the following vaccines: DHPP
-        (Distemper, Hepatitis and Parvovirus), Leptospirosis, and Kennel Cough. These must be
-        valid before you can book any of our services. The need for these vaccines is to stop
-        infectious diseases from spreading among animals living in close contact.
-      </p>
-      <VaccinationManualForm dogId={dog.id} mode="mandatory" />
+      <VaccinationManualForm dogId={dog.id} mode="other" />
     </div>
   )
 }

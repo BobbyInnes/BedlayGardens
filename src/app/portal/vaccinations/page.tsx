@@ -66,54 +66,61 @@ export default async function VaccinationsPage({
           </div>
 
           {selectedDog && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">{selectedDog.name}</h2>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" asChild>
-                    <Link href={`/portal/vaccinations/upload?dogId=${selectedDog.id}`}>
-                      Upload certificate
-                    </Link>
-                  </Button>
-                  <Button size="sm" asChild>
-                    <Link href={`/portal/vaccinations/new?dogId=${selectedDog.id}`}>Add vaccination</Link>
-                  </Button>
-                </div>
+            <div className="grid gap-6 sm:grid-cols-[auto_1fr]">
+              <div className="flex flex-col gap-2 rounded-lg border border-border p-4 sm:self-start">
+                <h2 className="mb-1 text-lg font-semibold">{selectedDog.name}</h2>
+                <Button size="sm" variant="outline" className="w-full justify-start whitespace-nowrap" asChild>
+                  <Link href={`/portal/vaccinations/upload?dogId=${selectedDog.id}`}>
+                    Upload certificate
+                  </Link>
+                </Button>
+                <Button size="sm" variant="outline" className="w-full justify-start whitespace-nowrap" asChild>
+                  <Link href={`/portal/vaccinations/new?dogId=${selectedDog.id}`}>
+                    Add mandatory vaccines manually
+                  </Link>
+                </Button>
+                <Button size="sm" variant="outline" className="w-full justify-start whitespace-nowrap" asChild>
+                  <Link href={`/portal/vaccinations/new-other?dogId=${selectedDog.id}`}>
+                    Add other vaccines manually
+                  </Link>
+                </Button>
               </div>
 
-              {selectedDog.vaccinationRecords.length > 0 ? (
-                <ul className="space-y-3">
-                  {selectedDog.vaccinationRecords.map((record) => (
-                    <li
-                      key={record.id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4 text-sm"
-                    >
-                      <div>
-                        <p className="font-medium">{record.type}</p>
-                        <p className="text-muted-foreground">
-                          Given {record.dateGiven.toLocaleDateString("en-GB")} · Expires{" "}
-                          {record.expiryDate.toLocaleDateString("en-GB")}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {statusBadge(record.expiryDate, record.status)}
-                        <form action={deleteVaccination.bind(null, record.id)}>
-                          <Button
-                            type="submit"
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`Delete ${record.type} record`}
-                          >
-                            <Trash2 className="size-4 text-destructive" />
-                          </Button>
-                        </form>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted-foreground">No vaccination records yet.</p>
-              )}
+              <div className="space-y-3">
+                {selectedDog.vaccinationRecords.length > 0 ? (
+                  <ul className="space-y-3">
+                    {selectedDog.vaccinationRecords.map((record) => (
+                      <li
+                        key={record.id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4 text-sm"
+                      >
+                        <div>
+                          <p className="font-medium">{record.type}</p>
+                          <p className="text-muted-foreground">
+                            Given {record.dateGiven.toLocaleDateString("en-GB")} · Expires{" "}
+                            {record.expiryDate.toLocaleDateString("en-GB")}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {statusBadge(record.expiryDate, record.status)}
+                          <form action={deleteVaccination.bind(null, record.id)}>
+                            <Button
+                              type="submit"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Delete ${record.type} record`}
+                            >
+                              <Trash2 className="size-4 text-destructive" />
+                            </Button>
+                          </form>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No vaccination records yet.</p>
+                )}
+              </div>
             </div>
           )}
         </>
