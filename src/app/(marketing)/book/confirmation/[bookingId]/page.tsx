@@ -181,12 +181,12 @@ export default async function BookingConfirmationPage({
           <p className="text-sm font-medium text-destructive">Action needed — vaccine certificate required</p>
           <p className="text-sm text-muted-foreground">
             {booking.bookingDogs.map((bd) => bd.dog.name).join(", ")} still need{" "}
-            {booking.bookingDogs.length === 1 ? "s" : ""} a valid, in-date certificate before{" "}
+            {booking.bookingDogs.length === 1 ? "s" : ""} all valid, in-date certificates before{" "}
             {booking.startDate.toLocaleDateString("en-GB")}, or this booking will be cancelled and any deposit
             paid will not be refunded.
           </p>
           <Button asChild>
-            <Link href="/portal/vaccinations">Upload a certificate</Link>
+            <Link href="/portal/vaccinations">Upload certificates</Link>
           </Button>
         </div>
       ) : (

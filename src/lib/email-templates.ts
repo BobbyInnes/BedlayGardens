@@ -1007,14 +1007,14 @@ export function pendingVaccinationEmail(
   return {
     subject:
       stage === "initial"
-        ? `Booking received — vaccine certificate needed for ${dateLabel}`
-        : `Reminder: vaccine certificate still needed before ${dateLabel}`,
+        ? `Booking received — vaccine certificates needed for ${dateLabel}`
+        : `Reminder: vaccine certificates still needed before ${dateLabel}`,
     html: layout(
       branding,
-      "Your booking needs a vaccine certificate",
+      "Your booking needs vaccine certificates",
       `
-        <p>Your <strong>${booking.serviceName}</strong> booking on <strong>${dateLabel}</strong> has been received${stage === "initial" ? " and your deposit has been requested" : ""}, but ${missingSummary} still needs a valid, in-date certificate before then.</p>
-        <p>Please log in to your account and upload it as soon as you can. If it isn't on file by <strong>${dateLabel}</strong>, this booking will be cancelled and any deposit paid will not be refunded.</p>
+        <p>Your <strong>${booking.serviceName}</strong> booking on <strong>${dateLabel}</strong> has been received${stage === "initial" ? " and your deposit has been requested" : ""}, but ${missingSummary} still needs all valid, in-date certificates before then.</p>
+        <p>Please log in to your account and upload them as soon as you can. If they aren't on file by <strong>${dateLabel}</strong>, this booking will be cancelled and any deposit paid will not be refunded.</p>
       `
     ),
   }

@@ -663,8 +663,8 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
               <p className="text-xs text-muted-foreground">
                 Confirm the certificate was actually seen/verified (e.g. read out over the phone) to book
                 normally, logged as an override — or book anyway pending vaccination, same as the online
-                watchlist flow: the deposit is still requested and the customer must upload a valid
-                certificate before the date, or the booking is cancelled and the deposit forfeited.
+                waitlist flow: the deposit is still requested and the customer must upload all valid
+                certificates before the date, or the booking is cancelled and the deposit forfeited.
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button

@@ -13,6 +13,7 @@ import { PayButton } from "@/components/marketing/pay-button"
 import { RedeemCreditForm } from "@/components/portal/redeem-credit-form"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 import { BookingFilters } from "@/components/portal/booking-filters"
+import { BookServiceCta } from "@/components/portal/book-service-cta"
 import { TRIAL_OUTCOME_LABELS } from "@/lib/trial-outcome"
 import { bookingCardClasses } from "@/lib/booking-card-colors"
 
@@ -72,28 +73,17 @@ export default async function PortalBookingsPage({
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div className="flex flex-wrap items-center gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">My Bookings</h1>
-        <Button size="sm" asChild>
-          <Link href="/book">Book a service</Link>
-        </Button>
-        <BookingFilters
-          dogs={dogs}
-          services={services}
-          selectedDogId={selectedDog?.id}
-          selectedServiceId={selectedService?.id}
-        />
-      </div>
-
-      {dogs.length === 0 && (
-        <p className="text-sm text-destructive">
-          You need to add a dog profile to your account before you can book any service.{" "}
-          <Link href="/portal/dogs/new" className="font-medium underline">
-            Add a dog
-          </Link>
-          .
-        </p>
-      )}
+      <BookServiceCta
+        hasDogs={dogs.length > 0}
+        filters={
+          <BookingFilters
+            dogs={dogs}
+            services={services}
+            selectedDogId={selectedDog?.id}
+            selectedServiceId={selectedService?.id}
+          />
+        }
+      />
 
       {bookings.length > 0 ? (
         <ul className="space-y-3">
@@ -213,7 +203,7 @@ export default async function PortalBookingsPage({
                   <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 p-3">
                     <p className="font-medium text-destructive">Action needed — vaccine certificate required</p>
                     <p className="mt-1 text-muted-foreground">
-                      Upload a valid, in-date certificate for{" "}
+                      Upload all valid, in-date certificates for{" "}
                       {booking.bookingDogs.map((bd) => bd.dog.name).join(", ")} before{" "}
                       {booking.startDate.toLocaleDateString("en-GB")}, or this booking will be cancelled and
                       any deposit paid will not be refunded.

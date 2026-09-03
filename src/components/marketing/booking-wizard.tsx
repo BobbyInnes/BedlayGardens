@@ -801,7 +801,7 @@ export function BookingWizard({
                 <div className="mt-3 space-y-2 rounded-md border border-border bg-background p-3">
                   <p className="text-sm text-muted-foreground">
                     Already added a certificate? Hit Continue below to re-check. Or you can book now anyway —
-                    it&apos;ll be placed on the watchlist. Upload a valid certificate before the booking date,
+                    it&apos;ll be placed on the waitlist. Upload all valid certificates before the booking date,
                     or this booking will be cancelled and any deposit paid will not be refunded.
                   </p>
                   <Button
