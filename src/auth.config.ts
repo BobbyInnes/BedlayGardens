@@ -49,6 +49,14 @@ export const authConfig = {
         session.user.isSuperAdmin = (token.isSuperAdmin as boolean) ?? false
         session.user.forename = token.forename as string
         session.user.surname = token.surname as string
+        // `name` no longer exists on the User model (split into
+        // forename/surname), but NextAuth's own DefaultSession["user"] still
+        // declares it, and a good number of call sites across the app still
+        // read session.user.name expecting a display name (portal/staff/admin
+        // layout headers, the portal welcome message, several audit-log
+        // entries). Rather than touching every one of those, keep `name`
+        // populated here as a derived field so they keep working.
+        session.user.name = `${token.forename ?? ""} ${token.surname ?? ""}`.trim() || null
       }
       return session
     },
