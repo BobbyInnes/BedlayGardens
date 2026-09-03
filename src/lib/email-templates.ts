@@ -954,6 +954,39 @@ export function vaccinationExpiryWarningEmail(
   }
 }
 
+// Unlike vaccinationExpiryWarningEmail (which fires for any lapsing record,
+// whether or not there's a booking riding on it), this is booking-specific —
+// sent by the cron's booking-vaccination-risk check once an upcoming, already
+// -confirmed booking's dogs won't be in date for the whole stay. `urgent`
+// switches to firmer wording once the stay is close (see send-reminders).
+export function bookingVaccinationRiskEmail(
+  branding: EmailBranding,
+  booking: { service: { name: string }; startDate: Date; endDate: Date },
+  perDog: { dogName: string; missingTypes: string[] }[],
+  urgent: boolean
+): { subject: string; html: string } {
+  const dateLabel = booking.startDate.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })
+  const dogList = perDog.map((d) => `${d.dogName} (${d.missingTypes.join(", ")})`).join("; ")
+  return {
+    subject: urgent
+      ? `Action needed before ${dateLabel} — vaccinations required`
+      : `Please update vaccinations before your ${dateLabel} booking`,
+    html: layout(
+      branding,
+      urgent ? "Your booking needs attention" : "A vaccination will lapse before your booking",
+      `
+        <p>Your <strong>${booking.service.name}</strong> booking on <strong>${dateLabel}</strong> currently can't go ahead as booked — the following vaccination(s) won't be in date by then:</p>
+        <p>${dogList}</p>
+        <p>Please log in to your account and upload an updated certificate before this date${urgent ? ". This booking may need to be cancelled if it isn't resolved in time — please get in touch if you have any questions" : ""}.</p>
+      `
+    ),
+  }
+}
+
 export function pupdateEmail(
   branding: EmailBranding,
   dogName: string,

@@ -10,11 +10,20 @@ import {
   balanceDueReminderEmail,
   checkinReminderEmail,
   vaccinationExpiryWarningEmail,
+  bookingVaccinationRiskEmail,
   reviewRequestEmail,
   vaccinationReviewDigestEmail,
 } from "@/lib/email-templates"
 import { createBookingInvoice } from "@/lib/invoicing"
+import { findAtRiskBookings } from "@/lib/booking-vaccination-risk"
 import type { BookingStatus } from "@/generated/prisma/client"
+
+// Bookings starting within this many days are scanned for lapsing
+// vaccinations at all (the initial notice can fire any time inside this
+// window); inside FINAL_NOTICE_DAYS of the stay, a firmer "may be
+// cancelled" notice replaces it if the risk is still unresolved.
+const AT_RISK_LOOKAHEAD_DAYS = 45
+const AT_RISK_FINAL_NOTICE_DAYS = 7
 
 const ACTIVE_BOOKING_STATUSES: BookingStatus[] = ["PENDING_PAYMENT", "CONFIRMED"]
 
@@ -118,6 +127,36 @@ async function sendVaccinationExpiryWarnings(settings: Record<string, string>) {
     await prisma.emailLog.create({
       data: { type: "VACCINATION_EXPIRY_WARNING", vaccinationRecordId: record.id },
     })
+    sent++
+  }
+  return sent
+}
+
+// Unlike sendVaccinationExpiryWarnings above (any lapsing record, booking or
+// not), this only fires for a dog with an already-confirmed upcoming
+// booking that its current vaccinations won't cover through. Two-stage:
+// an initial notice any time within the lookahead window, then a firmer
+// final notice once the stay is close if it's still unresolved — each
+// stage its own EmailLog type/bookingId pair, so both can fire once
+// without either re-sending on its own.
+async function sendBookingVaccinationRiskWarnings(settings: Record<string, string>) {
+  const atRisk = await findAtRiskBookings(AT_RISK_LOOKAHEAD_DAYS)
+
+  let sent = 0
+  for (const { booking, perDog } of atRisk) {
+    const daysOut = Math.round((booking.startDate.getTime() - today().getTime()) / 86_400_000)
+    const stage = daysOut <= AT_RISK_FINAL_NOTICE_DAYS ? "FINAL" : "INITIAL"
+    const logType = `BOOKING_VACCINATION_RISK_${stage}`
+    if (await alreadySent(logType, { bookingId: booking.id })) continue
+
+    const email = bookingVaccinationRiskEmail(settings, booking, perDog, stage === "FINAL")
+    const dogList = perDog.map((d) => d.dogName).join(", ")
+    await notifyCustomer(booking.customerId, "BOOKING_VACCINATION_RISK", {
+      subject: email.subject,
+      html: email.html,
+      smsBody: `Action needed: vaccinations for ${dogList}'s ${booking.service.name} booking on ${booking.startDate.toLocaleDateString("en-GB")} need updating before check-in.`,
+    })
+    await prisma.emailLog.create({ data: { type: logType, bookingId: booking.id } })
     sent++
   }
   return sent
@@ -229,12 +268,14 @@ export async function GET(request: Request) {
     balanceDueReminders,
     checkinReminders,
     vaccinationExpiryWarnings,
+    bookingVaccinationRiskWarnings,
     vaccinationReviewDigest,
     reviewRequests,
   ] = await Promise.all([
     sendBalanceDueReminders(settings),
     sendCheckinReminders(settings),
     sendVaccinationExpiryWarnings(settings),
+    sendBookingVaccinationRiskWarnings(settings),
     sendVaccinationReviewDigest(settings),
     sendReviewRequests(settings),
   ])
@@ -243,6 +284,7 @@ export async function GET(request: Request) {
     balanceDueReminders,
     checkinReminders,
     vaccinationExpiryWarnings,
+    bookingVaccinationRiskWarnings,
     vaccinationReviewDigest,
     reviewRequests,
     invoicedBookings,
