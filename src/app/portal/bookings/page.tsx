@@ -85,6 +85,16 @@ export default async function PortalBookingsPage({
         />
       </div>
 
+      {dogs.length === 0 && (
+        <p className="text-sm text-destructive">
+          You need to add a dog profile to your account before you can book any service.{" "}
+          <Link href="/portal/dogs/new" className="font-medium underline">
+            Add a dog
+          </Link>
+          .
+        </p>
+      )}
+
       {bookings.length > 0 ? (
         <ul className="space-y-3">
           {bookings.map((booking) => {
