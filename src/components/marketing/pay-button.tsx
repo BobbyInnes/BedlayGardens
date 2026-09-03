@@ -15,7 +15,7 @@ export function PayButton({
   fullWidth = true,
 }: {
   bookingId: string
-  type: "DEPOSIT" | "BALANCE"
+  type: "DEPOSIT" | "BALANCE" | "FULL"
   label: string
   size?: "default" | "sm"
   fullWidth?: boolean

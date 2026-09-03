@@ -157,6 +157,15 @@ export default async function PortalBookingsPage({
                             fullWidth={false}
                           />
                         )}
+                        {stripe && booking.service.paymentTiming === "DEPOSIT_THEN_BALANCE" && (
+                          <PayButton
+                            bookingId={booking.id}
+                            type="FULL"
+                            label={`Pay in full — ${formatPence(booking.totalPence)}`}
+                            size="sm"
+                            fullWidth={false}
+                          />
+                        )}
                         <RedeemCreditForm
                           bookingId={booking.id}
                           type="DEPOSIT"

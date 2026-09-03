@@ -10,7 +10,16 @@ export type CheckoutState = { status: "error"; message: string }
 
 export async function createCheckoutSession(
   bookingId: string,
-  type: "DEPOSIT" | "BALANCE"
+  // "FULL" pays the deposit and balance together in one Checkout session —
+  // only offered pre-deposit on a DEPOSIT_THEN_BALANCE booking (FULL_UPFRONT
+  // already charges everything as "DEPOSIT"; INVOICE_AFTER has no online
+  // payment at all). Recorded the same way redeemCreditForPayment's own
+  // "FULL" option already does for credit/voucher payments: stored as a
+  // single DEPOSIT-typed Payment row here (Stripe only gives us one
+  // PaymentIntent for one session, and PaymentType has no "FULL" value), then
+  // split into a separate DEPOSIT + BALANCE pair once the webhook confirms
+  // it succeeded — see markPaymentSucceededAndNotify in lib/payments.ts.
+  type: "DEPOSIT" | "BALANCE" | "FULL"
 ): Promise<CheckoutState> {
   const session = await auth()
   if (!session?.user) return { status: "error", message: "Please log in." }
@@ -37,16 +46,28 @@ export async function createCheckoutSession(
     }
   }
 
-  const alreadyPaid = booking.payments.some((p) => p.type === type && p.status === "SUCCEEDED")
-  if (alreadyPaid) {
-    return { status: "error", message: "This has already been paid." }
+  const depositPaid = booking.payments.some((p) => p.type === "DEPOSIT" && p.status === "SUCCEEDED")
+  const balancePaid = booking.payments.some((p) => p.type === "BALANCE" && p.status === "SUCCEEDED")
+  if (type === "BALANCE") {
+    if (balancePaid) return { status: "error", message: "This has already been paid." }
+    if (booking.status !== "CONFIRMED") {
+      return { status: "error", message: "The deposit must be paid before the balance." }
+    }
+  } else {
+    // DEPOSIT and FULL both need the deposit stage still open.
+    if (depositPaid) return { status: "error", message: "This has already been paid." }
   }
 
-  if (type === "BALANCE" && booking.status !== "CONFIRMED") {
-    return { status: "error", message: "The deposit must be paid before the balance." }
+  if (type === "FULL" && booking.service.paymentTiming !== "DEPOSIT_THEN_BALANCE") {
+    return { status: "error", message: "Full payment isn't needed for this service." }
   }
 
-  const amountPence = type === "DEPOSIT" ? booking.depositPence : booking.totalPence - booking.depositPence
+  const amountPence =
+    type === "DEPOSIT"
+      ? booking.depositPence
+      : type === "BALANCE"
+        ? booking.totalPence - booking.depositPence
+        : booking.totalPence
   if (amountPence <= 0) {
     return { status: "error", message: "Nothing due." }
   }
@@ -82,11 +103,13 @@ export async function createCheckoutSession(
             unit_amount: amountPence,
             product_data: {
               name: `${
-                type === "DEPOSIT"
-                  ? booking.service.paymentTiming === "FULL_UPFRONT"
-                    ? "Payment"
-                    : "Deposit"
-                  : "Balance"
+                type === "FULL"
+                  ? "Full payment"
+                  : type === "DEPOSIT"
+                    ? booking.service.paymentTiming === "FULL_UPFRONT"
+                      ? "Payment"
+                      : "Deposit"
+                    : "Balance"
               } — ${booking.service.name}`,
             },
           },
@@ -120,7 +143,10 @@ export async function createCheckoutSession(
     data: {
       bookingId: booking.id,
       stripePaymentIntentId: paymentIntentId ?? checkoutSession.id,
-      type,
+      // PaymentType has no "FULL" value — stored as DEPOSIT (amountPence is
+      // the full amount actually charged) until the webhook splits it into a
+      // proper DEPOSIT + BALANCE pair on success; see markPaymentSucceededAndNotify.
+      type: type === "FULL" ? "DEPOSIT" : type,
       amountPence,
       status: "PENDING",
     },

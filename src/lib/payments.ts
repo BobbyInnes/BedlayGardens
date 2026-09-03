@@ -57,12 +57,40 @@ export async function markPaymentSucceededAndNotify(stripePaymentIntentId: strin
   })
   if (!booking) return
 
+  // A "pay in full" checkout (see createCheckoutSession) is stored as a
+  // single DEPOSIT-typed row for the whole amount, since Stripe only gives
+  // one PaymentIntent per session and PaymentType has no "FULL" value. Once
+  // it succeeds, split it into a proper DEPOSIT + BALANCE pair — everything
+  // else in the app (outstanding-balance calculations, "pay balance"
+  // buttons, etc.) reads paid-ness as a boolean per type, not a running
+  // total, so a lone inflated DEPOSIT row would leave the balance looking
+  // unpaid and still promptable. Mirrors redeemCreditForPayment's own
+  // DEPOSIT+BALANCE split for its "FULL" credit-redemption option.
+  const wasFullPayment = payment.type === "DEPOSIT" && payment.amountPence > booking.depositPence
+  const receiptAmountPence = payment.amountPence
+  if (wasFullPayment) {
+    const balancePence = booking.totalPence - booking.depositPence
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { amountPence: booking.depositPence },
+    })
+    await prisma.payment.create({
+      data: {
+        bookingId: booking.id,
+        type: "BALANCE",
+        amountPence: balancePence,
+        status: "SUCCEEDED",
+        succeededAt: new Date(),
+      },
+    })
+  }
+
   await logAudit({
     actorId: booking.customer.id,
     action: "PAYMENT_SUCCEEDED",
     entity: "Booking",
     entityId: booking.id,
-    meta: `${payment.type} — ${formatPence(payment.amountPence)} — ${describeBooking(booking)}`,
+    meta: `${wasFullPayment ? "FULL" : payment.type} — ${formatPence(payment.amountPence)} — ${describeBooking(booking)}`,
   })
 
   const settings = await getSettings()
@@ -93,8 +121,8 @@ export async function markPaymentSucceededAndNotify(stripePaymentIntentId: strin
   const receipt = await paymentReceiptEmail(
     settings,
     bookingSummary,
-    payment.amountPence,
-    payment.type as "DEPOSIT" | "BALANCE",
+    receiptAmountPence,
+    wasFullPayment ? "FULL" : (payment.type as "DEPOSIT" | "BALANCE"),
     `${getSiteUrl()}/portal/bookings`,
     vat
   )
