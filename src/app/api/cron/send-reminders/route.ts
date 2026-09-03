@@ -10,11 +10,27 @@ import {
   balanceDueReminderEmail,
   checkinReminderEmail,
   vaccinationExpiryWarningEmail,
+  bookingVaccinationRiskEmail,
+  pendingVaccinationEmail,
+  vaccinationBookingCancelledEmail,
   reviewRequestEmail,
   vaccinationReviewDigestEmail,
 } from "@/lib/email-templates"
 import { createBookingInvoice } from "@/lib/invoicing"
+import { findAtRiskBookings } from "@/lib/booking-vaccination-risk"
+import { offerNextInLine } from "@/lib/waitlist"
 import type { BookingStatus } from "@/generated/prisma/client"
+
+// Bookings starting within this many days are scanned for lapsing
+// vaccinations at all (the initial notice can fire any time inside this
+// window); inside FINAL_NOTICE_DAYS of the stay, a firmer "may be
+// cancelled" notice replaces it if the risk is still unresolved.
+const AT_RISK_LOOKAHEAD_DAYS = 45
+const AT_RISK_FINAL_NOTICE_DAYS = 7
+
+// How many days before a PENDING_VACCINATION booking's start date to send
+// the one-off "still needed" reminder if it's still unresolved by then.
+const PENDING_VACCINATION_REMINDER_DAYS = 3
 
 const ACTIVE_BOOKING_STATUSES: BookingStatus[] = ["PENDING_PAYMENT", "CONFIRMED"]
 
@@ -123,6 +139,106 @@ async function sendVaccinationExpiryWarnings(settings: Record<string, string>) {
   return sent
 }
 
+// Unlike sendVaccinationExpiryWarnings above (any lapsing record, booking or
+// not), this only fires for a dog with an already-confirmed upcoming
+// booking that its current vaccinations won't cover through. Two-stage:
+// an initial notice any time within the lookahead window, then a firmer
+// final notice once the stay is close if it's still unresolved — each
+// stage its own EmailLog type/bookingId pair, so both can fire once
+// without either re-sending on its own.
+async function sendBookingVaccinationRiskWarnings(settings: Record<string, string>) {
+  const atRisk = await findAtRiskBookings(AT_RISK_LOOKAHEAD_DAYS)
+
+  let sent = 0
+  for (const { booking, perDog } of atRisk) {
+    const daysOut = Math.round((booking.startDate.getTime() - today().getTime()) / 86_400_000)
+    const stage = daysOut <= AT_RISK_FINAL_NOTICE_DAYS ? "FINAL" : "INITIAL"
+    const logType = `BOOKING_VACCINATION_RISK_${stage}`
+    if (await alreadySent(logType, { bookingId: booking.id })) continue
+
+    const email = bookingVaccinationRiskEmail(settings, booking, perDog, stage === "FINAL")
+    const dogList = perDog.map((d) => d.dogName).join(", ")
+    await notifyCustomer(booking.customerId, "BOOKING_VACCINATION_RISK", {
+      subject: email.subject,
+      html: email.html,
+      smsBody: `Action needed: vaccinations for ${dogList}'s ${booking.service.name} booking on ${booking.startDate.toLocaleDateString("en-GB")} need updating before check-in.`,
+    })
+    await prisma.emailLog.create({ data: { type: logType, bookingId: booking.id } })
+    sent++
+  }
+  return sent
+}
+
+// One-off nudge for a PENDING_VACCINATION booking (see
+// proceedWithoutValidVaccines in book/actions.ts) that's still unresolved
+// as its start date approaches — separate from the initial notice sent at
+// booking/payment time (see pendingVaccinationEmail's own callers).
+async function sendPendingVaccinationReminders(settings: Record<string, string>) {
+  const windowEnd = addDays(today(), PENDING_VACCINATION_REMINDER_DAYS)
+  const bookings = await prisma.booking.findMany({
+    where: { status: "PENDING_VACCINATION", startDate: { gte: today(), lte: windowEnd } },
+    include: { service: true, customer: true },
+  })
+
+  let sent = 0
+  for (const booking of bookings) {
+    if (await alreadySent("PENDING_VACCINATION_REMINDER", { bookingId: booking.id })) continue
+
+    const email = pendingVaccinationEmail(
+      settings,
+      { serviceName: booking.service.name, startDate: booking.startDate },
+      "a valid certificate",
+      "reminder"
+    )
+    await notifyCustomer(booking.customerId, "BOOKING_VACCINATION_RISK", {
+      subject: email.subject,
+      html: email.html,
+      smsBody: `Reminder: a vaccine certificate is still needed for your ${booking.service.name} booking on ${booking.startDate.toLocaleDateString("en-GB")}, or it'll be cancelled.`,
+    })
+    await prisma.emailLog.create({ data: { type: "PENDING_VACCINATION_REMINDER", bookingId: booking.id } })
+    sent++
+  }
+  return sent
+}
+
+// A PENDING_VACCINATION booking whose start date has arrived with the gate
+// still unresolved is cancelled — same occupancy cleanup as a normal admin
+// cancellation (cancelBookingAdmin), but deliberately does NOT refund any
+// deposit already paid: the customer was told at booking time that failing
+// to upload a valid certificate in time would forfeit it.
+async function cancelUnresolvedPendingVaccinationBookings(settings: Record<string, string>) {
+  const bookings = await prisma.booking.findMany({
+    where: { status: "PENDING_VACCINATION", startDate: { lte: today() } },
+    include: { service: true, customer: true },
+  })
+
+  let cancelled = 0
+  for (const booking of bookings) {
+    await prisma.$transaction([
+      prisma.booking.update({
+        where: { id: booking.id },
+        data: {
+          status: "CANCELLED_BY_ADMIN",
+          cancellationReason: "No valid vaccine certificate uploaded before the start date — deposit forfeited",
+          cancelledAt: new Date(),
+        },
+      }),
+      prisma.kennelOccupancy.deleteMany({ where: { bookingId: booking.id } }),
+      prisma.walkBooking.deleteMany({ where: { bookingId: booking.id } }),
+      prisma.vanRunStop.deleteMany({ where: { bookingId: booking.id } }),
+    ])
+    await offerNextInLine(booking.serviceId, booking.startDate)
+
+    const email = vaccinationBookingCancelledEmail(settings, {
+      serviceName: booking.service.name,
+      startDate: booking.startDate,
+    })
+    await sendEmail({ to: booking.customer.email, subject: email.subject, html: email.html })
+    cancelled++
+  }
+  return cancelled
+}
+
 // One email per day summarizing the whole current UNVERIFIED backlog — not
 // per-record dedup like the other reminders here, since this cron only runs
 // once a day anyway (see vercel.json) and a record that's still unreviewed
@@ -224,17 +340,24 @@ export async function GET(request: Request) {
   // Close out finished invoice-after bookings before review requests run so
   // a booking invoiced today can also get its review request in the same run.
   const invoicedBookings = await invoicePastServiceBookings()
+  // Runs before the reminder scan below so a booking cancelled today (start
+  // date reached) isn't also sent a "still needed" reminder in the same run.
+  const pendingVaccinationCancellations = await cancelUnresolvedPendingVaccinationBookings(settings)
 
   const [
     balanceDueReminders,
     checkinReminders,
     vaccinationExpiryWarnings,
+    bookingVaccinationRiskWarnings,
+    pendingVaccinationReminders,
     vaccinationReviewDigest,
     reviewRequests,
   ] = await Promise.all([
     sendBalanceDueReminders(settings),
     sendCheckinReminders(settings),
     sendVaccinationExpiryWarnings(settings),
+    sendBookingVaccinationRiskWarnings(settings),
+    sendPendingVaccinationReminders(settings),
     sendVaccinationReviewDigest(settings),
     sendReviewRequests(settings),
   ])
@@ -243,6 +366,9 @@ export async function GET(request: Request) {
     balanceDueReminders,
     checkinReminders,
     vaccinationExpiryWarnings,
+    bookingVaccinationRiskWarnings,
+    pendingVaccinationReminders,
+    pendingVaccinationCancellations,
     vaccinationReviewDigest,
     reviewRequests,
     invoicedBookings,

@@ -8,7 +8,9 @@ import { prisma } from "@/lib/prisma"
 import { logAudit } from "@/lib/audit"
 import { saveUpload, deleteUpload } from "@/lib/storage"
 import { checkWaitlistAfterVaccination } from "@/lib/waitlist"
+import { checkPendingVaccinationBookings } from "@/lib/booking-vaccination-risk"
 import { notifyVaccinationReviewNeeded } from "@/lib/vaccination-review-notify"
+import { addYears, isMoreThanYearsAgo, activeDuplicateError } from "@/lib/vaccination-validation"
 import { FIXED_VACCINES } from "./vaccine-types"
 
 const rowSchema = z.object({
@@ -17,29 +19,18 @@ const rowSchema = z.object({
   expiryDate: z.string().min(1, "Expiry date is required"),
 })
 
+// The fixed vaccines (DHPP, Leptospirosis, Kennel Cough) don't take an
+// expiry date from the form at all — it's calculated from the from date, so
+// it's never something the visitor can enter or tamper with.
+const fixedRowSchema = z.object({
+  type: z.string().trim().min(1).max(100),
+  dateGiven: z.string().min(1, "Date given is required"),
+})
+
 export type VaccinationFormState = {
   status: "idle" | "error"
   message?: string
   fieldErrors?: Record<string, string>
-}
-
-// A vaccine's expiry date shouldn't sit further past its from date than the
-// vaccine is actually valid for (e.g. a mistyped year giving DHPP a 10-year
-// "expiry"). Compares by calendar date, not a fixed day count, so it's not
-// thrown off by leap years.
-function exceedsMaxValidity(dateGiven: string, expiryDate: string, maxYears: number): boolean {
-  const maxAllowed = new Date(dateGiven)
-  maxAllowed.setFullYear(maxAllowed.getFullYear() + maxYears)
-  return new Date(expiryDate).getTime() > maxAllowed.getTime()
-}
-
-// The from date itself shouldn't be able to predate today by more than this
-// many years (e.g. DHPP given "5 years ago"), independent of the validity
-// gap above.
-function isMoreThanYearsAgo(dateGiven: string, maxYears: number): boolean {
-  const cutoff = new Date()
-  cutoff.setFullYear(cutoff.getFullYear() - maxYears)
-  return new Date(dateGiven).getTime() < cutoff.getTime()
 }
 
 async function requireDogOwnership(dogId: string) {
@@ -65,14 +56,15 @@ export async function createVaccinationManual(
     return { status: "error", message: "Missing dog." }
   }
 
+  const { session, dog } = await requireDogOwnership(dogId)
+
   const rows: PendingRow[] = []
   const fieldErrors: Record<string, string> = {}
 
   for (const vaccine of FIXED_VACCINES) {
     if (formData.get(`enabled_${vaccine.id}`) !== "on") continue
     const dateGiven = String(formData.get(`dateGiven_${vaccine.id}`) ?? "")
-    const expiryDate = String(formData.get(`expiryDate_${vaccine.id}`) ?? "")
-    const parsed = rowSchema.safeParse({ type: vaccine.type, dateGiven, expiryDate })
+    const parsed = fixedRowSchema.safeParse({ type: vaccine.type, dateGiven })
     if (!parsed.success) {
       for (const issue of parsed.error.issues) {
         if (issue.path[0] !== "type") fieldErrors[`${String(issue.path[0])}_${vaccine.id}`] = issue.message
@@ -85,13 +77,16 @@ export async function createVaccinationManual(
         `From Date can't be more than ${years} year${years === 1 ? "" : "s"} ago for ${vaccine.type}. Please correct it.`
       continue
     }
-    if (exceedsMaxValidity(parsed.data.dateGiven, parsed.data.expiryDate, vaccine.maxValidityYears)) {
-      const years = vaccine.maxValidityYears
-      fieldErrors[`expiryDate_${vaccine.id}`] =
-        `Expiry date can't be more than ${years} year${years === 1 ? "" : "s"} after the From Date for ${vaccine.type}. Please correct it.`
+    const duplicateError = await activeDuplicateError(dogId, dog.name, vaccine.type)
+    if (duplicateError) {
+      fieldErrors[`dateGiven_${vaccine.id}`] = duplicateError
       continue
     }
-    rows.push(parsed.data)
+    rows.push({
+      type: parsed.data.type,
+      dateGiven: parsed.data.dateGiven,
+      expiryDate: addYears(parsed.data.dateGiven, vaccine.maxValidityYears),
+    })
   }
 
   if (formData.get("enabled_Other") === "on") {
@@ -105,7 +100,12 @@ export async function createVaccinationManual(
         fieldErrors[field] = issue.message
       }
     } else {
-      rows.push(parsed.data)
+      const duplicateError = await activeDuplicateError(dogId, dog.name, parsed.data.type)
+      if (duplicateError) {
+        fieldErrors.otherType = duplicateError
+      } else {
+        rows.push(parsed.data)
+      }
     }
   }
 
@@ -116,14 +116,12 @@ export async function createVaccinationManual(
   }
 
   if (Object.keys(fieldErrors).length > 0) {
-    return { status: "error", fieldErrors, message: "Please fix the errors below." }
+    return { status: "error", fieldErrors, message: "Please fix the errors highlighted." }
   }
 
   if (rows.length === 0) {
     return { status: "error", message: "Select at least one vaccine to add." }
   }
-
-  const { session, dog } = await requireDogOwnership(dogId)
 
   const buffer = Buffer.from(await (certificate as File).arrayBuffer())
   const documentUrl = await saveUpload(`vaccinations/${dogId}`, (certificate as File).name, buffer)
@@ -155,6 +153,7 @@ export async function createVaccinationManual(
   }
 
   await checkWaitlistAfterVaccination(dogId)
+  await checkPendingVaccinationBookings(dogId)
   await notifyVaccinationReviewNeeded(
     created.map((record) => ({
       dogName: dog.name,

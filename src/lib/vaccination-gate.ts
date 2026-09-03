@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import { getSetting } from "@/lib/settings"
+import type { BookingStatus } from "@/generated/prisma/client"
 
 export type VaccinationGateResult = {
   ok: boolean
@@ -59,4 +60,19 @@ export async function checkVaccinationGate(
   })
 
   return { ok: perDog.every((entry) => entry.missingTypes.length === 0), perDog }
+}
+
+/**
+ * Where the gate failed but the customer chose to proceed anyway (see
+ * `proceedWithoutValidVaccines` in book/actions.ts), a booking that would
+ * otherwise go straight to CONFIRMED (INVOICE_AFTER services, which have no
+ * deposit/payment step to hook into later) needs to land in
+ * PENDING_VACCINATION instead. A booking that goes to PENDING_PAYMENT is
+ * left alone here — that decision is made again, more accurately, once
+ * payment actually clears (see markPaymentSucceededAndNotify in
+ * lib/payments.ts), since vaccination status can change in the meantime.
+ */
+export function resolveBookingStatusForGate(paymentStatus: BookingStatus, gateOk: boolean): BookingStatus {
+  if (paymentStatus === "CONFIRMED" && !gateOk) return "PENDING_VACCINATION"
+  return paymentStatus
 }

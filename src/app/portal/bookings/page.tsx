@@ -13,6 +13,7 @@ import { PayButton } from "@/components/marketing/pay-button"
 import { RedeemCreditForm } from "@/components/portal/redeem-credit-form"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 import { BookingFilters } from "@/components/portal/booking-filters"
+import { BookServiceCta } from "@/components/portal/book-service-cta"
 import { TRIAL_OUTCOME_LABELS } from "@/lib/trial-outcome"
 import { bookingCardClasses } from "@/lib/booking-card-colors"
 
@@ -72,18 +73,17 @@ export default async function PortalBookingsPage({
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div className="flex flex-wrap items-center gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">My Bookings</h1>
-        <Button size="sm" asChild>
-          <Link href="/book">Book a service</Link>
-        </Button>
-        <BookingFilters
-          dogs={dogs}
-          services={services}
-          selectedDogId={selectedDog?.id}
-          selectedServiceId={selectedService?.id}
-        />
-      </div>
+      <BookServiceCta
+        hasDogs={dogs.length > 0}
+        filters={
+          <BookingFilters
+            dogs={dogs}
+            services={services}
+            selectedDogId={selectedDog?.id}
+            selectedServiceId={selectedService?.id}
+          />
+        }
+      />
 
       {bookings.length > 0 ? (
         <ul className="space-y-3">
@@ -199,6 +199,24 @@ export default async function PortalBookingsPage({
                   </div>
                 </div>
 
+                {booking.status === "PENDING_VACCINATION" && (
+                  <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+                    <p className="font-medium text-destructive">Action needed — vaccine certificate required</p>
+                    <p className="mt-1 text-muted-foreground">
+                      Upload all valid, in-date certificates for{" "}
+                      {booking.bookingDogs.map((bd) => bd.dog.name).join(", ")} before{" "}
+                      {booking.startDate.toLocaleDateString("en-GB")}, or this booking will be cancelled and
+                      any deposit paid will not be refunded.
+                    </p>
+                    <Link
+                      href="/portal/vaccinations"
+                      className="mt-2 inline-block font-medium text-primary hover:underline"
+                    >
+                      Upload a certificate
+                    </Link>
+                  </div>
+                )}
+
                 {completedTrialVisits.length > 0 && (
                   <div className="mt-3 space-y-2 border-t border-border pt-3">
                     {completedTrialVisits.map((tv) => (
@@ -219,13 +237,7 @@ export default async function PortalBookingsPage({
           })}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">
-          You don&rsquo;t have any bookings yet.{" "}
-          <Link href="/book" className="font-medium text-primary hover:underline">
-            Book a service
-          </Link>
-          .
-        </p>
+        <p className="text-sm text-muted-foreground">You don&rsquo;t have any bookings yet.</p>
       )}
     </div>
   )

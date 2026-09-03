@@ -14,6 +14,7 @@ import {
   LayoutGrid,
   ListChecks,
   Pill,
+  Syringe,
   TreePine,
   UtensilsCrossed,
   Users,
@@ -28,9 +29,16 @@ import { isSameDay, parseDateParam, startOfDay, toDateInputValue } from "@/lib/d
 import { ensureCareTasksForToday } from "@/lib/care-tasks"
 import { getSetting } from "@/lib/settings"
 import { formatPence, fullName } from "@/lib/format"
+import { findAtRiskBookings, findPendingVaccinationBookings } from "@/lib/booking-vaccination-risk"
 import { ToDoList } from "@/components/admin/todo-list"
 import { CareTaskRecordButton } from "@/components/admin/care-task-record-button"
 import { DailyDatePicker } from "@/components/admin/daily-date-picker"
+
+// How far ahead the dashboard looks for bookings whose vaccinations won't
+// cover the stay — tighter than the cron's own lookahead (see
+// AT_RISK_LOOKAHEAD_DAYS in the send-reminders cron), since this card is
+// about what's actionable soon, not everything on the horizon.
+const AT_RISK_DASHBOARD_WINDOW_DAYS = 30
 
 export const metadata: Metadata = {
   title: "Daily Overview | Admin",
@@ -329,6 +337,9 @@ export default async function AdminOverviewPage({
 
   if (isToday) await ensureCareTasksForToday()
 
+  const atRiskBookingsPromise = findAtRiskBookings(AT_RISK_DASHBOARD_WINDOW_DAYS)
+  const pendingVaccinationBookingsPromise = findPendingVaccinationBookings()
+
   const [
     services,
     kennelUnitCount,
@@ -423,6 +434,18 @@ export default async function AdminOverviewPage({
     }),
     getSetting("daycare_max_capacity", "0"),
   ])
+  const [atRiskBookings, pendingVaccinationBookings] = await Promise.all([
+    atRiskBookingsPromise,
+    pendingVaccinationBookingsPromise,
+  ])
+  // Same table either way (customer/dogs/service/date/missing types) — the
+  // status badge on each row is what actually distinguishes "was compliant,
+  // now lapsing" from "never had a valid certificate, booked on the
+  // understanding it'd be sorted before the date".
+  const vaccinationFlaggedBookings = [
+    ...pendingVaccinationBookings.map((entry) => ({ ...entry, bookingStatus: entry.booking.status })),
+    ...atRiskBookings.map((entry) => ({ ...entry, bookingStatus: entry.booking.status })),
+  ].sort((a, b) => a.booking.startDate.getTime() - b.booking.startDate.getTime())
 
   const boardingService = services.find((s) => s.slug === "overnight-boarding")
   const meetGreetService = services.find((s) => s.slug === "meet-greet")
@@ -522,6 +545,62 @@ export default async function AdminOverviewPage({
             )}
           </CardContent>
         </Card>
+      )}
+
+      {vaccinationFlaggedBookings.length > 0 && (
+        <TableCard
+          title="Bookings At Risk — Vaccinations Lapsing"
+          icon={Syringe}
+          count={vaccinationFlaggedBookings.length}
+          emptyMessage="No upcoming bookings at risk."
+        >
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className={TABLE_HEAD_ROW}>
+                <th className={TABLE_CELL}>Customer</th>
+                <th className={TABLE_CELL}>Dog(s)</th>
+                <th className={TABLE_CELL}>Service</th>
+                <th className={TABLE_CELL}>Date</th>
+                <th className={TABLE_CELL}>Status</th>
+                <th className={TABLE_CELL}>Missing / expiring</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vaccinationFlaggedBookings.map(({ booking, perDog, bookingStatus }) => (
+                <tr key={booking.id} className={TABLE_ROW}>
+                  <td className={TABLE_CELL}>
+                    <Link href={`/admin/customers/${booking.customerId}`} className="font-medium hover:underline">
+                      {fullName(booking.customer)}
+                    </Link>
+                  </td>
+                  <td className={TABLE_CELL}>{perDog.map((d) => d.dogName).join(", ")}</td>
+                  <td className={TABLE_CELL}>{booking.service.name}</td>
+                  <td className={TABLE_CELL}>
+                    {booking.startDate.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                  </td>
+                  <td className={TABLE_CELL}>
+                    {bookingStatus === "PENDING_VACCINATION" ? (
+                      <Badge variant="outline" title="Booked without a valid certificate, still unresolved">
+                        Never verified
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" title="Was compliant when booked, now lapsing before the date">
+                        Now lapsing
+                      </Badge>
+                    )}
+                  </td>
+                  <td className={TABLE_CELL}>
+                    {perDog.map((d) => (
+                      <Badge key={d.dogId} variant="destructive" className="mr-1">
+                        {d.dogName}: {d.missingTypes.join(", ")}
+                      </Badge>
+                    ))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableCard>
       )}
 
       <div className="grid gap-4 lg:grid-cols-3">

@@ -12,10 +12,16 @@ import { findAvailableKennelUnit, isDaycareAvailable } from "@/lib/availability"
 import { largestDogSize } from "@/lib/dog-size-colors"
 import { computeBookingPrice } from "@/lib/booking-pricing"
 import { paymentFieldsFor } from "@/lib/payment-timing"
+import { checkVaccinationGate } from "@/lib/vaccination-gate"
 import { getSetting, getSettings } from "@/lib/settings"
 import { getVatSettings } from "@/lib/vat"
 import { sendEmail } from "@/lib/email"
-import { cancellationConfirmationEmail, bookingConfirmationEmail, paymentReceiptEmail } from "@/lib/email-templates"
+import {
+  cancellationConfirmationEmail,
+  bookingConfirmationEmail,
+  paymentReceiptEmail,
+  pendingVaccinationEmail,
+} from "@/lib/email-templates"
 import { logAudit, logEntityChange, describeBooking } from "@/lib/audit"
 import { formatPence, fullName } from "@/lib/format"
 import { resolveBookingCreation, type BookingCreationResult } from "@/app/(marketing)/book/actions"
@@ -240,6 +246,14 @@ const manualBookingSchema = z.object({
   accessNotes: z.string().optional(),
   postcode: z.string().optional(),
   overrideCompatibilityFlags: z.boolean().optional(),
+  // Explicit, admin-initiated bypass of the vaccination gate (e.g. the
+  // certificate was shown/confirmed over the phone) — audited when it's
+  // actually needed (see vaccinationGateOverridden in resolveBookingCreation).
+  // Without it, a phone booking hits the same gate as the customer site:
+  // blocked outright, or created PENDING_VACCINATION if the admin instead
+  // ticks "book anyway, pending vaccination".
+  overrideVaccinationGate: z.boolean().optional(),
+  proceedWithoutValidVaccines: z.boolean().optional(),
 })
 
 export async function createManualBooking(
@@ -251,14 +265,14 @@ export async function createManualBooking(
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid submission." }
   }
 
-  const { overrideCompatibilityFlags, ...bookingInput } = parsed.data
+  const { overrideCompatibilityFlags, overrideVaccinationGate, ...bookingInput } = parsed.data
   const result = await resolveBookingCreation(
     parsed.data.customerId,
     { ...bookingInput, addons: [] },
     {
-      skipVaccinationGate: true,
+      skipVaccinationGate: overrideVaccinationGate,
       overrideCompatibilityFlags,
-      overriddenByUserId: overrideCompatibilityFlags ? session.user.id : undefined,
+      overriddenByUserId: overrideCompatibilityFlags || overrideVaccinationGate ? session.user.id : undefined,
       actorId: session.user.id,
     }
   )
@@ -824,12 +838,28 @@ export async function recordManualPayment(
   const amountPence = type === "DEPOSIT" ? booking.depositPence : booking.totalPence - booking.depositPence
   if (amountPence <= 0) return { status: "error", message: "Nothing due." }
 
-  const becameConfirmed = type === "DEPOSIT" && booking.status === "PENDING_PAYMENT"
+  // Same re-check as the Stripe payment-success path (see
+  // markPaymentSucceededAndNotify in lib/payments.ts) — a booking recorded
+  // as paid here shouldn't confirm past a vaccination gate that's still
+  // failing, whether or not it was placed via proceedWithoutValidVaccines.
+  const willAttemptConfirm = type === "DEPOSIT" && booking.status === "PENDING_PAYMENT"
+  const gateNowOk = willAttemptConfirm
+    ? (await checkVaccinationGate(booking.bookingDogs.map((bd) => bd.dogId), booking.endDate)).ok
+    : false
+  const becameConfirmed = willAttemptConfirm && gateNowOk
+  const becamePendingVaccination = willAttemptConfirm && !gateNowOk
   await prisma.$transaction([
     prisma.payment.create({
       data: { bookingId: booking.id, type, amountPence, status: "SUCCEEDED" },
     }),
-    ...(becameConfirmed ? [prisma.booking.update({ where: { id: booking.id }, data: { status: "CONFIRMED" } })] : []),
+    ...(willAttemptConfirm
+      ? [
+          prisma.booking.update({
+            where: { id: booking.id },
+            data: { status: gateNowOk ? "CONFIRMED" : "PENDING_VACCINATION" },
+          }),
+        ]
+      : []),
   ])
 
   await logAudit({
@@ -893,6 +923,21 @@ export async function recordManualPayment(
       `${getSiteUrl()}/portal/bookings`
     )
     await sendEmail({ to: booking.customer.email, subject: confirmation.subject, html: confirmation.html })
+  }
+
+  if (becamePendingVaccination) {
+    const gate = await checkVaccinationGate(booking.bookingDogs.map((bd) => bd.dogId), booking.endDate)
+    const missingSummary = gate.perDog
+      .filter((d) => d.missingTypes.length > 0)
+      .map((d) => `${d.dogName} (${d.missingTypes.join(", ")})`)
+      .join("; ")
+    const pending = pendingVaccinationEmail(
+      settings,
+      { serviceName: booking.service.name, startDate: booking.startDate },
+      missingSummary,
+      "initial"
+    )
+    await sendEmail({ to: booking.customer.email, subject: pending.subject, html: pending.html })
   }
 
   revalidatePath(`/admin/bookings/${bookingId}`)

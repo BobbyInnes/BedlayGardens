@@ -5,7 +5,8 @@ import { sendEmail } from "@/lib/email"
 import { getSettings } from "@/lib/settings"
 import { getVatSettings } from "@/lib/vat"
 import { formatPence, fullName } from "@/lib/format"
-import { bookingConfirmationEmail, paymentReceiptEmail } from "@/lib/email-templates"
+import { bookingConfirmationEmail, paymentReceiptEmail, pendingVaccinationEmail } from "@/lib/email-templates"
+import { checkVaccinationGate } from "@/lib/vaccination-gate"
 
 // Marks a Payment as SUCCEEDED (if not already), confirms the booking when a
 // deposit is paid, and sends the receipt / confirmation emails. Idempotent —
@@ -21,12 +22,28 @@ export async function markPaymentSucceededAndNotify(stripePaymentIntentId: strin
   })
 
   let becameConfirmed = false
+  let becamePendingVaccination = false
   if (payment.type === "DEPOSIT") {
-    const result = await prisma.booking.updateMany({
+    // Re-check the vaccination gate now, rather than assuming it still
+    // passes from booking time — it may have lapsed in the meantime, or
+    // (for a booking placed via proceedWithoutValidVaccines) may now pass
+    // if a certificate was uploaded while payment was in flight. Only acts
+    // on a booking still PENDING_PAYMENT — already-decided bookings (e.g.
+    // reconciliation racing the webhook) are left alone.
+    const pending = await prisma.booking.findFirst({
       where: { id: payment.bookingId, status: "PENDING_PAYMENT" },
-      data: { status: "CONFIRMED" },
+      include: { bookingDogs: true },
     })
-    becameConfirmed = result.count > 0
+    if (pending) {
+      const gate = await checkVaccinationGate(
+        pending.bookingDogs.map((bd) => bd.dogId),
+        pending.endDate
+      )
+      const newStatus = gate.ok ? "CONFIRMED" : "PENDING_VACCINATION"
+      await prisma.booking.update({ where: { id: pending.id }, data: { status: newStatus } })
+      becameConfirmed = newStatus === "CONFIRMED"
+      becamePendingVaccination = newStatus === "PENDING_VACCINATION"
+    }
   }
 
   const booking = await prisma.booking.findUnique({
@@ -116,6 +133,24 @@ export async function markPaymentSucceededAndNotify(stripePaymentIntentId: strin
       `${getSiteUrl()}/portal/bookings`
     )
     await sendEmail({ to: booking.customer.email, subject: confirmation.subject, html: confirmation.html })
+  }
+
+  if (becamePendingVaccination) {
+    const gate = await checkVaccinationGate(
+      booking.bookingDogs.map((bd) => bd.dogId),
+      booking.endDate
+    )
+    const missingSummary = gate.perDog
+      .filter((d) => d.missingTypes.length > 0)
+      .map((d) => `${d.dogName} (${d.missingTypes.join(", ")})`)
+      .join("; ")
+    const pending = pendingVaccinationEmail(
+      settings,
+      { serviceName: booking.service.name, startDate: booking.startDate },
+      missingSummary,
+      "initial"
+    )
+    await sendEmail({ to: booking.customer.email, subject: pending.subject, html: pending.html })
   }
 }
 

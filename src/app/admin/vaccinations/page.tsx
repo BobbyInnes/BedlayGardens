@@ -73,7 +73,7 @@ export default async function AdminVaccinationsPage() {
                     Owner: {fullName(record.dog.owner)} ({record.dog.owner.email})
                   </p>
                   <p className="text-muted-foreground">
-                    Given {record.dateGiven.toLocaleDateString("en-GB")} · Expires{" "}
+                    From Date: {record.dateGiven.toLocaleDateString("en-GB")} · Expiry Date:{" "}
                     {record.expiryDate.toLocaleDateString("en-GB")}
                   </p>
                 </div>

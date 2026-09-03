@@ -20,6 +20,17 @@ const fixedLabels: Record<(typeof FIXED_VACCINES)[number]["id"], string> = {
   KennelCough: "Kennel Cough",
 }
 
+// Mirrors the server's own from-date + validity-years calculation (see
+// addYears in actions.ts) so the expiry shown here matches what actually
+// gets saved.
+function addYears(dateStr: string, years: number): string {
+  if (!dateStr) return ""
+  const date = new Date(dateStr)
+  if (Number.isNaN(date.getTime())) return ""
+  date.setFullYear(date.getFullYear() + years)
+  return date.toISOString().slice(0, 10)
+}
+
 export function VaccinationManualForm({
   dogId,
   mode,
@@ -88,6 +99,7 @@ export function VaccinationManualForm({
                 fieldErrors={state.fieldErrors}
                 values={values}
                 setValue={setValue}
+                autoExpiryYears={vaccine.maxValidityYears}
               />
             ))}
           </div>
@@ -158,6 +170,7 @@ function VaccineRow({
   fieldErrors,
   values,
   setValue,
+  autoExpiryYears,
 }: {
   id: string
   label: string
@@ -166,6 +179,7 @@ function VaccineRow({
   fieldErrors?: Record<string, string>
   values: Record<string, string>
   setValue: (name: string, value: string) => void
+  autoExpiryYears: number
 }) {
   return (
     <div className="space-y-3 rounded-lg border border-border p-4">
@@ -182,7 +196,14 @@ function VaccineRow({
           </Label>
         </div>
         {checked && (
-          <DateFields id={id} fieldErrors={fieldErrors} dateWidth="w-36" values={values} setValue={setValue} />
+          <DateFields
+            id={id}
+            fieldErrors={fieldErrors}
+            dateWidth="w-36"
+            values={values}
+            setValue={setValue}
+            autoExpiryYears={autoExpiryYears}
+          />
         )}
       </div>
     </div>
@@ -195,15 +216,19 @@ function DateFields({
   dateWidth = "w-40",
   values,
   setValue,
+  autoExpiryYears,
 }: {
   id: string
   fieldErrors?: Record<string, string>
   dateWidth?: string
   values: Record<string, string>
   setValue: (name: string, value: string) => void
+  autoExpiryYears?: number
 }) {
   const dateGivenName = `dateGiven_${id}`
   const expiryDateName = `expiryDate_${id}`
+  const fromDateValue = values[dateGivenName] ?? ""
+  const computedExpiry = autoExpiryYears ? addYears(fromDateValue, autoExpiryYears) : ""
   return (
     <>
       <div className="space-y-2">
@@ -213,7 +238,7 @@ function DateFields({
           name={dateGivenName}
           type="date"
           className={dateWidth}
-          value={values[dateGivenName] ?? ""}
+          value={fromDateValue}
           onChange={(e) => setValue(dateGivenName, e.target.value)}
         />
         {fieldErrors?.[dateGivenName] && (
@@ -222,14 +247,26 @@ function DateFields({
       </div>
       <div className="space-y-2">
         <Label htmlFor={expiryDateName}>Expiry date</Label>
-        <Input
-          id={expiryDateName}
-          name={expiryDateName}
-          type="date"
-          className={dateWidth}
-          value={values[expiryDateName] ?? ""}
-          onChange={(e) => setValue(expiryDateName, e.target.value)}
-        />
+        {autoExpiryYears ? (
+          // Calculated from the from date server-side — not user-editable,
+          // and not submitted as its own field (the server derives it).
+          <Input
+            id={expiryDateName}
+            type="date"
+            className={dateWidth}
+            value={computedExpiry}
+            disabled
+          />
+        ) : (
+          <Input
+            id={expiryDateName}
+            name={expiryDateName}
+            type="date"
+            className={dateWidth}
+            value={values[expiryDateName] ?? ""}
+            onChange={(e) => setValue(expiryDateName, e.target.value)}
+          />
+        )}
         {fieldErrors?.[expiryDateName] && (
           <p className="text-sm text-destructive">{fieldErrors[expiryDateName]}</p>
         )}

@@ -9,7 +9,13 @@ import { getVatSettings } from "@/lib/vat"
 import { stripe, getSiteUrl } from "@/lib/stripe"
 import { formatPence, fullName } from "@/lib/format"
 import { sendEmail } from "@/lib/email"
-import { cancellationConfirmationEmail, bookingConfirmationEmail, paymentReceiptEmail } from "@/lib/email-templates"
+import {
+  cancellationConfirmationEmail,
+  bookingConfirmationEmail,
+  paymentReceiptEmail,
+  pendingVaccinationEmail,
+} from "@/lib/email-templates"
+import { checkVaccinationGate } from "@/lib/vaccination-gate"
 import { offerNextInLine } from "@/lib/waitlist"
 import { redeemForCharge } from "@/lib/vouchers"
 import { getCancellationTier } from "@/lib/cancellation-policy"
@@ -188,7 +194,15 @@ export async function redeemCreditForPayment(
   const result = await redeemForCharge(session.user.id, booking.id, amountDuePence, code.trim() || undefined)
   if (!result.ok) return { status: "error", message: result.message }
 
-  const becameConfirmed = type !== "BALANCE" && booking.status === "PENDING_PAYMENT"
+  // Same re-check as the Stripe payment-success path (see
+  // markPaymentSucceededAndNotify in lib/payments.ts) — redeeming credit
+  // shouldn't confirm a booking past a vaccination gate that's still failing.
+  const willAttemptConfirm = type !== "BALANCE" && booking.status === "PENDING_PAYMENT"
+  const gateNowOk = willAttemptConfirm
+    ? (await checkVaccinationGate(booking.bookingDogs.map((bd) => bd.dogId), booking.endDate)).ok
+    : false
+  const becameConfirmed = willAttemptConfirm && gateNowOk
+  const becamePendingVaccination = willAttemptConfirm && !gateNowOk
   const now = new Date()
   await prisma.$transaction([
     prisma.payment.create({
@@ -207,7 +221,14 @@ export async function redeemCreditForPayment(
           }),
         ]
       : []),
-    ...(becameConfirmed ? [prisma.booking.update({ where: { id: booking.id }, data: { status: "CONFIRMED" } })] : []),
+    ...(willAttemptConfirm
+      ? [
+          prisma.booking.update({
+            where: { id: booking.id },
+            data: { status: gateNowOk ? "CONFIRMED" : "PENDING_VACCINATION" },
+          }),
+        ]
+      : []),
   ])
 
   await logAudit({
@@ -271,6 +292,21 @@ export async function redeemCreditForPayment(
       `${getSiteUrl()}/portal/bookings`
     )
     await sendEmail({ to: booking.customer.email, subject: confirmation.subject, html: confirmation.html })
+  }
+
+  if (becamePendingVaccination) {
+    const gate = await checkVaccinationGate(booking.bookingDogs.map((bd) => bd.dogId), booking.endDate)
+    const missingSummary = gate.perDog
+      .filter((d) => d.missingTypes.length > 0)
+      .map((d) => `${d.dogName} (${d.missingTypes.join(", ")})`)
+      .join("; ")
+    const pending = pendingVaccinationEmail(
+      settings,
+      { serviceName: booking.service.name, startDate: booking.startDate },
+      missingSummary,
+      "initial"
+    )
+    await sendEmail({ to: booking.customer.email, subject: pending.subject, html: pending.html })
   }
 
   revalidatePath("/portal/bookings")

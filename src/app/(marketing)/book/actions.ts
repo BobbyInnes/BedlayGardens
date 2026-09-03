@@ -12,12 +12,16 @@ import { nightsBetween, startOfDay, isPastDaycareHalfDayAmCutoff } from "@/lib/d
 import { findAvailableKennelUnit, isDaycareAvailable, isMeetGreetAvailable } from "@/lib/availability"
 import { checkVaccinationGate } from "@/lib/vaccination-gate"
 import { computeBookingPrice } from "@/lib/booking-pricing"
-import { paymentFieldsFor } from "@/lib/payment-timing"
+import { paymentFieldsForGate } from "@/lib/payment-timing"
 import { getSetting, getSettings } from "@/lib/settings"
 import { getVatSettings } from "@/lib/vat"
 import { sendEmail } from "@/lib/email"
 import { getSiteUrl } from "@/lib/stripe"
-import { bookingConfirmationEmail, bookingConfirmationDepositInvoiceEmail } from "@/lib/email-templates"
+import {
+  bookingConfirmationEmail,
+  bookingConfirmationDepositInvoiceEmail,
+  pendingVaccinationEmail,
+} from "@/lib/email-templates"
 import { logAudit } from "@/lib/audit"
 import { fullName } from "@/lib/format"
 import { GROUP_BLOCKING_FLAGS, SHARED_KENNEL_BLOCKING_FLAGS, DOG_FLAG_LABELS } from "@/lib/dog-flags"
@@ -48,12 +52,22 @@ const baseSchema = z.object({
   pickupAddress: z.string().optional(),
   accessNotes: z.string().optional(),
   postcode: z.string().optional(),
+  // Set on resubmission after the customer is warned their dog(s) have no
+  // currently-valid vaccine certificate and chooses to book anyway. The
+  // booking still gets created (and, where applicable, still charges a
+  // deposit) — see resolveBookingStatusForGate — rather than being blocked
+  // outright.
+  proceedWithoutValidVaccines: z.boolean().optional(),
 })
 
 export type BookingActionState = {
   status: "idle" | "error"
   message?: string
   missingVaccinations?: { dogName: string; missingTypes: string[] }[]
+  // Set alongside missingVaccinations when the customer can choose to
+  // proceed anyway (resubmit with proceedWithoutValidVaccines: true) rather
+  // than the booking being a dead end.
+  canWatchlist?: boolean
   compatibilityBlocked?: boolean
   requiresAgreement?: boolean
   requiresTrialVisit?: boolean
@@ -235,6 +249,11 @@ export async function resolveBookingCreation(
       : []
 
   let bookingId: string | null = null
+  // Set true only if skipVaccinationGate (admin's explicit override) was
+  // actually needed — i.e. the gate really did fail — not just present but
+  // moot on an already-compliant booking. Audited once, after bookingId is
+  // known, alongside the existing OVERRIDE_DOG_COMPATIBILITY_FLAG entries.
+  let vaccinationGateOverridden = false
 
   if (service.slug === "overnight-boarding") {
     if (!data.startDate || !data.endDate) {
@@ -256,14 +275,21 @@ export async function resolveBookingCreation(
     const duplicateConflict = await checkForDuplicateServiceBooking(data.dogIds, startDate, endDate)
     if (duplicateConflict) return duplicateConflict
 
-    const gate = skipVaccinationGate ? { ok: true, perDog: [] } : await checkVaccinationGate(data.dogIds, endDate)
-    if (!gate.ok) {
+    // skipVaccinationGate (admin's explicit override — see createManualBooking)
+    // still runs the real check, unlike before, so a genuine override gets
+    // audited below rather than silently never checking at all; it just
+    // isn't allowed to block creation or affect the resulting status.
+    const gate = await checkVaccinationGate(data.dogIds, endDate)
+    const statusGateOk = gate.ok || skipVaccinationGate
+    if (skipVaccinationGate && !gate.ok) vaccinationGateOverridden = true
+    if (!statusGateOk && !data.proceedWithoutValidVaccines) {
       return {
         status: "error",
         message: "Vaccinations are missing or expired for this stay.",
         missingVaccinations: gate.perDog
           .filter((d) => d.missingTypes.length > 0)
           .map((d) => ({ dogName: d.dogName, missingTypes: d.missingTypes })),
+        canWatchlist: true,
       }
     }
 
@@ -289,7 +315,7 @@ export async function resolveBookingCreation(
     })
 
     const balanceDueDate = await balanceDueDateFor(service.paymentTiming, startDate)
-    const paymentFields = paymentFieldsFor(service.paymentTiming, pricing)
+    const paymentFields = paymentFieldsForGate(service.paymentTiming, pricing, statusGateOk)
 
     const MAX_ATTEMPTS = 5
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
@@ -377,14 +403,17 @@ export async function resolveBookingCreation(
     const duplicateConflict = await checkForDuplicateServiceBooking(data.dogIds, date, date)
     if (duplicateConflict) return duplicateConflict
 
-    const gate = skipVaccinationGate ? { ok: true, perDog: [] } : await checkVaccinationGate(data.dogIds, date)
-    if (!gate.ok) {
+    const gate = await checkVaccinationGate(data.dogIds, date)
+    const statusGateOk = gate.ok || skipVaccinationGate
+    if (skipVaccinationGate && !gate.ok) vaccinationGateOverridden = true
+    if (!statusGateOk && !data.proceedWithoutValidVaccines) {
       return {
         status: "error",
         message: "Vaccinations are missing or expired.",
         missingVaccinations: gate.perDog
           .filter((d) => d.missingTypes.length > 0)
           .map((d) => ({ dogName: d.dogName, missingTypes: d.missingTypes })),
+        canWatchlist: true,
       }
     }
 
@@ -432,7 +461,7 @@ export async function resolveBookingCreation(
           daycareDuration,
           daycareHalfDaySlot: daycareDuration === "HALF_DAY" ? data.daycareHalfDaySlot : null,
           batchId: options?.batchId,
-          ...paymentFieldsFor(service.paymentTiming, pricing),
+          ...paymentFieldsForGate(service.paymentTiming, pricing, statusGateOk),
           totalPence: pricing.totalPence,
           balanceDueDate,
         },
@@ -461,14 +490,17 @@ export async function resolveBookingCreation(
     const duplicateConflict = await checkForDuplicateServiceBooking(data.dogIds, slot.date, slot.date)
     if (duplicateConflict) return duplicateConflict
 
-    const gate = skipVaccinationGate ? { ok: true, perDog: [] } : await checkVaccinationGate(data.dogIds, slot.date)
-    if (!gate.ok) {
+    const gate = await checkVaccinationGate(data.dogIds, slot.date)
+    const statusGateOk = gate.ok || skipVaccinationGate
+    if (skipVaccinationGate && !gate.ok) vaccinationGateOverridden = true
+    if (!statusGateOk && !data.proceedWithoutValidVaccines) {
       return {
         status: "error",
         message: "Vaccinations are missing or expired.",
         missingVaccinations: gate.perDog
           .filter((d) => d.missingTypes.length > 0)
           .map((d) => ({ dogName: d.dogName, missingTypes: d.missingTypes })),
+        canWatchlist: true,
       }
     }
 
@@ -497,7 +529,7 @@ export async function resolveBookingCreation(
           serviceId: service.id,
           startDate: current.date,
           endDate: current.date,
-          ...paymentFieldsFor(service.paymentTiming, pricing),
+          ...paymentFieldsForGate(service.paymentTiming, pricing, statusGateOk),
           totalPence: pricing.totalPence,
           balanceDueDate,
         },
@@ -546,14 +578,17 @@ export async function resolveBookingCreation(
     const duplicateConflict = await checkForDuplicateServiceBooking(data.dogIds, run.date, run.date)
     if (duplicateConflict) return duplicateConflict
 
-    const gate = skipVaccinationGate ? { ok: true, perDog: [] } : await checkVaccinationGate(data.dogIds, run.date)
-    if (!gate.ok) {
+    const gate = await checkVaccinationGate(data.dogIds, run.date)
+    const statusGateOk = gate.ok || skipVaccinationGate
+    if (skipVaccinationGate && !gate.ok) vaccinationGateOverridden = true
+    if (!statusGateOk && !data.proceedWithoutValidVaccines) {
       return {
         status: "error",
         message: "Vaccinations are missing or expired.",
         missingVaccinations: gate.perDog
           .filter((d) => d.missingTypes.length > 0)
           .map((d) => ({ dogName: d.dogName, missingTypes: d.missingTypes })),
+        canWatchlist: true,
       }
     }
 
@@ -579,7 +614,7 @@ export async function resolveBookingCreation(
           serviceId: service.id,
           startDate: current.date,
           endDate: current.date,
-          ...paymentFieldsFor(service.paymentTiming, pricing),
+          ...paymentFieldsForGate(service.paymentTiming, pricing, statusGateOk),
           totalPence: pricing.totalPence,
           balanceDueDate,
         },
@@ -614,14 +649,17 @@ export async function resolveBookingCreation(
     const duplicateConflict = await checkForDuplicateServiceBooking(data.dogIds, date, date)
     if (duplicateConflict) return duplicateConflict
 
-    const gate = skipVaccinationGate ? { ok: true, perDog: [] } : await checkVaccinationGate(data.dogIds, date)
-    if (!gate.ok) {
+    const gate = await checkVaccinationGate(data.dogIds, date)
+    const statusGateOk = gate.ok || skipVaccinationGate
+    if (skipVaccinationGate && !gate.ok) vaccinationGateOverridden = true
+    if (!statusGateOk && !data.proceedWithoutValidVaccines) {
       return {
         status: "error",
         message: "Vaccinations are missing or expired.",
         missingVaccinations: gate.perDog
           .filter((d) => d.missingTypes.length > 0)
           .map((d) => ({ dogName: d.dogName, missingTypes: d.missingTypes })),
+        canWatchlist: true,
       }
     }
 
@@ -661,7 +699,7 @@ export async function resolveBookingCreation(
           serviceId: service.id,
           startDate: date,
           endDate: date,
-          ...paymentFieldsFor(service.paymentTiming, pricing),
+          ...paymentFieldsForGate(service.paymentTiming, pricing, statusGateOk),
           totalPence: pricing.totalPence,
           balanceDueDate,
         },
@@ -726,16 +764,32 @@ export async function resolveBookingCreation(
           return { name: addon.name, quantity: a.quantity, totalPence: addon.pricePence * a.quantity }
         }),
       }
-      const confirmation =
-        service.paymentTiming === "DEPOSIT_THEN_BALANCE"
-          ? await bookingConfirmationDepositInvoiceEmail(
-              settings,
-              invoiceBooking,
-              vat,
-              `${getSiteUrl()}/book/confirmation/${booking.id}`
-            )
-          : await bookingConfirmationEmail(settings, invoiceBooking, vat, `${getSiteUrl()}/portal/bookings`)
-      await sendEmail({ to: customer.email, subject: confirmation.subject, html: confirmation.html })
+      // INVOICE_AFTER has no payment step to land the gate re-check on later
+      // (see resolveBookingStatusForGate) — it's already known here whether
+      // this landed as PENDING_VACCINATION, so send that email instead of a
+      // normal confirmation. DEPOSIT_THEN_BALANCE always gets the deposit
+      // invoice here regardless (nothing's paid yet, so PENDING_VACCINATION
+      // vs CONFIRMED isn't decided until payment clears — see payments.ts).
+      if (booking.status === "PENDING_VACCINATION") {
+        const gateNow = await checkVaccinationGate(data.dogIds, booking.endDate)
+        const missingSummary = gateNow.perDog
+          .filter((d) => d.missingTypes.length > 0)
+          .map((d) => `${d.dogName} (${d.missingTypes.join(", ")})`)
+          .join("; ")
+        const pending = pendingVaccinationEmail(settings, invoiceBooking, missingSummary, "initial")
+        await sendEmail({ to: customer.email, subject: pending.subject, html: pending.html })
+      } else {
+        const confirmation =
+          service.paymentTiming === "DEPOSIT_THEN_BALANCE"
+            ? await bookingConfirmationDepositInvoiceEmail(
+                settings,
+                invoiceBooking,
+                vat,
+                `${getSiteUrl()}/book/confirmation/${booking.id}`
+              )
+            : await bookingConfirmationEmail(settings, invoiceBooking, vat, `${getSiteUrl()}/portal/bookings`)
+        await sendEmail({ to: customer.email, subject: confirmation.subject, html: confirmation.html })
+      }
     } catch (error) {
       console.error("[booking] failed to send booking confirmation email", error)
     }
@@ -761,6 +815,16 @@ export async function resolveBookingCreation(
     entityId: bookingId!,
     meta: `${service.name} — ${dateSummary} — ${dogs.map((dog) => dog.name).join(", ")} — owner ${createdBooking?.customer ? fullName(createdBooking.customer) : "Unknown"} <${createdBooking?.customer.email}>`,
   })
+
+  if (vaccinationGateOverridden && options?.overriddenByUserId) {
+    await logAudit({
+      actorId: options.overriddenByUserId,
+      action: "OVERRIDE_VACCINATION_GATE",
+      entity: "Booking",
+      entityId: bookingId!,
+      meta: `service=${service.slug} — dog(s) ${dogs.map((dog) => dog.name).join(", ")} not fully vaccinated for this date, booked anyway by admin`,
+    })
+  }
 
   return { status: "idle", bookingId: bookingId! }
 }
@@ -818,6 +882,7 @@ export async function createDaycareBookings(
       status: "error",
       message: lastError?.message ?? "Could not create any bookings.",
       missingVaccinations: lastError?.missingVaccinations,
+      canWatchlist: lastError?.canWatchlist,
       requiresTrialVisit: lastError?.requiresTrialVisit,
       failedDates,
     }

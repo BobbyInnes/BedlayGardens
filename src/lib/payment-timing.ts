@@ -1,4 +1,5 @@
 import type { BookingStatus, PaymentTiming } from "@/generated/prisma/client"
+import { resolveBookingStatusForGate } from "@/lib/vaccination-gate"
 
 /**
  * Initial booking status and deposit for a service's payment timing.
@@ -21,4 +22,20 @@ export function paymentFieldsFor(
     case "INVOICE_AFTER":
       return { status: "CONFIRMED", depositPence: 0 }
   }
+}
+
+/**
+ * Same as paymentFieldsFor, but for a booking placed despite a failed
+ * vaccination gate (the customer chose to proceed anyway). A service with a
+ * payment step (PENDING_PAYMENT) is unaffected here — see
+ * resolveBookingStatusForGate for why that decision is deferred to when
+ * payment actually clears.
+ */
+export function paymentFieldsForGate(
+  timing: PaymentTiming,
+  pricing: { totalPence: number; depositPence: number },
+  gateOk: boolean
+): { status: BookingStatus; depositPence: number } {
+  const fields = paymentFieldsFor(timing, pricing)
+  return { ...fields, status: resolveBookingStatusForGate(fields.status, gateOk) }
 }
