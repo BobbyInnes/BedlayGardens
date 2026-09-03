@@ -237,13 +237,7 @@ export default async function PortalBookingsPage({
           })}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">
-          You don&rsquo;t have any bookings yet.{" "}
-          <Link href="/book" className="font-medium text-primary hover:underline">
-            Book a service
-          </Link>
-          .
-        </p>
+        <p className="text-sm text-muted-foreground">You don&rsquo;t have any bookings yet.</p>
       )}
     </div>
   )

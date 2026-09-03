@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { AlertTriangle } from "lucide-react"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
@@ -7,6 +8,7 @@ import { formatPenceCompact } from "@/lib/service-display"
 import { sanitizeRichText } from "@/lib/sanitize-html"
 import { checkTrialGate, formatTrialGateMessage } from "@/lib/trial"
 import { BookServiceList, type BookServiceTileData } from "@/components/marketing/book-service-list"
+import { Button } from "@/components/ui/button"
 
 export const metadata: Metadata = {
   title: "Book a Stay",
@@ -72,15 +74,31 @@ export default async function BookPage() {
         </p>
       </div>
 
-      <div className="mb-8 flex items-start gap-3 rounded-xl border border-destructive bg-destructive/10 p-4 text-destructive sm:items-center">
-        <AlertTriangle className="mt-0.5 size-5 shrink-0 sm:mt-0" aria-hidden="true" />
-        <p className="text-sm font-bold sm:text-base">
-          For all new dogs, a mandatory Meet &amp; Greet evaluation is required before booking
-          any service.
-        </p>
-      </div>
+      {session?.user && dogs.length === 0 ? (
+        <>
+          <div className="mb-8 flex items-start gap-3 rounded-xl border border-destructive bg-destructive/10 p-4 text-destructive sm:items-center">
+            <AlertTriangle className="mt-0.5 size-5 shrink-0 sm:mt-0" aria-hidden="true" />
+            <p className="text-sm font-bold sm:text-base">
+              You need to add a dog profile to your account before you can book any service.
+            </p>
+          </div>
+          <Button asChild>
+            <Link href="/portal/dogs/new">Add a dog</Link>
+          </Button>
+        </>
+      ) : (
+        <>
+          <div className="mb-8 flex items-start gap-3 rounded-xl border border-destructive bg-destructive/10 p-4 text-destructive sm:items-center">
+            <AlertTriangle className="mt-0.5 size-5 shrink-0 sm:mt-0" aria-hidden="true" />
+            <p className="text-sm font-bold sm:text-base">
+              For all new dogs, a mandatory Meet &amp; Greet evaluation is required before booking
+              any service.
+            </p>
+          </div>
 
-      <BookServiceList services={tiles} />
+          <BookServiceList services={tiles} />
+        </>
+      )}
     </div>
   )
 }
