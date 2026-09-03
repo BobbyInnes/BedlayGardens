@@ -3,25 +3,28 @@
 import { useActionState } from "react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { createCheckoutSession, type CheckoutState } from "@/app/(marketing)/book/payment-actions"
+import { createBatchCheckoutSession, type CheckoutState } from "@/app/(marketing)/book/payment-actions"
 
 const initialState: CheckoutState = { status: "error", message: "" }
 
-export function PayButton({
-  bookingId,
+// Pays several same-batch Day Care dates in one Checkout session — see
+// createBatchCheckoutSession. Same shape as PayButton, just bound to a list
+// of booking ids instead of one.
+export function BatchPayButton({
+  bookingIds,
   type,
   label,
   size = "default",
   fullWidth = true,
 }: {
-  bookingId: string
-  type: "DEPOSIT" | "BALANCE" | "FULL"
+  bookingIds: string[]
+  type: "DEPOSIT" | "FULL"
   label: string
   size?: "default" | "sm"
   fullWidth?: boolean
 }) {
   const [state, formAction, pending] = useActionState(
-    createCheckoutSession.bind(null, bookingId, type),
+    createBatchCheckoutSession.bind(null, bookingIds, type),
     initialState
   )
 

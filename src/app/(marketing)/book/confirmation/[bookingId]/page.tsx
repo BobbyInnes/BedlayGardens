@@ -146,7 +146,7 @@ export default async function BookingConfirmationPage({
           <p className="text-sm text-muted-foreground">
             {booking.service.paymentTiming === "FULL_UPFRONT"
               ? "Pay now to confirm this booking."
-              : "Pay your deposit now to confirm this booking. Your card is saved securely with Stripe so we can collect the balance automatically before check-in."}
+              : "Pay your deposit now to confirm this booking, or pay the full amount now if you'd rather not come back for the balance. Your card is saved securely with Stripe so we can collect anything still due automatically before check-in."}
           </p>
           <PayButton
             bookingId={booking.id}
@@ -157,6 +157,13 @@ export default async function BookingConfirmationPage({
                 : `Pay deposit — ${formatPence(booking.depositPence)}`
             }
           />
+          {booking.service.paymentTiming === "DEPOSIT_THEN_BALANCE" && (
+            <PayButton
+              bookingId={booking.id}
+              type="FULL"
+              label={`Pay in full — ${formatPence(booking.totalPence)}`}
+            />
+          )}
         </div>
       ) : booking.status === "PENDING_PAYMENT" ? (
         <p className="mt-6 text-sm text-muted-foreground">

@@ -1069,6 +1069,33 @@ export function pendingVaccinationResolvedEmail(
   }
 }
 
+// One receipt for a batch payment covering several same-batch Day Care
+// dates in one Checkout session (see createBatchCheckoutSession /
+// markBatchPaymentSucceededAndNotify) — a plain per-date list rather than
+// the full invoice-style paymentReceiptEmail, which is shaped around one
+// booking at a time.
+export function batchPaymentReceiptEmail(
+  branding: EmailBranding,
+  serviceName: string,
+  dates: Date[],
+  amountPence: number,
+  type: "DEPOSIT" | "FULL"
+): { subject: string; html: string } {
+  const dateList = dates
+    .map((d) => d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }))
+    .join(", ")
+  return {
+    subject: `Payment received — ${dates.length} ${serviceName} bookings`,
+    html: layout(
+      branding,
+      "Payment received",
+      `
+        <p>We've received your ${type === "FULL" ? "full payment" : "deposit"} of <strong>${formatPence(amountPence)}</strong> covering ${dates.length} ${serviceName} bookings: ${dateList}.</p>
+      `
+    ),
+  }
+}
+
 export function pupdateEmail(
   branding: EmailBranding,
   dogName: string,

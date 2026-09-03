@@ -10,7 +10,16 @@ export type CheckoutState = { status: "error"; message: string }
 
 export async function createCheckoutSession(
   bookingId: string,
-  type: "DEPOSIT" | "BALANCE"
+  // "FULL" pays the deposit and balance together in one Checkout session —
+  // only offered pre-deposit on a DEPOSIT_THEN_BALANCE booking (FULL_UPFRONT
+  // already charges everything as "DEPOSIT"; INVOICE_AFTER has no online
+  // payment at all). Recorded the same way redeemCreditForPayment's own
+  // "FULL" option already does for credit/voucher payments: stored as a
+  // single DEPOSIT-typed Payment row here (Stripe only gives us one
+  // PaymentIntent for one session, and PaymentType has no "FULL" value), then
+  // split into a separate DEPOSIT + BALANCE pair once the webhook confirms
+  // it succeeded — see markPaymentSucceededAndNotify in lib/payments.ts.
+  type: "DEPOSIT" | "BALANCE" | "FULL"
 ): Promise<CheckoutState> {
   const session = await auth()
   if (!session?.user) return { status: "error", message: "Please log in." }
@@ -37,16 +46,28 @@ export async function createCheckoutSession(
     }
   }
 
-  const alreadyPaid = booking.payments.some((p) => p.type === type && p.status === "SUCCEEDED")
-  if (alreadyPaid) {
-    return { status: "error", message: "This has already been paid." }
+  const depositPaid = booking.payments.some((p) => p.type === "DEPOSIT" && p.status === "SUCCEEDED")
+  const balancePaid = booking.payments.some((p) => p.type === "BALANCE" && p.status === "SUCCEEDED")
+  if (type === "BALANCE") {
+    if (balancePaid) return { status: "error", message: "This has already been paid." }
+    if (booking.status !== "CONFIRMED") {
+      return { status: "error", message: "The deposit must be paid before the balance." }
+    }
+  } else {
+    // DEPOSIT and FULL both need the deposit stage still open.
+    if (depositPaid) return { status: "error", message: "This has already been paid." }
   }
 
-  if (type === "BALANCE" && booking.status !== "CONFIRMED") {
-    return { status: "error", message: "The deposit must be paid before the balance." }
+  if (type === "FULL" && booking.service.paymentTiming !== "DEPOSIT_THEN_BALANCE") {
+    return { status: "error", message: "Full payment isn't needed for this service." }
   }
 
-  const amountPence = type === "DEPOSIT" ? booking.depositPence : booking.totalPence - booking.depositPence
+  const amountPence =
+    type === "DEPOSIT"
+      ? booking.depositPence
+      : type === "BALANCE"
+        ? booking.totalPence - booking.depositPence
+        : booking.totalPence
   if (amountPence <= 0) {
     return { status: "error", message: "Nothing due." }
   }
@@ -82,11 +103,13 @@ export async function createCheckoutSession(
             unit_amount: amountPence,
             product_data: {
               name: `${
-                type === "DEPOSIT"
-                  ? booking.service.paymentTiming === "FULL_UPFRONT"
-                    ? "Payment"
-                    : "Deposit"
-                  : "Balance"
+                type === "FULL"
+                  ? "Full payment"
+                  : type === "DEPOSIT"
+                    ? booking.service.paymentTiming === "FULL_UPFRONT"
+                      ? "Payment"
+                      : "Deposit"
+                    : "Balance"
               } — ${booking.service.name}`,
             },
           },
@@ -120,7 +143,137 @@ export async function createCheckoutSession(
     data: {
       bookingId: booking.id,
       stripePaymentIntentId: paymentIntentId ?? checkoutSession.id,
-      type,
+      // PaymentType has no "FULL" value — stored as DEPOSIT (amountPence is
+      // the full amount actually charged) until the webhook splits it into a
+      // proper DEPOSIT + BALANCE pair on success; see markPaymentSucceededAndNotify.
+      type: type === "FULL" ? "DEPOSIT" : type,
+      amountPence,
+      status: "PENDING",
+    },
+  })
+
+  redirect(checkoutSession.url)
+}
+
+// Pays several same-batch Day Care dates (see Booking.batchId) in one
+// Checkout session, instead of the customer having to click through each
+// date's own "Pay deposit" one at a time — "DEPOSIT" covers every date's
+// deposit together, "FULL" every date's full total. Same one-PaymentIntent
+// constraint as createCheckoutSession above, multiplied across bookings: a
+// single anchor Payment row (attached to the first booking) carries the
+// real stripePaymentIntentId, with the *other* bookings' own Payment rows
+// only created once the webhook confirms success and fans the payment back
+// out across the whole batch — see markBatchPaymentSucceededAndNotify.
+export async function createBatchCheckoutSession(
+  bookingIds: string[],
+  type: "DEPOSIT" | "FULL"
+): Promise<CheckoutState> {
+  const session = await auth()
+  if (!session?.user) return { status: "error", message: "Please log in." }
+
+  if (!stripe) {
+    return {
+      status: "error",
+      message: "Online payment isn't enabled yet. Please contact us to arrange payment.",
+    }
+  }
+
+  if (bookingIds.length < 2) {
+    return { status: "error", message: "Select at least two dates to pay together." }
+  }
+
+  const bookings = await prisma.booking.findMany({
+    where: { id: { in: bookingIds } },
+    include: { service: true, payments: true },
+  })
+  if (
+    bookings.length !== bookingIds.length ||
+    bookings.some((b) => b.customerId !== session.user.id || b.status !== "PENDING_PAYMENT")
+  ) {
+    return { status: "error", message: "One or more bookings couldn't be found or are already paid." }
+  }
+  const batchId = bookings[0].batchId
+  if (!batchId || bookings.some((b) => b.batchId !== batchId)) {
+    return { status: "error", message: "These bookings aren't part of the same batch." }
+  }
+  if (bookings.some((b) => b.payments.some((p) => p.type === "DEPOSIT" && p.status === "SUCCEEDED"))) {
+    return { status: "error", message: "One of these dates has already been paid." }
+  }
+  if (type === "FULL" && bookings[0].service.paymentTiming !== "DEPOSIT_THEN_BALANCE") {
+    return { status: "error", message: "Full payment isn't needed for this service." }
+  }
+
+  const amountPence = bookings.reduce(
+    (sum, b) => sum + (type === "DEPOSIT" ? b.depositPence : b.totalPence),
+    0
+  )
+  if (amountPence <= 0) {
+    return { status: "error", message: "Nothing due." }
+  }
+
+  let customerId: string
+  try {
+    customerId = await ensureStripeCustomer(session.user.id)
+  } catch (error) {
+    console.error("[stripe batch checkout] ensureStripeCustomer failed", error)
+    const detail = error instanceof Error ? error.message : String(error)
+    return { status: "error", message: `Could not start checkout: ${detail}` }
+  }
+  const baseUrl = getSiteUrl()
+  // Ordered the same as bookingIds so the anchor Payment row (created for
+  // bookings[0] below) matches whichever booking the webhook treats as the
+  // anchor.
+  const orderedBookings = bookingIds.map((id) => bookings.find((b) => b.id === id)!)
+  const metadata = { batchBookingIds: bookingIds.join(","), type }
+
+  let checkoutSession
+  try {
+    checkoutSession = await stripe.checkout.sessions.create({
+      mode: "payment",
+      customer: customerId,
+      adaptive_pricing: { enabled: false },
+      payment_intent_data: { setup_future_usage: "off_session", metadata },
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: "gbp",
+            unit_amount: amountPence,
+            product_data: {
+              name: `${type === "FULL" ? "Full payment" : "Deposit"} — ${bookings.length} ${orderedBookings[0].service.name} bookings`,
+            },
+          },
+        },
+      ],
+      metadata,
+      success_url: `${baseUrl}/book/confirmation/multi?ids=${bookingIds.join(",")}&payment=success`,
+      cancel_url: `${baseUrl}/book/confirmation/multi?ids=${bookingIds.join(",")}&payment=cancelled`,
+    })
+  } catch (error) {
+    console.error("[stripe batch checkout] checkout.sessions.create failed", error)
+    const detail = error instanceof Error ? error.message : String(error)
+    return { status: "error", message: `Could not start checkout: ${detail}` }
+  }
+
+  if (!checkoutSession.url) {
+    console.error("[stripe batch checkout] session missing url", checkoutSession)
+    return { status: "error", message: "Could not start checkout. Please try again." }
+  }
+
+  const paymentIntentId =
+    typeof checkoutSession.payment_intent === "string"
+      ? checkoutSession.payment_intent
+      : checkoutSession.payment_intent?.id
+
+  // Anchor row only — the rest of the batch's Payment rows are created by
+  // the webhook once this succeeds (see markBatchPaymentSucceededAndNotify).
+  // amountPence here is the whole batch total, not just this one booking's
+  // share — corrected down once the webhook fans it out.
+  await prisma.payment.create({
+    data: {
+      bookingId: orderedBookings[0].id,
+      stripePaymentIntentId: paymentIntentId ?? checkoutSession.id,
+      type: "DEPOSIT",
       amountPence,
       status: "PENDING",
     },
