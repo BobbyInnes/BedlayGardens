@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { AlertTriangle, Loader2, ScrollText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -76,7 +75,6 @@ export function BookingWizard({
   depositPercent: number
   secondDogDiscountPercent: number
 }) {
-  const router = useRouter()
   const isBoarding = service.slug === "overnight-boarding"
   const isDaycare = service.slug === "daycare"
   const isMeetGreet = service.slug === "meet-greet"
@@ -136,6 +134,10 @@ export function BookingWizard({
   const [vaccinationWarning, setVaccinationWarning] = React.useState<
     { dogName: string; missingTypes: string[] }[] | null
   >(null)
+  // Set once the customer explicitly chooses to continue past a vaccination
+  // warning — the booking still gets created (deposit still requested where
+  // applicable), placed pending a valid certificate, rather than blocked.
+  const [proceedWithoutValidVaccines, setProceedWithoutValidVaccines] = React.useState(false)
   const [duplicateServiceWarning, setDuplicateServiceWarning] = React.useState<
     { dogName: string; existingServiceName: string; existingDateRange: string }[] | null
   >(null)
@@ -253,6 +255,7 @@ export function BookingWizard({
     // A previous blocked/joined-waitlist state no longer applies once the
     // dog selection changes — force a fresh check on the next Continue.
     setVaccinationWarning(null)
+    setProceedWithoutValidVaccines(false)
     setDuplicateServiceWarning(null)
     setJoinedWaitlist(false)
     setWaitlistMessage(null)
@@ -395,6 +398,7 @@ export function BookingWizard({
             daycareDuration: effectiveDaycareDuration,
             daycareHalfDaySlot:
               effectiveDaycareDuration === "HALF_DAY" && effectiveHalfDaySlot ? effectiveHalfDaySlot : undefined,
+            proceedWithoutValidVaccines,
           })
         : await createBooking({
             serviceSlug: service.slug,
@@ -408,6 +412,7 @@ export function BookingWizard({
             pickupAddress: isDogWalking ? pickupAddress : undefined,
             accessNotes: isDogWalking ? accessNotes : undefined,
             postcode: isDogWalking ? postcode : undefined,
+            proceedWithoutValidVaccines,
           })
       if (result?.status === "error") {
         setSubmitError(result.message ?? "Something went wrong.")
@@ -680,10 +685,12 @@ export function BookingWizard({
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={joiningWaitlist || (dogs.length > 1 && !waitlistDogId) || dogs.length === 0}
+                    disabled={
+                      joiningWaitlist || joinedWaitlist || (dogs.length > 1 && !waitlistDogId) || dogs.length === 0
+                    }
                     onClick={handleJoinWaitlist}
                   >
-                    {joiningWaitlist ? "Joining…" : "Join waitlist"}
+                    {joiningWaitlist ? "Joining…" : joinedWaitlist ? "Joined" : "Join waitlist"}
                   </Button>
                   {waitlistMessage && <p className="text-sm">{waitlistMessage}</p>}
                 </div>
@@ -791,38 +798,24 @@ export function BookingWizard({
                 <Link href="/portal/vaccinations" className="mt-2 inline-block font-medium underline">
                   Add vaccination records
                 </Link>
-                {isBoarding && (
-                  <div className="mt-3 space-y-2 rounded-md border border-border bg-background p-3">
-                    <p className="text-sm text-muted-foreground">
-                      Join the waiting list for these dates and we&apos;ll email you if you become able to
-                      book once you&apos;ve added a valid certificate, as long as a kennel is still free.
-                    </p>
-                    {dogs.length > 1 && (
-                      <select
-                        value={waitlistDogId}
-                        onChange={(e) => setWaitlistDogId(e.target.value)}
-                        className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                      >
-                        <option value="">Select a dog</option>
-                        {dogs.map((dog) => (
-                          <option key={dog.id} value={dog.id}>
-                            {dog.name}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={joiningWaitlist || (dogs.length > 1 && !waitlistDogId) || dogs.length === 0}
-                      onClick={handleJoinWaitlist}
-                    >
-                      {joiningWaitlist ? "Joining…" : "Join waiting list"}
-                    </Button>
-                    {waitlistMessage && <p className="text-sm">{waitlistMessage}</p>}
-                  </div>
-                )}
+                <div className="mt-3 space-y-2 rounded-md border border-border bg-background p-3">
+                  <p className="text-sm text-muted-foreground">
+                    Already added a certificate? Hit Continue below to re-check. Or you can book now anyway —
+                    it&apos;ll be placed on the watchlist. Upload a valid certificate before the booking date,
+                    or this booking will be cancelled and any deposit paid will not be refunded.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setProceedWithoutValidVaccines(true)
+                      setStepIndex((i) => i + 1)
+                    }}
+                  >
+                    Book anyway, pending vaccination
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -831,22 +824,18 @@ export function BookingWizard({
             <Button variant="outline" onClick={() => setStepIndex((i) => i - 1)}>
               Back
             </Button>
-            {isBoarding && vaccinationWarning && joinedWaitlist ? (
-              <Button onClick={() => router.push("/portal/waitlist")}>Back to my account</Button>
-            ) : (
-              <Button
-                onClick={goToReviewFromDogs}
-                disabled={selectedDogIds.length === 0 || checkingVaccinations || checkingTrial || checkingConflicts}
-              >
-                {checkingVaccinations || checkingTrial || checkingConflicts ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" /> Checking…
-                  </>
-                ) : (
-                  "Continue"
-                )}
-              </Button>
-            )}
+            <Button
+              onClick={goToReviewFromDogs}
+              disabled={selectedDogIds.length === 0 || checkingVaccinations || checkingTrial || checkingConflicts}
+            >
+              {checkingVaccinations || checkingTrial || checkingConflicts ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" /> Checking…
+                </>
+              ) : (
+                "Continue"
+              )}
+            </Button>
           </div>
         </div>
       )}

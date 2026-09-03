@@ -12,6 +12,7 @@ import { canManageAdmins } from "@/lib/admin-permissions"
 import { deleteCustomerAndAllData } from "@/lib/delete-customer"
 import { saveUpload } from "@/lib/storage"
 import { checkWaitlistAfterVaccination } from "@/lib/waitlist"
+import { checkPendingVaccinationBookings } from "@/lib/booking-vaccination-risk"
 import type { DogFlagType } from "@/generated/prisma/client"
 
 export type AdminActionState = { status: "idle" | "error"; message?: string }
@@ -228,6 +229,7 @@ export async function addVaccinationRecordManually(
   })
 
   await checkWaitlistAfterVaccination(dogId)
+  await checkPendingVaccinationBookings(dogId)
 
   revalidatePath(`/admin/customers/${customerId}`)
   return { status: "idle", message: "Vaccination record added." }

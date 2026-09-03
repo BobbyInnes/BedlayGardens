@@ -77,6 +77,9 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
   const [submitting, setSubmitting] = React.useState(false)
   const [submitError, setSubmitError] = React.useState<string | null>(null)
   const [compatibilityBlocked, setCompatibilityBlocked] = React.useState(false)
+  const [missingVaccinations, setMissingVaccinations] = React.useState<
+    { dogName: string; missingTypes: string[] }[] | null
+  >(null)
   const [requiresAgreement, setRequiresAgreement] = React.useState(false)
   const [agreementSignedName, setAgreementSignedName] = React.useState("")
   const [signingAgreement, setSigningAgreement] = React.useState(false)
@@ -179,7 +182,10 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
     )
   }
 
-  async function handleSubmit(overrideCompatibilityFlags = false) {
+  async function handleSubmit(
+    overrideCompatibilityFlags = false,
+    vaccinationOverride?: "confirm-and-book" | "book-pending-vaccination"
+  ) {
     if (!customer) return
     setSubmitting(true)
     setSubmitError(null)
@@ -200,11 +206,16 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
         accessNotes: isDogWalking ? accessNotes : undefined,
         postcode: isDogWalking ? postcode : undefined,
         overrideCompatibilityFlags,
+        overrideVaccinationGate: vaccinationOverride === "confirm-and-book",
+        proceedWithoutValidVaccines: vaccinationOverride === "book-pending-vaccination",
       })
       if (result?.status === "error") {
         setSubmitError(result.message ?? "Something went wrong.")
         setCompatibilityBlocked(!!result.compatibilityBlocked)
+        setMissingVaccinations(result.missingVaccinations ?? null)
         setRequiresAgreement(!!result.requiresAgreement)
+      } else {
+        setMissingVaccinations(null)
       }
     } finally {
       setSubmitting(false)
@@ -633,13 +644,50 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
       {customer && serviceSlug && (
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">
-            Vaccination checks are skipped for phone bookings created here — they&rsquo;ll be verified at
-            check-in as normal.
+            Vaccinations are checked the same as an online booking — you&rsquo;ll be offered an override below
+            if a dog isn&rsquo;t fully covered.
           </p>
           <Button onClick={() => handleSubmit(false)} disabled={!canSubmit || submitting}>
             {submitting ? "Creating…" : "Create booking"}
           </Button>
           {submitError && <p className="text-sm text-destructive">{submitError}</p>}
+          {missingVaccinations && missingVaccinations.length > 0 && (
+            <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+              <ul className="list-disc pl-5 text-xs text-muted-foreground">
+                {missingVaccinations.map((entry) => (
+                  <li key={entry.dogName}>
+                    {entry.dogName}: {entry.missingTypes.join(", ")}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-muted-foreground">
+                Confirm the certificate was actually seen/verified (e.g. read out over the phone) to book
+                normally, logged as an override — or book anyway pending vaccination, same as the online
+                watchlist flow: the deposit is still requested and the customer must upload a valid
+                certificate before the date, or the booking is cancelled and the deposit forfeited.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleSubmit(false, "confirm-and-book")}
+                  disabled={submitting}
+                >
+                  Certificate verified — book normally
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleSubmit(false, "book-pending-vaccination")}
+                  disabled={submitting}
+                >
+                  Book anyway, pending vaccination
+                </Button>
+              </div>
+            </div>
+          )}
           {compatibilityBlocked && (
             <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
               <p className="text-xs text-muted-foreground">

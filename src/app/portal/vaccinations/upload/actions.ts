@@ -6,6 +6,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { logAudit } from "@/lib/audit"
 import { checkWaitlistAfterVaccination } from "@/lib/waitlist"
+import { checkPendingVaccinationBookings } from "@/lib/booking-vaccination-risk"
 import { notifyVaccinationReviewNeeded } from "@/lib/vaccination-review-notify"
 import { addYears, isMoreThanYearsAgo, findFixedVaccine, activeDuplicateError } from "@/lib/vaccination-validation"
 
@@ -106,6 +107,7 @@ export async function saveExtractedVaccinations(
   }
 
   await checkWaitlistAfterVaccination(dogId)
+  await checkPendingVaccinationBookings(dogId)
   await notifyVaccinationReviewNeeded(
     created.map((record) => ({
       dogName: dog.name,

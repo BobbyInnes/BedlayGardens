@@ -987,6 +987,88 @@ export function bookingVaccinationRiskEmail(
   }
 }
 
+// Sent when a booking is created (or its deposit clears) with the dog(s)
+// still short of a valid certificate — the customer was warned and chose to
+// proceed anyway. Distinct from bookingVaccinationRiskEmail above, which is
+// for a booking that *was* fully compliant when placed and only lapses
+// later; this one never was. `stage` "reminder" is the cron's pre-deadline
+// nudge if it's still unresolved; wording is otherwise the same shape.
+export function pendingVaccinationEmail(
+  branding: EmailBranding,
+  booking: { serviceName: string; startDate: Date },
+  missingSummary: string,
+  stage: "initial" | "reminder"
+): { subject: string; html: string } {
+  const dateLabel = booking.startDate.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })
+  return {
+    subject:
+      stage === "initial"
+        ? `Booking received — vaccine certificate needed for ${dateLabel}`
+        : `Reminder: vaccine certificate still needed before ${dateLabel}`,
+    html: layout(
+      branding,
+      "Your booking needs a vaccine certificate",
+      `
+        <p>Your <strong>${booking.serviceName}</strong> booking on <strong>${dateLabel}</strong> has been received${stage === "initial" ? " and your deposit has been requested" : ""}, but ${missingSummary} still needs a valid, in-date certificate before then.</p>
+        <p>Please log in to your account and upload it as soon as you can. If it isn't on file by <strong>${dateLabel}</strong>, this booking will be cancelled and any deposit paid will not be refunded.</p>
+      `
+    ),
+  }
+}
+
+// Sent by the pending-vaccination cron job when a booking's start date
+// arrives with the gate still unresolved — the booking is cancelled and
+// (per the warning given at booking time) any deposit already paid is
+// forfeited, not refunded.
+export function vaccinationBookingCancelledEmail(
+  branding: EmailBranding,
+  booking: { serviceName: string; startDate: Date }
+): { subject: string; html: string } {
+  const dateLabel = booking.startDate.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })
+  return {
+    subject: `Booking cancelled — no valid vaccine certificate on file`,
+    html: layout(
+      branding,
+      "Your booking has been cancelled",
+      `
+        <p>Your <strong>${booking.serviceName}</strong> booking on <strong>${dateLabel}</strong> has been cancelled — no valid vaccine certificate was uploaded in time.</p>
+        <p>As advised when this booking was placed, any deposit paid is not refundable in this case. Please get in touch if you have any questions, or log in to your account to book again once a current certificate is on file.</p>
+      `
+    ),
+  }
+}
+
+// Sent when a PENDING_VACCINATION booking (see pendingVaccinationEmail
+// above) is auto-confirmed after a covering certificate turns up — a
+// lighter note than the full invoice-style bookingConfirmationEmail, since
+// payment was already taken/requested and receipted at booking time.
+export function pendingVaccinationResolvedEmail(
+  branding: EmailBranding,
+  booking: { serviceName: string; startDate: Date }
+): { subject: string; html: string } {
+  const dateLabel = booking.startDate.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })
+  return {
+    subject: `Booking confirmed — ${dateLabel}`,
+    html: layout(
+      branding,
+      "Your booking is now confirmed",
+      `<p>Thanks for uploading a certificate — your <strong>${booking.serviceName}</strong> booking on <strong>${dateLabel}</strong> is now fully confirmed.</p>`
+    ),
+  }
+}
+
 export function pupdateEmail(
   branding: EmailBranding,
   dogName: string,

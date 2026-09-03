@@ -60,6 +60,13 @@ enum DogSize {
 enum BookingStatus {
   DRAFT
   PENDING_PAYMENT
+  // Booking exists (slot/kennel held, deposit requested or already paid) but
+  // was placed without a currently-valid vaccine certificate for the stay —
+  // the customer chose to proceed anyway when warned at booking time. Flips
+  // to CONFIRMED automatically once a covering certificate is on file, or
+  // gets cancelled with the deposit forfeited if the start date arrives
+  // first (see AT_RISK_LOOKAHEAD_DAYS / the pending-vaccination cron job).
+  PENDING_VACCINATION
   CONFIRMED
   CHECKED_IN
   CHECKED_OUT

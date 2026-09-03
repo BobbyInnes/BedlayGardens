@@ -11,6 +11,9 @@ import { Prisma } from "@/generated/prisma/client"
 import { checkVaccinationGate } from "@/lib/vaccination-gate"
 import { today } from "@/lib/staff-dates"
 import { addDays } from "@/lib/dates"
+import { sendEmail } from "@/lib/email"
+import { getSettings } from "@/lib/settings"
+import { pendingVaccinationResolvedEmail } from "@/lib/email-templates"
 
 const atRiskBookingInclude = {
   customer: true,
@@ -50,4 +53,62 @@ export async function findAtRiskBookings(windowDays: number): Promise<AtRiskBook
     }
   }
   return results
+}
+
+/**
+ * PENDING_VACCINATION bookings — placed despite a failed vaccination gate
+ * (see proceedWithoutValidVaccines in book/actions.ts), still unresolved.
+ * Unlike findAtRiskBookings above these were never confirmed to begin with,
+ * but the shape is the same so the admin dashboard can list both together.
+ */
+export async function findPendingVaccinationBookings(): Promise<AtRiskBooking[]> {
+  const bookings = await prisma.booking.findMany({
+    where: { status: "PENDING_VACCINATION" },
+    include: atRiskBookingInclude,
+    orderBy: { startDate: "asc" },
+  })
+
+  const results: AtRiskBooking[] = []
+  for (const booking of bookings) {
+    const dogIds = booking.bookingDogs.map((bd) => bd.dogId)
+    // Should always still fail by definition of the status — re-checked
+    // anyway for an accurate per-dog summary, and as a safety net in case
+    // something updated the booking without going through the shared
+    // confirm path (checkPendingVaccinationBookings below).
+    const gate = await checkVaccinationGate(dogIds, booking.endDate)
+    if (!gate.ok) {
+      results.push({ booking, perDog: gate.perDog.filter((d) => d.missingTypes.length > 0) })
+    }
+  }
+  return results
+}
+
+/**
+ * Called after a vaccination record is created for a dog (see
+ * createVaccinationManual / saveExtractedVaccinations) — mirrors
+ * checkWaitlistAfterVaccination's role for the capacity waitlist, but for
+ * PENDING_VACCINATION bookings: re-checks each of the dog's pending
+ * bookings and auto-confirms any the new record now covers.
+ */
+export async function checkPendingVaccinationBookings(dogId: string): Promise<void> {
+  const bookings = await prisma.booking.findMany({
+    where: { status: "PENDING_VACCINATION", bookingDogs: { some: { dogId } } },
+    include: { service: true, customer: true, bookingDogs: true },
+  })
+  if (bookings.length === 0) return
+
+  const settings = await getSettings()
+  for (const booking of bookings) {
+    const gate = await checkVaccinationGate(
+      booking.bookingDogs.map((bd) => bd.dogId),
+      booking.endDate
+    )
+    if (!gate.ok) continue
+    await prisma.booking.update({ where: { id: booking.id }, data: { status: "CONFIRMED" } })
+    const email = pendingVaccinationResolvedEmail(settings, {
+      serviceName: booking.service.name,
+      startDate: booking.startDate,
+    })
+    await sendEmail({ to: booking.customer.email, subject: email.subject, html: email.html })
+  }
 }

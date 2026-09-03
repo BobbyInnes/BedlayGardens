@@ -176,6 +176,19 @@ export default async function BookingConfirmationPage({
           Your booking is confirmed — nothing to pay now. We&rsquo;ll email you an invoice
           after the service.
         </p>
+      ) : booking.status === "PENDING_VACCINATION" ? (
+        <div className="mt-6 space-y-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+          <p className="text-sm font-medium text-destructive">Action needed — vaccine certificate required</p>
+          <p className="text-sm text-muted-foreground">
+            {booking.bookingDogs.map((bd) => bd.dog.name).join(", ")} still need{" "}
+            {booking.bookingDogs.length === 1 ? "s" : ""} a valid, in-date certificate before{" "}
+            {booking.startDate.toLocaleDateString("en-GB")}, or this booking will be cancelled and any deposit
+            paid will not be refunded.
+          </p>
+          <Button asChild>
+            <Link href="/portal/vaccinations">Upload a certificate</Link>
+          </Button>
+        </div>
       ) : (
         <p className="mt-6 text-sm text-muted-foreground">
           You can view or cancel this booking any time from your account.
@@ -185,7 +198,9 @@ export default async function BookingConfirmationPage({
       <Button variant="outline" className="mt-3 w-full" asChild>
         <Link href="/portal/bookings">View my bookings</Link>
       </Button>
-      {booking.status !== "PENDING_PAYMENT" && !balanceStillDue && <AutoPortalRedirect />}
+      {booking.status !== "PENDING_PAYMENT" && booking.status !== "PENDING_VACCINATION" && !balanceStillDue && (
+        <AutoPortalRedirect />
+      )}
     </div>
   )
 }

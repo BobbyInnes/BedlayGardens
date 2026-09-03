@@ -199,6 +199,24 @@ export default async function PortalBookingsPage({
                   </div>
                 </div>
 
+                {booking.status === "PENDING_VACCINATION" && (
+                  <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+                    <p className="font-medium text-destructive">Action needed — vaccine certificate required</p>
+                    <p className="mt-1 text-muted-foreground">
+                      Upload a valid, in-date certificate for{" "}
+                      {booking.bookingDogs.map((bd) => bd.dog.name).join(", ")} before{" "}
+                      {booking.startDate.toLocaleDateString("en-GB")}, or this booking will be cancelled and
+                      any deposit paid will not be refunded.
+                    </p>
+                    <Link
+                      href="/portal/vaccinations"
+                      className="mt-2 inline-block font-medium text-primary hover:underline"
+                    >
+                      Upload a certificate
+                    </Link>
+                  </div>
+                )}
+
                 {completedTrialVisits.length > 0 && (
                   <div className="mt-3 space-y-2 border-t border-border pt-3">
                     {completedTrialVisits.map((tv) => (
