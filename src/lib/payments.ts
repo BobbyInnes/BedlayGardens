@@ -5,7 +5,12 @@ import { sendEmail } from "@/lib/email"
 import { getSettings } from "@/lib/settings"
 import { getVatSettings } from "@/lib/vat"
 import { formatPence, fullName } from "@/lib/format"
-import { bookingConfirmationEmail, paymentReceiptEmail, pendingVaccinationEmail } from "@/lib/email-templates"
+import {
+  bookingConfirmationEmail,
+  paymentReceiptEmail,
+  pendingVaccinationEmail,
+  batchPaymentReceiptEmail,
+} from "@/lib/email-templates"
 import { checkVaccinationGate } from "@/lib/vaccination-gate"
 
 // Marks a Payment as SUCCEEDED (if not already), confirms the booking when a
@@ -182,6 +187,125 @@ export async function markPaymentSucceededAndNotify(stripePaymentIntentId: strin
   }
 }
 
+// Same idea as markPaymentSucceededAndNotify, but for a batch Checkout
+// session covering several same-batch Day Care dates at once (see
+// createBatchCheckoutSession) — only one Payment row (the "anchor",
+// attached to the first booking) exists yet, holding the whole batch total
+// against the real stripePaymentIntentId. This fans it back out: creates
+// the rest of the bookings' own Payment rows, corrects the anchor's amount
+// down to just its own booking's share, re-runs the vaccination gate and
+// confirms each booking individually (exactly as the single-payment path
+// does), and sends one combined receipt rather than N separate ones.
+// `bookingIds` comes from the Checkout Session/PaymentIntent metadata set
+// at creation — see the webhook handlers in api/webhooks/stripe/route.ts.
+export async function markBatchPaymentSucceededAndNotify(
+  stripePaymentIntentId: string,
+  bookingIds: string[]
+): Promise<void> {
+  const anchor = await prisma.payment.findUnique({ where: { stripePaymentIntentId } })
+  if (!anchor || anchor.status === "SUCCEEDED") return // already processed or unknown
+
+  await prisma.payment.update({
+    where: { id: anchor.id },
+    data: { status: "SUCCEEDED", succeededAt: new Date() },
+  })
+
+  const bookings = await prisma.booking.findMany({
+    where: { id: { in: bookingIds } },
+    include: { service: true, customer: true, bookingDogs: { include: { dog: true } } },
+  })
+  if (bookings.length === 0) return
+
+  const sumDeposits = bookings.reduce((sum, b) => sum + b.depositPence, 0)
+  const sumTotals = bookings.reduce((sum, b) => sum + b.totalPence, 0)
+  // Same detection approach as the single-booking "was this a full payment"
+  // check — compare what was actually charged against what a deposit-only
+  // batch would have cost, rather than threading the original DEPOSIT/FULL
+  // choice through as its own piece of state.
+  const wasFullPayment = anchor.amountPence > sumDeposits && sumTotals > sumDeposits
+  const batchTotalPence = anchor.amountPence
+  const settings = await getSettings()
+  const now = new Date()
+
+  for (const booking of bookings) {
+    // The DEPOSIT-typed row is always just the deposit portion, whether or
+    // not this was a full payment — a separate BALANCE row (below) covers
+    // the remainder for a full payment. Getting this wrong double-counts:
+    // recording the whole total here *and* the remainder in BALANCE would
+    // add up to more than what was actually paid.
+    const bookingAmountPence = booking.depositPence
+
+    if (booking.id === anchor.bookingId) {
+      await prisma.payment.update({ where: { id: anchor.id }, data: { amountPence: bookingAmountPence } })
+    } else {
+      await prisma.payment.create({
+        data: {
+          bookingId: booking.id,
+          type: "DEPOSIT",
+          amountPence: bookingAmountPence,
+          status: "SUCCEEDED",
+          succeededAt: now,
+        },
+      })
+    }
+
+    if (wasFullPayment) {
+      const balancePence = booking.totalPence - booking.depositPence
+      if (balancePence > 0) {
+        await prisma.payment.create({
+          data: {
+            bookingId: booking.id,
+            type: "BALANCE",
+            amountPence: balancePence,
+            status: "SUCCEEDED",
+            succeededAt: now,
+          },
+        })
+      }
+    }
+
+    if (booking.status === "PENDING_PAYMENT") {
+      const gate = await checkVaccinationGate(
+        booking.bookingDogs.map((bd) => bd.dogId),
+        booking.endDate
+      )
+      const newStatus = gate.ok ? "CONFIRMED" : "PENDING_VACCINATION"
+      await prisma.booking.update({ where: { id: booking.id }, data: { status: newStatus } })
+
+      if (newStatus === "PENDING_VACCINATION") {
+        const missingSummary = gate.perDog
+          .filter((d) => d.missingTypes.length > 0)
+          .map((d) => `${d.dogName} (${d.missingTypes.join(", ")})`)
+          .join("; ")
+        const pending = pendingVaccinationEmail(
+          settings,
+          { serviceName: booking.service.name, startDate: booking.startDate },
+          missingSummary,
+          "initial"
+        )
+        await sendEmail({ to: booking.customer.email, subject: pending.subject, html: pending.html })
+      }
+    }
+
+    await logAudit({
+      actorId: booking.customer.id,
+      action: "PAYMENT_SUCCEEDED",
+      entity: "Booking",
+      entityId: booking.id,
+      meta: `${wasFullPayment ? "FULL" : "DEPOSIT"} (batch) — ${formatPence(wasFullPayment ? booking.totalPence : bookingAmountPence)} — ${describeBooking(booking)}`,
+    })
+  }
+
+  const receipt = batchPaymentReceiptEmail(
+    settings,
+    bookings[0].service.name,
+    bookings.map((b) => b.startDate).sort((a, b) => a.getTime() - b.getTime()),
+    batchTotalPence,
+    wasFullPayment ? "FULL" : "DEPOSIT"
+  )
+  await sendEmail({ to: bookings[0].customer.email, subject: receipt.subject, html: receipt.html })
+}
+
 // Fallback for when the Stripe webhook doesn't arrive (e.g. the endpoint isn't
 // configured, or is delayed): ask Stripe directly whether the pending payments
 // for a booking have completed, and reconcile any that have. Called when a
@@ -200,6 +324,7 @@ export async function reconcilePendingBookingPayments(bookingId: string): Promis
     try {
       let paid = false
       let paymentIntentId: string | null = null
+      let batchBookingIds: string[] | null = null
 
       if (storedId.startsWith("cs_")) {
         // Stored id is a Checkout Session placeholder — check the session.
@@ -209,10 +334,16 @@ export async function reconcilePendingBookingPayments(bookingId: string): Promis
           typeof checkoutSession.payment_intent === "string"
             ? checkoutSession.payment_intent
             : (checkoutSession.payment_intent?.id ?? null)
+        if (checkoutSession.metadata?.batchBookingIds) {
+          batchBookingIds = checkoutSession.metadata.batchBookingIds.split(",")
+        }
       } else if (storedId.startsWith("pi_")) {
         const paymentIntent = await stripe.paymentIntents.retrieve(storedId)
         paid = paymentIntent.status === "succeeded"
         paymentIntentId = paymentIntent.id
+        if (paymentIntent.metadata?.batchBookingIds) {
+          batchBookingIds = paymentIntent.metadata.batchBookingIds.split(",")
+        }
       }
 
       if (!paid) continue
@@ -227,7 +358,12 @@ export async function reconcilePendingBookingPayments(bookingId: string): Promis
       }
 
       const resolvedId = paymentIntentId ?? payment.stripePaymentIntentId
-      if (resolvedId) await markPaymentSucceededAndNotify(resolvedId)
+      if (!resolvedId) continue
+      if (batchBookingIds) {
+        await markBatchPaymentSucceededAndNotify(resolvedId, batchBookingIds)
+      } else {
+        await markPaymentSucceededAndNotify(resolvedId)
+      }
     } catch (error) {
       console.error(`[reconcile] could not reconcile payment ${payment.id}`, error)
     }

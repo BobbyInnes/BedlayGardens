@@ -8,7 +8,7 @@ import { getVatSettings } from "@/lib/vat"
 import { formatPence, fullName } from "@/lib/format"
 import { paymentReceiptEmail, voucherDeliveryEmail } from "@/lib/email-templates"
 import { notifySubscriptionPaymentFailed } from "@/lib/subscriptions"
-import { markPaymentSucceededAndNotify } from "@/lib/payments"
+import { markPaymentSucceededAndNotify, markBatchPaymentSucceededAndNotify } from "@/lib/payments"
 import { logAudit, describeBooking } from "@/lib/audit"
 
 async function handleVoucherCheckoutCompleted(voucherId: string) {
@@ -58,6 +58,14 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
   const resolvedPaymentIntentId = paymentIntentId ?? pendingPayment?.stripePaymentIntentId
   if (!resolvedPaymentIntentId) return
+
+  if (session.metadata?.batchBookingIds) {
+    await markBatchPaymentSucceededAndNotify(
+      resolvedPaymentIntentId,
+      session.metadata.batchBookingIds.split(",")
+    )
+    return
+  }
   await markPaymentSucceededAndNotify(resolvedPaymentIntentId)
 }
 
@@ -158,6 +166,13 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
 }
 
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
+  if (paymentIntent.metadata?.batchBookingIds) {
+    await markBatchPaymentSucceededAndNotify(
+      paymentIntent.id,
+      paymentIntent.metadata.batchBookingIds.split(",")
+    )
+    return
+  }
   await markPaymentSucceededAndNotify(paymentIntent.id)
 }
 
