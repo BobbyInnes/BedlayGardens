@@ -5,6 +5,20 @@ import { waitlistOfferEmail } from "@/lib/email-templates"
 import { checkVaccinationGate } from "@/lib/vaccination-gate"
 import { findAvailableKennelUnit } from "@/lib/availability"
 
+// Powers the badge next to "Waitlist" in the portal nav — a live count of
+// waitlist entries (still waiting or offered a space) plus bookings needing
+// action (currently: PENDING_VACCINATION), mirroring what the merged
+// /portal/waitlist page itself lists. Doesn't call expireStaleOffers first
+// (that's a heavier, global operation already run when the waitlist page
+// itself loads) — the nav count can lag a just-expired offer by one visit.
+export async function getPortalWaitlistBadgeCount(customerId: string): Promise<number> {
+  const [waitlistCount, actionNeededCount] = await Promise.all([
+    prisma.waitlistEntry.count({ where: { customerId, status: { in: ["WAITING", "OFFERED"] } } }),
+    prisma.booking.count({ where: { customerId, status: "PENDING_VACCINATION" } }),
+  ])
+  return waitlistCount + actionNeededCount
+}
+
 /** Marks past-due OFFERED entries as EXPIRED and offers the next person in line for the same service/date(s). */
 export async function expireStaleOffers(): Promise<void> {
   const stale = await prisma.waitlistEntry.findMany({

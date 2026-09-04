@@ -40,7 +40,7 @@ const navItems: (NavLeaf | NavParent)[] = [
 const linkClasses =
   "flex shrink-0 items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium whitespace-nowrap text-muted-foreground hover:bg-muted hover:text-foreground"
 
-export function PortalNav() {
+export function PortalNav({ waitlistCount = 0 }: { waitlistCount?: number }) {
   const pathname = usePathname()
 
   return (
@@ -60,6 +60,7 @@ export function PortalNav() {
                 {item.children.map((child) => {
                   const ChildIcon = child.icon
                   const isChildActive = pathname.startsWith(child.href)
+                  const badgeCount = child.href === "/portal/waitlist" ? waitlistCount : 0
                   return (
                     <Link
                       key={child.href}
@@ -68,6 +69,11 @@ export function PortalNav() {
                     >
                       <ChildIcon className="size-4" aria-hidden="true" />
                       {child.label}
+                      {badgeCount > 0 && (
+                        <span className="ml-auto flex size-5 items-center justify-center rounded-full bg-destructive text-xs font-semibold text-white">
+                          {badgeCount}
+                        </span>
+                      )}
                     </Link>
                   )
                 })}
