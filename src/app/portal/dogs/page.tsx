@@ -88,7 +88,7 @@ const TONE_TEXT_CLASSES: Record<"ok" | "warn" | "bad" | "none", string> = {
   ok: "text-emerald-600",
   warn: "text-amber-600",
   bad: "text-destructive",
-  none: "text-muted-foreground",
+  none: "font-bold text-red-600",
 }
 
 export default async function DogsPage({

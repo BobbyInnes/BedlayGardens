@@ -9,6 +9,8 @@ import { getActiveAgreement, matchesCustomerName } from "@/lib/agreement"
 import { generateAgreementPdf } from "@/lib/agreement-pdf"
 import { saveUpload } from "@/lib/storage"
 import { getSetting } from "@/lib/settings"
+import { logAudit } from "@/lib/audit"
+import { fullName } from "@/lib/format"
 
 export type SignAgreementState = { status: "idle" | "error"; message?: string }
 
@@ -51,7 +53,7 @@ export async function signAgreement(
 
   const customer = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { salutation: true, forename: true, surname: true },
+    select: { salutation: true, forename: true, surname: true, email: true },
   })
   if (!customer) return { status: "error", message: "Please log in." }
   if (!matchesCustomerName(parsed.data.signedName, customer)) {
@@ -77,7 +79,7 @@ export async function signAgreement(
   })
   const pdfUrl = await saveUpload(`agreements/${session.user.id}`, "agreement.pdf", pdfBuffer)
 
-  await prisma.signedAgreement.create({
+  const signedAgreement = await prisma.signedAgreement.create({
     data: {
       agreementId: agreement.id,
       customerId: session.user.id,
@@ -86,6 +88,14 @@ export async function signAgreement(
       ipAddress,
       pdfUrl,
     },
+  })
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "SIGN_AGREEMENT",
+    entity: "SignedAgreement",
+    entityId: signedAgreement.id,
+    meta: `Terms and Conditions v${agreement.version} signed by ${fullName(customer)} <${customer.email}> — typed name "${parsed.data.signedName}" — IP ${ipAddress}`,
   })
 
   redirect(parsed.data.returnTo || "/portal")

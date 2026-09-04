@@ -248,6 +248,7 @@ export function DogForm({
                 min={toDateInputValue(minDob)}
                 max={toDateInputValue(today)}
                 defaultValue={values ? values.dob : toDateInputValue(dog?.dob)}
+                onBlur={(e) => e.currentTarget.reportValidity()}
               />
               {state.fieldErrors?.dob && (
                 <p className="text-sm text-destructive">{state.fieldErrors.dob}</p>
