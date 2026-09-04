@@ -186,7 +186,11 @@ async function sendPendingVaccinationReminders(settings: Record<string, string>)
 
     const email = pendingVaccinationEmail(
       settings,
-      { serviceName: booking.service.name, startDate: booking.startDate },
+      {
+        serviceName: booking.service.name,
+        startDate: booking.startDate,
+        paymentTiming: booking.service.paymentTiming,
+      },
       "a valid certificate",
       "reminder"
     )

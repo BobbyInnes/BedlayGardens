@@ -914,7 +914,11 @@ export async function recordManualPayment(
       .join("; ")
     const pending = pendingVaccinationEmail(
       settings,
-      { serviceName: booking.service.name, startDate: booking.startDate },
+      {
+        serviceName: booking.service.name,
+        startDate: booking.startDate,
+        paymentTiming: booking.service.paymentTiming,
+      },
       missingSummary,
       "initial"
     )

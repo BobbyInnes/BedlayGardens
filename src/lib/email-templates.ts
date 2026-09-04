@@ -1046,7 +1046,7 @@ export function bookingVaccinationRiskEmail(
 // nudge if it's still unresolved; wording is otherwise the same shape.
 export function pendingVaccinationEmail(
   branding: EmailBranding,
-  booking: { serviceName: string; startDate: Date },
+  booking: { serviceName: string; startDate: Date; paymentTiming?: string },
   missingSummary: string,
   stage: "initial" | "reminder"
 ): { subject: string; html: string } {
@@ -1055,6 +1055,23 @@ export function pendingVaccinationEmail(
     month: "long",
     year: "numeric",
   })
+  // FULL_UPFRONT collects the whole price as a single "deposit"-typed
+  // payment (no separate balance stage), so calling it a "deposit" here is
+  // misleading — same reasoning as the Day Care batch receipt email.
+  // INVOICE_AFTER never requests any payment up front at all, so neither
+  // clause applies to it.
+  const receivedClause =
+    stage !== "initial" || booking.paymentTiming === "INVOICE_AFTER"
+      ? ""
+      : booking.paymentTiming === "FULL_UPFRONT"
+        ? " and your full payment has been requested"
+        : " and your deposit has been requested"
+  const forfeitClause =
+    booking.paymentTiming === "INVOICE_AFTER"
+      ? ""
+      : booking.paymentTiming === "FULL_UPFRONT"
+        ? " and any payment made will not be refunded"
+        : " and any deposit paid will not be refunded"
   return {
     subject:
       stage === "initial"
@@ -1062,10 +1079,10 @@ export function pendingVaccinationEmail(
         : `Reminder: vaccine certificates still needed before ${dateLabel}`,
     html: layout(
       branding,
-      "Your booking needs vaccine certificates",
+      `Your ${booking.serviceName} needs vaccine certificates`,
       `
-        <p>Your <strong>${booking.serviceName}</strong> booking on <strong>${dateLabel}</strong> has been received${stage === "initial" ? " and your deposit has been requested" : ""}, but ${missingSummary} still needs all valid, in-date certificates before then.</p>
-        <p>Please log in to your account and upload them as soon as you can. If they aren't on file by <strong>${dateLabel}</strong>, this booking will be cancelled and any deposit paid will not be refunded.</p>
+        <p>Your <strong>${booking.serviceName}</strong> booking on <strong>${dateLabel}</strong> has been received${receivedClause}, but ${missingSummary} still needs all valid, in-date certificates before then.</p>
+        <p>Please log in to your account and upload them as soon as you can. If they aren't on file by <strong>${dateLabel}</strong>, this booking will be cancelled${forfeitClause}.</p>
       `
     ),
   }
