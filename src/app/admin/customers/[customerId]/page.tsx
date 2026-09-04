@@ -163,9 +163,11 @@ export default async function AdminCustomerDetailPage({
             <h2 className="text-sm font-semibold">Customer details</h2>
             <CustomerDetailsForm
               customerId={customer.id}
+              salutation={customer.salutation ?? ""}
               forename={customer.forename}
               surname={customer.surname}
               email={customer.email}
+              homePhone={customer.homePhone ?? ""}
               phone={customer.phone ?? ""}
               workPhone={customer.workPhone ?? ""}
               addressLine1={customer.addressLine1 ?? ""}

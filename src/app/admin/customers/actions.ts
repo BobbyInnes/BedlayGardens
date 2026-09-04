@@ -67,8 +67,10 @@ export async function updateCustomerContactDetails(
 
   const before = await prisma.user.findUniqueOrThrow({ where: { id: customerId } })
   const after = {
+    salutation: ((formData.get("salutation") as string | null) ?? "").trim() || null,
     forename,
     surname,
+    homePhone: ((formData.get("homePhone") as string | null) ?? "").trim() || null,
     phone: ((formData.get("phone") as string | null) ?? "").trim() || null,
     workPhone: ((formData.get("workPhone") as string | null) ?? "").trim() || null,
     addressLine1: ((formData.get("addressLine1") as string | null) ?? "").trim() || null,
@@ -88,9 +90,11 @@ export async function updateCustomerContactDetails(
     before,
     after,
     labels: {
+      salutation: "Title",
       forename: "Forename",
       surname: "Surname",
-      phone: "Phone",
+      homePhone: "Home phone",
+      phone: "Mobile phone",
       workPhone: "Work phone",
       addressLine1: "Address line 1",
       addressLine2: "Address line 2",

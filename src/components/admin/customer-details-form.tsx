@@ -6,14 +6,20 @@ import { Input } from "@/components/ui/input"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { Label } from "@/components/ui/label"
 import { updateCustomerContactDetails, type AdminActionState } from "@/app/admin/customers/actions"
+import { SALUTATIONS } from "@/lib/salutations"
 
 const initialState: AdminActionState = { status: "idle" }
 
+// Field set and labels deliberately mirror the customer's own "Contact
+// details" section on the portal (ProfileForm) — this is the same data,
+// just editable by staff, so the two should never drift apart.
 export function CustomerDetailsForm({
   customerId,
+  salutation,
   forename,
   surname,
   email,
+  homePhone,
   phone,
   workPhone,
   addressLine1,
@@ -22,9 +28,11 @@ export function CustomerDetailsForm({
   addressPostcode,
 }: {
   customerId: string
+  salutation: string
   forename: string
   surname: string
   email: string
+  homePhone: string
   phone: string
   workPhone: string
   addressLine1: string
@@ -37,7 +45,23 @@ export function CustomerDetailsForm({
 
   return (
     <form action={formAction} className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 grid-cols-[100px_1fr_1fr]">
+        <div className="space-y-2">
+          <Label htmlFor="salutation">Title</Label>
+          <select
+            id="salutation"
+            name="salutation"
+            defaultValue={salutation}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+          >
+            <option value="">—</option>
+            {SALUTATIONS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="space-y-2">
           <Label htmlFor="forename">Forename</Label>
           <Input id="forename" name="forename" defaultValue={forename} required />
@@ -51,13 +75,17 @@ export function CustomerDetailsForm({
         <Label htmlFor="email">Email</Label>
         <Input id="email" value={email} disabled />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-2">
-          <Label htmlFor="phone">Telephone number</Label>
+          <Label htmlFor="homePhone">Home Tel-No</Label>
+          <PhoneInput id="homePhone" name="homePhone" defaultValue={homePhone} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="phone">Mobile Tel-No</Label>
           <PhoneInput id="phone" name="phone" defaultValue={phone} />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="workPhone">Work phone number</Label>
+          <Label htmlFor="workPhone">Works Tel-No</Label>
           <PhoneInput id="workPhone" name="workPhone" defaultValue={workPhone} />
         </div>
       </div>
@@ -66,7 +94,7 @@ export function CustomerDetailsForm({
         <Input id="addressLine1" name="addressLine1" defaultValue={addressLine1} />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="addressLine2">Address line 2</Label>
+        <Label htmlFor="addressLine2">Address line 2 (optional)</Label>
         <Input id="addressLine2" name="addressLine2" defaultValue={addressLine2} />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
