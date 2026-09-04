@@ -20,7 +20,7 @@ async function loginAndGoToAgreement(page: Page) {
 }
 
 async function attemptSign(page: Page, typedName: string) {
-  await page.getByLabel("Type your full name to sign").fill(typedName)
+  await page.getByLabel("Type your forename and surname to sign").fill(typedName)
   await page.getByRole("checkbox").check()
   await page.getByRole("button", { name: "Sign agreement" }).click()
 }

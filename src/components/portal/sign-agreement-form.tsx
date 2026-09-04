@@ -23,7 +23,7 @@ export function SignAgreementForm({
       {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
 
       <div className="space-y-2">
-        <Label htmlFor="signedName">Type your full name to sign</Label>
+        <Label htmlFor="signedName">Type your forename and surname to sign</Label>
         <Input id="signedName" name="signedName" required />
       </div>
 
