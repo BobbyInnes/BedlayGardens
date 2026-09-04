@@ -334,7 +334,9 @@ export default async function DogsPage({
 
       {selectedDog && (
         <div className="space-y-3 rounded-lg border border-border bg-card p-5">
-          <h2 className="text-lg font-semibold">Vaccination Information</h2>
+          <h2 className="text-lg font-semibold">
+            Vaccination Information{selectedDog.bypassVaccinationChecks ? " (Bypassed by Admin)" : ""}
+          </h2>
           {selectedDog.vaccinationRecords.length > 0 ? (
             <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-sm">
               {selectedDog.vaccinationRecords.map((record) => {
@@ -367,10 +369,16 @@ export default async function DogsPage({
           <div className="space-y-3 rounded-lg border border-border bg-card p-5">
             <h2 className="text-lg font-semibold">
               Evaluation Information
-              {!trial?.outcome && (
-                <span className="ml-2 text-sm font-normal text-destructive">
-                  (Evaluation is outstanding)
+              {selectedDog.bypassMeetGreetChecks ? (
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  (Bypassed by Admin)
                 </span>
+              ) : (
+                !trial?.outcome && (
+                  <span className="ml-2 text-sm font-normal text-destructive">
+                    (Evaluation is outstanding)
+                  </span>
+                )
               )}
             </h2>
             <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-sm">
