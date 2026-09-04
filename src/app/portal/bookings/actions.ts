@@ -19,6 +19,7 @@ import { checkVaccinationGate } from "@/lib/vaccination-gate"
 import { offerNextInLine } from "@/lib/waitlist"
 import { redeemForCharge } from "@/lib/vouchers"
 import { getCancellationTier } from "@/lib/cancellation-policy"
+import { refundPayment } from "@/lib/payments"
 
 export type CancelBookingResult = { status: "success"; message: string } | { status: "error"; message: string }
 
@@ -30,26 +31,6 @@ const NON_CANCELLABLE_STATUSES = [
   "CANCELLED_BY_ADMIN",
   "NO_SHOW",
 ]
-
-async function refundPayment(
-  bookingId: string,
-  payment: { id: string; stripePaymentIntentId: string | null; amountPence: number }
-) {
-  if (!stripe || !payment.stripePaymentIntentId) return false
-  try {
-    await stripe.refunds.create({ payment_intent: payment.stripePaymentIntentId })
-    await prisma.$transaction([
-      prisma.payment.update({ where: { id: payment.id }, data: { status: "REFUNDED" } }),
-      prisma.payment.create({
-        data: { bookingId, type: "REFUND", amountPence: payment.amountPence, status: "SUCCEEDED" },
-      }),
-    ])
-    return true
-  } catch (error) {
-    console.error(`[cancelBooking] failed to refund payment ${payment.id}`, error)
-    return false
-  }
-}
 
 export async function cancelBooking(bookingId: string, reason?: string): Promise<CancelBookingResult> {
   const session = await auth()
@@ -76,12 +57,12 @@ export async function cancelBooking(bookingId: string, reason?: string): Promise
   let refundedPence = 0
   if (stripe) {
     if (tier === "free") {
-      if (successfulDeposit && (await refundPayment(booking.id, successfulDeposit)))
+      if (successfulDeposit && (await refundPayment(booking.id, successfulDeposit, booking.batchId)))
         refundedPence += successfulDeposit.amountPence
-      if (successfulBalance && (await refundPayment(booking.id, successfulBalance)))
+      if (successfulBalance && (await refundPayment(booking.id, successfulBalance, booking.batchId)))
         refundedPence += successfulBalance.amountPence
     } else if (tier === "deposit_forfeit") {
-      if (successfulBalance && (await refundPayment(booking.id, successfulBalance)))
+      if (successfulBalance && (await refundPayment(booking.id, successfulBalance, booking.batchId)))
         refundedPence += successfulBalance.amountPence
     }
   }
@@ -89,8 +70,8 @@ export async function cancelBooking(bookingId: string, reason?: string): Promise
   let policyNote: string
   if (tier === "free") {
     policyNote = stripe
-      ? `Cancelled — this is outside the free cancellation window, so ${formatPence(refundedPence)} has been refunded.`
-      : "Cancelled — this falls outside the free cancellation window, so a full refund applies once payments are enabled."
+      ? `Cancelled — this is within the free cancellation window, so ${formatPence(refundedPence)} has been refunded.`
+      : "Cancelled — this falls within the free cancellation window, so a full refund applies once payments are enabled."
   } else if (tier === "deposit_forfeit") {
     policyNote = stripe
       ? `Cancelled — per our policy the deposit is forfeit. ${refundedPence > 0 ? `${formatPence(refundedPence)} of the balance has been refunded.` : ""}`

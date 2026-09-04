@@ -13,6 +13,57 @@ import {
 } from "@/lib/email-templates"
 import { checkVaccinationGate } from "@/lib/vaccination-gate"
 
+/**
+ * Refunds one booking's Payment via Stripe, marks it REFUNDED, and records a
+ * matching REFUND Payment row. Returns whether a refund actually happened.
+ *
+ * Two things this has to get right for a batch-paid Day Care date (see
+ * createBatchCheckoutSession / markBatchPaymentSucceededAndNotify):
+ *
+ * 1. Only the batch's *anchor* booking's Payment row carries a real
+ *    stripePaymentIntentId — every other date's row has none, since Stripe
+ *    only gives one PaymentIntent for the whole batch's Checkout session.
+ *    Refunding a non-anchor date has to fall back to that shared
+ *    PaymentIntent (found via the other bookings sharing the same batchId)
+ *    rather than silently doing nothing.
+ * 2. That shared PaymentIntent was charged for the *whole batch*, not just
+ *    one date — so every refund against it, anchor included, must pass an
+ *    explicit `amount` for just this payment's own share. Omitting `amount`
+ *    refunds the entire PaymentIntent, which would hand back money for
+ *    other dates in the batch that aren't being cancelled.
+ */
+export async function refundPayment(
+  bookingId: string,
+  payment: { id: string; stripePaymentIntentId: string | null; amountPence: number },
+  batchId?: string | null
+): Promise<boolean> {
+  if (!stripe) return false
+
+  let paymentIntentId = payment.stripePaymentIntentId
+  if (!paymentIntentId && batchId) {
+    const anchor = await prisma.payment.findFirst({
+      where: { stripePaymentIntentId: { not: null }, booking: { batchId } },
+      select: { stripePaymentIntentId: true },
+    })
+    paymentIntentId = anchor?.stripePaymentIntentId ?? null
+  }
+  if (!paymentIntentId) return false
+
+  try {
+    await stripe.refunds.create({ payment_intent: paymentIntentId, amount: payment.amountPence })
+    await prisma.$transaction([
+      prisma.payment.update({ where: { id: payment.id }, data: { status: "REFUNDED" } }),
+      prisma.payment.create({
+        data: { bookingId, type: "REFUND", amountPence: payment.amountPence, status: "SUCCEEDED" },
+      }),
+    ])
+    return true
+  } catch (error) {
+    console.error(`[refundPayment] failed to refund payment ${payment.id}`, error)
+    return false
+  }
+}
+
 // Marks a Payment as SUCCEEDED (if not already), confirms the booking when a
 // deposit is paid, and sends the receipt / confirmation emails. Idempotent —
 // safe to call from both the Stripe webhook and the confirmation-page

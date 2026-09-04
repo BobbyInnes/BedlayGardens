@@ -30,6 +30,7 @@ import { getActiveAgreement } from "@/lib/agreement"
 import { offerNextInLine } from "@/lib/waitlist"
 import { generateAgreementPdf } from "@/lib/agreement-pdf"
 import { saveUpload } from "@/lib/storage"
+import { refundPayment } from "@/lib/payments"
 
 export type AdminActionState = { status: "idle" | "error"; message?: string }
 
@@ -531,26 +532,6 @@ export async function reassignKennel(
 
 export type CancelBookingAdminResult = { status: "success"; message: string } | { status: "error"; message: string }
 
-async function refundPayment(
-  bookingId: string,
-  payment: { id: string; stripePaymentIntentId: string | null; amountPence: number }
-) {
-  if (!stripe || !payment.stripePaymentIntentId) return false
-  try {
-    await stripe.refunds.create({ payment_intent: payment.stripePaymentIntentId })
-    await prisma.$transaction([
-      prisma.payment.update({ where: { id: payment.id }, data: { status: "REFUNDED" } }),
-      prisma.payment.create({
-        data: { bookingId, type: "REFUND", amountPence: payment.amountPence, status: "SUCCEEDED" },
-      }),
-    ])
-    return true
-  } catch (error) {
-    console.error(`[cancelBookingAdmin] failed to refund payment ${payment.id}`, error)
-    return false
-  }
-}
-
 export async function cancelBookingAdmin(
   bookingId: string,
   reason: string
@@ -571,7 +552,7 @@ export async function cancelBookingAdmin(
   )
   let refundedPence = 0
   for (const payment of successfulPayments) {
-    if (await refundPayment(booking.id, payment)) refundedPence += payment.amountPence
+    if (await refundPayment(booking.id, payment, booking.batchId)) refundedPence += payment.amountPence
   }
 
   const trimmedReason = reason.trim() || "Cancelled by admin"
