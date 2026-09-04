@@ -6,7 +6,8 @@ import { z } from "zod"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { sanitizeRichText } from "@/lib/sanitize-html"
-import { logAudit } from "@/lib/audit"
+import { logAudit, diffFields } from "@/lib/audit"
+import { formatPence } from "@/lib/format"
 
 export type AdminActionState = { status: "idle" | "error"; message?: string }
 
@@ -97,16 +98,63 @@ export async function updateService(
     return { status: "error", message: "A service with that slug already exists." }
   }
 
+  const before = await prisma.service.findUnique({ where: { id: serviceId } })
+  if (!before) {
+    return { status: "error", message: "Service not found." }
+  }
+  const newDescription = sanitizeRichText(parsed.data.description)
+
   await prisma.service.update({
     where: { id: serviceId },
-    data: { ...parsed.data, description: sanitizeRichText(parsed.data.description) },
+    data: { ...parsed.data, description: newDescription },
   })
+
+  // Description is rich text (HTML), so it's flagged as changed rather than
+  // diffed field-by-field alongside the other, short scalar fields below —
+  // dumping the full before/after HTML into the audit log's Detail column
+  // would swamp the more useful summary.
+  const fieldDiff = diffFields(
+    {
+      name: before.name,
+      slug: before.slug,
+      pricingModel: before.pricingModel,
+      basePricePence: formatPence(before.basePricePence),
+      halfDayPricePence: before.halfDayPricePence != null ? formatPence(before.halfDayPricePence) : null,
+      paymentTiming: before.paymentTiming,
+      sortOrder: before.sortOrder,
+      requiresTrial: before.requiresTrial,
+    },
+    {
+      name: parsed.data.name,
+      slug: parsed.data.slug,
+      pricingModel: parsed.data.pricingModel,
+      basePricePence: formatPence(parsed.data.basePricePence),
+      halfDayPricePence:
+        parsed.data.halfDayPricePence != null ? formatPence(parsed.data.halfDayPricePence) : null,
+      paymentTiming: parsed.data.paymentTiming,
+      sortOrder: parsed.data.sortOrder,
+      requiresTrial: parsed.data.requiresTrial,
+    },
+    {
+      name: "Name",
+      slug: "Slug",
+      pricingModel: "Pricing model",
+      basePricePence: "Base price",
+      halfDayPricePence: "Half-day price",
+      paymentTiming: "Payment timing",
+      sortOrder: "Sort order",
+      requiresTrial: "Requires trial",
+    }
+  )
+  const descriptionNote = newDescription !== before.description ? "Description: changed" : null
+  const diff = [fieldDiff, descriptionNote].filter(Boolean).join("; ")
+
   await logAudit({
     actorId: session.user.id,
     action: "UPDATE_SERVICE",
     entity: "Service",
     entityId: serviceId,
-    meta: `${parsed.data.name} (${parsed.data.slug}) — £${(parsed.data.basePricePence / 100).toFixed(2)}`,
+    meta: `${parsed.data.name} (${parsed.data.slug}) — ${diff || "no changes"}`,
   })
   revalidatePath("/admin/services")
   revalidatePath("/services")
