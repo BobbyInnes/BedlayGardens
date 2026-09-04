@@ -1,14 +1,17 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
 import { TRIAL_OUTCOME_LABELS } from "@/lib/trial-outcome"
 import { formatDogNumber } from "@/lib/customer-dog-numbers"
 import { fullName } from "@/lib/format"
 import { DogBypassCheckboxes } from "@/components/admin/dog-bypass-checkboxes"
+import { deleteDogAdmin } from "@/app/admin/dogs/actions"
 
 export const metadata: Metadata = {
   title: "Dogs | Admin",
@@ -20,6 +23,8 @@ export default async function AdminDogsPage({
   searchParams: Promise<{ dog?: string; owner?: string }>
 }) {
   const { dog = "", owner = "" } = await searchParams
+  const session = await auth()
+  const isSuperAdmin = session?.user.isSuperAdmin ?? false
 
   const dogs = await prisma.dog.findMany({
     where: {
@@ -130,6 +135,14 @@ export default async function AdminDogsPage({
                   <Button size="sm" variant="outline" asChild>
                     <Link href={`/admin/customers/${dog.owner.id}`}>Customer</Link>
                   </Button>
+                  {isSuperAdmin && (
+                    <ConfirmDeleteButton
+                      label="Delete"
+                      title="Delete this dog?"
+                      description={`This will permanently delete ${dog.name} (${dog.breed}), owner ${fullName(dog.owner)}. Only possible if this dog has no booking history. This cannot be undone.`}
+                      onConfirm={deleteDogAdmin.bind(null, dog.id)}
+                    />
+                  )}
                 </div>
               </li>
             )

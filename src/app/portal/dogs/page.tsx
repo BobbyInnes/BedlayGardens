@@ -335,7 +335,10 @@ export default async function DogsPage({
       {selectedDog && (
         <div className="space-y-3 rounded-lg border border-border bg-card p-5">
           <h2 className="text-lg font-semibold">
-            Vaccination Information{selectedDog.bypassVaccinationChecks ? " (Bypassed by Admin)" : ""}
+            Vaccination Information
+            {selectedDog.bypassVaccinationChecks && (
+              <span className="ml-2 text-sm font-normal text-destructive">(Bypassed by Admin)</span>
+            )}
           </h2>
           {selectedDog.vaccinationRecords.length > 0 ? (
             <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-sm">
@@ -370,9 +373,7 @@ export default async function DogsPage({
             <h2 className="text-lg font-semibold">
               Evaluation Information
               {selectedDog.bypassMeetGreetChecks ? (
-                <span className="ml-2 text-sm font-normal text-muted-foreground">
-                  (Bypassed by Admin)
-                </span>
+                <span className="ml-2 text-sm font-normal text-destructive">(Bypassed by Admin)</span>
               ) : (
                 !trial?.outcome && (
                   <span className="ml-2 text-sm font-normal text-destructive">
