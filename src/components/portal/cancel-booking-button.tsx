@@ -15,17 +15,24 @@ import {
 } from "@/components/ui/dialog"
 import { formatPence } from "@/lib/format"
 import { cancelBooking } from "@/app/portal/bookings/actions"
+import type { CancellationPolicyTier } from "@/lib/cancellation-policy"
 
 export function CancelBookingButton({
   bookingId,
   paidPence,
   expectedRefundPence,
+  cancellationTier,
+  freeDays,
 }: {
   bookingId: string
   /** Total successfully paid so far (deposit + balance), before this cancellation. */
   paidPence: number
   /** What our cancellation policy would refund of that, based on how close the stay is. */
   expectedRefundPence: number
+  /** Which cancellation-policy tier applies right now, based on how close the stay is. */
+  cancellationTier: CancellationPolicyTier
+  /** Days before the stay that still count as free cancellation — only used to word the outside-window notice. */
+  freeDays: number
 }) {
   const [open, setOpen] = React.useState(false)
   const [pending, setPending] = React.useState(false)
@@ -51,28 +58,42 @@ export function CancelBookingButton({
             <p className="text-sm">{message}</p>
           ) : (
             <>
-              {paidPence > 0 &&
-                (forfeitPence > 0 ? (
-                  <div className="flex gap-3 rounded-lg border-l-4 border-amber-400 bg-amber-50 p-4">
-                    <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden="true" />
-                    <div className="text-sm">
-                      <p className="font-semibold text-amber-900">
-                        {expectedRefundPence > 0
-                          ? `Only ${formatPence(expectedRefundPence)} of your ${formatPence(paidPence)} will be refunded`
-                          : `${formatPence(paidPence)} won’t be refunded`}
-                      </p>
-                      <p className="text-amber-800">
-                        Per our cancellation policy, {formatPence(forfeitPence)} is non-refundable this close to
-                        your stay.
-                      </p>
-                    </div>
+              {paidPence > 0 && forfeitPence > 0 && (
+                <div className="flex gap-3 rounded-lg border-l-4 border-amber-400 bg-amber-50 p-4">
+                  <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden="true" />
+                  <div className="text-sm">
+                    <p className="font-semibold text-amber-900">
+                      {expectedRefundPence > 0
+                        ? `Only ${formatPence(expectedRefundPence)} of your ${formatPence(paidPence)} will be refunded`
+                        : `${formatPence(paidPence)} won’t be refunded`}
+                    </p>
+                    <p className="text-amber-800">
+                      Per our cancellation policy, {formatPence(forfeitPence)} is non-refundable this close to
+                      your stay.
+                    </p>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    You&rsquo;re within the free cancellation window — the full {formatPence(paidPence)}{" "}
-                    you&rsquo;ve paid will be refunded.
-                  </p>
-                ))}
+                </div>
+              )}
+              {paidPence > 0 && forfeitPence === 0 && cancellationTier === "free" && (
+                <p className="text-sm text-muted-foreground">
+                  You&rsquo;re within the free cancellation window — the full {formatPence(paidPence)}{" "}
+                  you&rsquo;ve paid will be refunded.
+                </p>
+              )}
+              {paidPence === 0 && cancellationTier !== "free" && (
+                <div className="flex gap-3 rounded-lg border-l-4 border-amber-400 bg-amber-50 p-4">
+                  <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden="true" />
+                  <div className="text-sm">
+                    <p className="font-semibold text-amber-900">
+                      This is outside our free cancellation window
+                    </p>
+                    <p className="text-amber-800">
+                      Our free cancellation window is {freeDays} days before the stay — nothing&rsquo;s been paid
+                      on this booking yet, so nothing will be forfeited, but do you still want to cancel?
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="cancellationReason">Reason (optional)</Label>
                 <Textarea

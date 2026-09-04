@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma"
 import { getSetting } from "@/lib/settings"
 import { BookingFilters } from "@/components/portal/booking-filters"
 import { BookServiceCta } from "@/components/portal/book-service-cta"
-import { BookingCard } from "@/components/portal/booking-card"
+import { BookingCard, groupByBatch } from "@/components/portal/booking-card"
+import { BatchBookingCard } from "@/components/portal/batch-booking-card"
 
 export const metadata: Metadata = {
   title: "My Bookings",
@@ -70,14 +71,23 @@ export default async function PortalBookingsPage({
 
       {bookings.length > 0 ? (
         <ul className="space-y-3">
-          {bookings.map((booking) => (
-            <BookingCard
-              key={booking.id}
-              booking={booking}
-              freeDays={Number(freeDays)}
-              noRefundHours={Number(noRefundHours)}
-            />
-          ))}
+          {groupByBatch(bookings).map((group) =>
+            group.length > 1 ? (
+              <BatchBookingCard
+                key={group[0].batchId}
+                bookings={group}
+                freeDays={Number(freeDays)}
+                noRefundHours={Number(noRefundHours)}
+              />
+            ) : (
+              <BookingCard
+                key={group[0].id}
+                booking={group[0]}
+                freeDays={Number(freeDays)}
+                noRefundHours={Number(noRefundHours)}
+              />
+            )
+          )}
         </ul>
       ) : (
         <p className="text-sm text-muted-foreground">You don&rsquo;t have any bookings yet.</p>

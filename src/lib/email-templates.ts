@@ -1088,9 +1088,9 @@ export function batchPaymentReceiptEmail(
     subject: `Payment received — ${dates.length} ${serviceName} bookings`,
     html: layout(
       branding,
-      "Payment received",
+      `${serviceName} Booking: Payment received`,
       `
-        <p>We've received your ${type === "FULL" ? "full payment" : "deposit"} of <strong>${formatPence(amountPence)}</strong> covering ${dates.length} ${serviceName} bookings: ${dateList}.</p>
+        <p>We've received your ${type === "FULL" ? "full payment" : "payment"} of <strong>${formatPence(amountPence)}</strong> covering ${dates.length} ${serviceName} bookings: ${dateList}.</p>
       `
     ),
   }

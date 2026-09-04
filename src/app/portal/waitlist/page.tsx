@@ -5,7 +5,8 @@ import { getSetting } from "@/lib/settings"
 import { Badge } from "@/components/ui/badge"
 import { expireStaleOffers } from "@/lib/waitlist"
 import { WaitlistEntryActions } from "@/components/portal/waitlist-entry-actions"
-import { BookingCard } from "@/components/portal/booking-card"
+import { BookingCard, groupByBatch } from "@/components/portal/booking-card"
+import { BatchBookingCard } from "@/components/portal/batch-booking-card"
 
 export const metadata: Metadata = {
   title: "Waitlist",
@@ -50,13 +51,19 @@ export default async function PortalWaitlistPage() {
 
   // One combined, chronologically-mixed list — a booking needing action and
   // a waitlist spot are both "something in line, waiting on you or on us",
-  // so they read as one list rather than two disconnected sections.
+  // so they read as one list rather than two disconnected sections. A Day
+  // Care multi-date batch (see Booking.batchId) collapses to one "action"
+  // item covering every date needing a certificate, same as My Bookings.
   type ListItem =
-    | { kind: "action"; sortDate: Date; booking: (typeof actionNeededBookings)[number] }
+    | { kind: "action"; sortDate: Date; bookings: (typeof actionNeededBookings)[number][] }
     | { kind: "waitlist"; sortDate: Date; entry: (typeof entries)[number] }
   const items: ListItem[] = [
-    ...actionNeededBookings.map(
-      (booking): ListItem => ({ kind: "action", sortDate: booking.createdAt, booking })
+    ...groupByBatch(actionNeededBookings).map(
+      (bookings): ListItem => ({
+        kind: "action",
+        sortDate: bookings.reduce((min, b) => (b.createdAt < min ? b.createdAt : min), bookings[0].createdAt),
+        bookings,
+      })
     ),
     ...entries.map((entry): ListItem => ({ kind: "waitlist", sortDate: entry.createdAt, entry })),
   ].sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime())
@@ -75,12 +82,21 @@ export default async function PortalWaitlistPage() {
         <ul className="space-y-3">
           {items.map((item) =>
             item.kind === "action" ? (
-              <BookingCard
-                key={`booking-${item.booking.id}`}
-                booking={item.booking}
-                freeDays={Number(freeDays)}
-                noRefundHours={Number(noRefundHours)}
-              />
+              item.bookings.length > 1 ? (
+                <BatchBookingCard
+                  key={`batch-${item.bookings[0].batchId}`}
+                  bookings={item.bookings}
+                  freeDays={Number(freeDays)}
+                  noRefundHours={Number(noRefundHours)}
+                />
+              ) : (
+                <BookingCard
+                  key={`booking-${item.bookings[0].id}`}
+                  booking={item.bookings[0]}
+                  freeDays={Number(freeDays)}
+                  noRefundHours={Number(noRefundHours)}
+                />
+              )
             ) : (
               <li
                 key={`entry-${item.entry.id}`}
