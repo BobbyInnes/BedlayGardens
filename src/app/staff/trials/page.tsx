@@ -3,6 +3,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Badge } from "@/components/ui/badge"
 import { TrialOutcomeForm } from "@/components/staff/trial-outcome-form"
+import { TrialTestCaseButton } from "@/components/staff/trial-test-case-button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -21,7 +22,7 @@ export default async function StaffTrialsPage({
 }) {
   const { dog = "", owner = "" } = await searchParams
   const session = await auth()
-  const isSuperAdmin = session?.user.isSuperAdmin ?? false
+  const isAdmin = session?.user.role === "ADMIN"
 
   const filters: Prisma.TrialVisitWhereInput[] = [
     ...(dog.trim() ? [{ dog: { name: { contains: dog.trim(), mode: "insensitive" as const } } }] : []),
@@ -86,21 +87,24 @@ export default async function StaffTrialsPage({
           <ul className="space-y-3">
             {pending.map((trial) => (
               <li key={trial.id} className="rounded-lg border border-border p-4 text-sm">
-                <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="mb-2">
                   <p className="font-medium">
                     {trial.dog.name}{" "}
                     <span className="font-normal text-muted-foreground">
                       — {fullName(trial.booking.customer)}
                     </span>
                   </p>
-                  <span className="text-muted-foreground">
-                    {trial.booking.startDate.toLocaleDateString("en-GB")}
-                  </span>
-                </div>
-                {trial.booking.startDate > new Date() && !isSuperAdmin ? (
                   <p className="text-sm text-muted-foreground">
-                    Outcome can be set once the Meet & Greet date has passed.
+                    {trial.booking.startDate.toLocaleDateString("en-GB")}
                   </p>
+                </div>
+                {trial.booking.startDate > new Date() ? (
+                  <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+                    <p className="text-sm text-destructive">
+                      Can&rsquo;t set an outcome before the Meet &amp; Greet date has passed.
+                    </p>
+                    {isAdmin && <TrialTestCaseButton trialVisitId={trial.id} />}
+                  </div>
                 ) : (
                   <TrialOutcomeForm trialVisitId={trial.id} />
                 )}
