@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { getSetting } from "@/lib/settings"
 import type { BookingStatus } from "@/generated/prisma/client"
 
+
 export type VaccinationGateResult = {
   ok: boolean
   perDog: {
@@ -47,13 +48,12 @@ export async function checkVaccinationGate(
     include: { vaccinationRecords: true },
   })
 
-  if ((await getSetting("bypass_vaccination_checks", "false")) === "true") {
-    return { ok: true, perDog: dogs.map((dog) => ({ dogId: dog.id, dogName: dog.name, missingTypes: [] })) }
-  }
-
   const requiredTypes = await getRequiredVaccineTypes()
 
+  // A dog with bypassVaccinationChecks set (admin-only, Admin -> Dogs) skips
+  // this entirely regardless of what's actually on file for it.
   const perDog = dogs.map((dog) => {
+    if (dog.bypassVaccinationChecks) return { dogId: dog.id, dogName: dog.name, missingTypes: [] }
     const missingTypes = requiredTypes.filter((requiredType) => {
       return !dog.vaccinationRecords.some(
         (record) =>

@@ -338,6 +338,13 @@ model Dog {
   runType          String?
   temperament      String?
   groupPlayApproved Boolean  @default(false)
+  // Admin-only overrides (Admin -> Dogs) — while set, this dog skips that
+  // check entirely everywhere it's enforced (booking creation, payment
+  // success, waitlist, staff check-in, cron reminders, …), regardless of
+  // what's actually on file or its trial history. See checkVaccinationGate
+  // / checkTrialGate.
+  bypassVaccinationChecks Boolean @default(false)
+  bypassMeetGreetChecks   Boolean @default(false)
   createdAt        DateTime  @default(now())
 
   vaccinationRecords VaccinationRecord[]

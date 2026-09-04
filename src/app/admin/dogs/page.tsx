@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { TRIAL_OUTCOME_LABELS } from "@/lib/trial-outcome"
 import { formatDogNumber } from "@/lib/customer-dog-numbers"
 import { fullName } from "@/lib/format"
+import { DogBypassCheckboxes } from "@/components/admin/dog-bypass-checkboxes"
 
 export const metadata: Metadata = {
   title: "Dogs | Admin",
@@ -106,6 +107,12 @@ export default async function AdminDogsPage({
                     </p>
                   </div>
                 </div>
+
+                <DogBypassCheckboxes
+                  dogId={dog.id}
+                  bypassVaccinationChecks={dog.bypassVaccinationChecks}
+                  bypassMeetGreetChecks={dog.bypassMeetGreetChecks}
+                />
 
                 <div className="flex items-center gap-3">
                   {latestOutcome ? (

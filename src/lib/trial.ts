@@ -1,18 +1,23 @@
 import { prisma } from "@/lib/prisma"
-import { getSetting } from "@/lib/settings"
 
 const NON_BLOCKING_STATUSES = ["DRAFT", "CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] as const
 
 /**
  * For a service that requires a trial visit, returns the names of dogs among
  * `dogIds` that are booking this service for the first time and don't have a
- * PASSED TrialVisit yet. Empty array means the booking can proceed.
+ * PASSED TrialVisit yet. Empty array means the booking can proceed. A dog
+ * with bypassMeetGreetChecks set (admin-only, Admin -> Dogs) is skipped
+ * entirely regardless of trial history.
  */
 export async function checkTrialGate(serviceId: string, dogIds: string[]): Promise<string[]> {
-  if ((await getSetting("bypass_meet_greet_checks", "false")) === "true") return []
-
   const missing: string[] = []
   for (const dogId of dogIds) {
+    const dog = await prisma.dog.findUnique({
+      where: { id: dogId },
+      select: { name: true, bypassMeetGreetChecks: true },
+    })
+    if (!dog || dog.bypassMeetGreetChecks) continue
+
     const priorBooking = await prisma.booking.findFirst({
       where: {
         serviceId,
@@ -23,10 +28,7 @@ export async function checkTrialGate(serviceId: string, dogIds: string[]): Promi
     if (priorBooking) continue
 
     const passedTrial = await prisma.trialVisit.findFirst({ where: { dogId, outcome: "PASSED" } })
-    if (!passedTrial) {
-      const dog = await prisma.dog.findUnique({ where: { id: dogId }, select: { name: true } })
-      missing.push(dog?.name ?? "This dog")
-    }
+    if (!passedTrial) missing.push(dog.name)
   }
   return missing
 }
