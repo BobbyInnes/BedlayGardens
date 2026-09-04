@@ -365,6 +365,23 @@ export function vaccinationReviewDigestEmail(
   }
 }
 
+type NewDogMedication = {
+  name: string
+  amount: string | null
+  am: boolean
+  noon: boolean
+  pm: boolean
+  specificTime: string | null
+}
+
+type NewDogFeedingItem = {
+  item: string
+  amount: string | null
+  am: boolean
+  pm: boolean
+  specificTime: string | null
+}
+
 type NewDogDetails = {
   name: string
   dogNumber: number
@@ -375,16 +392,39 @@ type NewDogDetails = {
   size: string | null
   neutered: boolean
   allergies: string | null
+  // Free-text fallbacks from before Feeding/Medication became structured
+  // lists (see the comment in portal/dogs/actions.ts) — only ever
+  // non-null for a dog whose notes predate that change.
   feedingNotes: string | null
   medicationNotes: string | null
   behaviourNotes: string | null
+  medicalHistorySummary: string | null
+  medications: NewDogMedication[]
+  feedingItems: NewDogFeedingItem[]
 }
 
 function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
 }
 
+// Matches the "name — amount (schedule)" format used on the portal/admin dog
+// detail pages, so the email reads the same way as the account page it
+// points customers back to.
+function scheduleLabel(specificTime: string | null, parts: (string | false)[]): string {
+  return specificTime || parts.filter(Boolean).join(" & ") || "no schedule set"
+}
+
+function formatMedication(med: NewDogMedication): string {
+  return `${med.name}${med.amount ? ` — ${med.amount}` : ""} (${scheduleLabel(med.specificTime, [med.am && "AM", med.noon && "Noon", med.pm && "PM"])})`
+}
+
+function formatFeedingItem(item: NewDogFeedingItem): string {
+  return `${item.item}${item.amount ? ` — ${item.amount}` : ""} (${scheduleLabel(item.specificTime, [item.am && "AM", item.pm && "PM"])})`
+}
+
 function dogDetailRows(dog: NewDogDetails): [string, string][] {
+  const medicationLines = dog.medications.map(formatMedication)
+  const feedingLines = dog.feedingItems.map(formatFeedingItem)
   return [
     ["Dog reference", formatDogNumber(dog.dogNumber)],
     ["Breed", dog.breed],
@@ -400,9 +440,20 @@ function dogDetailRows(dog: NewDogDetails): [string, string][] {
     ...(dog.weightKg ? ([["Weight", `${dog.weightKg}kg`]] as [string, string][]) : []),
     ...(dog.size ? ([["Size", titleCase(dog.size)]] as [string, string][]) : []),
     ["Neutered / spayed", dog.neutered ? "Yes" : "No"],
+    ...(dog.medicalHistorySummary
+      ? ([["Medical history", dog.medicalHistorySummary]] as [string, string][])
+      : []),
+    ...(medicationLines.length > 0
+      ? ([["Medication", medicationLines.join("<br>")]] as [string, string][])
+      : dog.medicationNotes
+        ? ([["Medication", dog.medicationNotes]] as [string, string][])
+        : []),
     ...(dog.allergies ? ([["Allergies", dog.allergies]] as [string, string][]) : []),
-    ...(dog.feedingNotes ? ([["Feeding instructions", dog.feedingNotes]] as [string, string][]) : []),
-    ...(dog.medicationNotes ? ([["Medication", dog.medicationNotes]] as [string, string][]) : []),
+    ...(feedingLines.length > 0
+      ? ([["Feeding instructions", feedingLines.join("<br>")]] as [string, string][])
+      : dog.feedingNotes
+        ? ([["Feeding instructions", dog.feedingNotes]] as [string, string][])
+        : []),
     ...(dog.behaviourNotes ? ([["Behavioural notes", dog.behaviourNotes]] as [string, string][]) : []),
   ]
 }
@@ -432,7 +483,7 @@ export function dogAddedEmail(
     subject: `${dog.name} has been added to your account`,
     html: layout(
       branding,
-      `${dog.name} has been added`,
+      `Your dog called ${dog.name} has been added`,
       `
         <p>Here's a summary of the details you entered for ${dog.name}:</p>
         ${detailsTable(dogDetailRows(dog))}

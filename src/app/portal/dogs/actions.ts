@@ -220,6 +220,7 @@ export async function createDog(
       medications: medicationRows.length > 0 ? { create: medicationRows } : undefined,
       feedingItems: feedingRows.length > 0 ? { create: feedingRows } : undefined,
     },
+    include: { medications: true, feedingItems: true },
   })
 
   const photo = formData.get("photo")
@@ -322,6 +323,7 @@ export async function updateDog(
         create: feedingRows,
       },
     },
+    include: { medications: true, feedingItems: true },
   })
 
   await logEntityChange({
