@@ -42,12 +42,16 @@ export async function checkVaccinationGate(
   dogIds: string[],
   throughDate: Date
 ): Promise<VaccinationGateResult> {
-  const requiredTypes = await getRequiredVaccineTypes()
-
   const dogs = await prisma.dog.findMany({
     where: { id: { in: dogIds } },
     include: { vaccinationRecords: true },
   })
+
+  if ((await getSetting("bypass_vaccination_checks", "false")) === "true") {
+    return { ok: true, perDog: dogs.map((dog) => ({ dogId: dog.id, dogName: dog.name, missingTypes: [] })) }
+  }
+
+  const requiredTypes = await getRequiredVaccineTypes()
 
   const perDog = dogs.map((dog) => {
     const missingTypes = requiredTypes.filter((requiredType) => {

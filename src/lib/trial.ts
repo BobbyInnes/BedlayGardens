@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma"
+import { getSetting } from "@/lib/settings"
 
 const NON_BLOCKING_STATUSES = ["DRAFT", "CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] as const
 
@@ -8,6 +9,8 @@ const NON_BLOCKING_STATUSES = ["DRAFT", "CANCELLED_BY_CUSTOMER", "CANCELLED_BY_A
  * PASSED TrialVisit yet. Empty array means the booking can proceed.
  */
 export async function checkTrialGate(serviceId: string, dogIds: string[]): Promise<string[]> {
+  if ((await getSetting("bypass_meet_greet_checks", "false")) === "true") return []
+
   const missing: string[] = []
   for (const dogId of dogIds) {
     const priorBooking = await prisma.booking.findFirst({

@@ -27,6 +27,8 @@ const settingsSchema = z.object({
   vat_enabled: z.enum(["true", "false"]),
   pupdates_included_free: z.enum(["true", "false"]),
   required_vaccine_types: z.string().trim().max(500),
+  bypass_vaccination_checks: z.enum(["true", "false"]),
+  bypass_meet_greet_checks: z.enum(["true", "false"]),
 })
 
 export async function updateSettings(
@@ -44,6 +46,8 @@ export async function updateSettings(
     vat_enabled: formData.get("vat_enabled") === "on" ? "true" : "false",
     pupdates_included_free: formData.get("pupdates_included_free") === "on" ? "true" : "false",
     required_vaccine_types: formData.get("required_vaccine_types") || "",
+    bypass_vaccination_checks: formData.get("bypass_vaccination_checks") === "on" ? "true" : "false",
+    bypass_meet_greet_checks: formData.get("bypass_meet_greet_checks") === "on" ? "true" : "false",
   })
   if (!parsed.success) {
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }

@@ -125,6 +125,38 @@ export function SettingsForm({ settings }: { settings: Record<string, string> })
         </Label>
       </div>
 
+      <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+        <div className="flex items-center gap-2">
+          <input
+            id="bypass_vaccination_checks"
+            name="bypass_vaccination_checks"
+            type="checkbox"
+            defaultChecked={settings.bypass_vaccination_checks === "true"}
+            className="size-4 rounded border-input"
+          />
+          <Label htmlFor="bypass_vaccination_checks" className="font-normal">
+            Bypass vaccination checks
+          </Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            id="bypass_meet_greet_checks"
+            name="bypass_meet_greet_checks"
+            type="checkbox"
+            defaultChecked={settings.bypass_meet_greet_checks === "true"}
+            className="size-4 rounded border-input"
+          />
+          <Label htmlFor="bypass_meet_greet_checks" className="font-normal">
+            Bypass Meet &amp; Greet checks
+          </Label>
+        </div>
+        <p className="text-sm text-destructive">
+          Site-wide overrides — while ticked, every booking skips that check entirely (no
+          certificate or passed-trial requirement at all, for every dog and every service). Use
+          with care.
+        </p>
+      </div>
+
       <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : "Save settings"}
       </Button>
