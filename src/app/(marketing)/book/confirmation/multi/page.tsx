@@ -138,7 +138,11 @@ export default async function MultiBookingConfirmationPage({
           <BatchPayButton
             bookingIds={pendingBookings.map((b) => b.id)}
             type="DEPOSIT"
-            label={`Pay deposit for all ${pendingBookings.length} dates — ${formatPence(depositTotalPence)}`}
+            label={
+              pendingBookings[0].service.paymentTiming === "FULL_UPFRONT"
+                ? `Pay for all ${pendingBookings.length} dates — ${formatPence(depositTotalPence)}`
+                : `Pay deposit for all ${pendingBookings.length} dates — ${formatPence(depositTotalPence)}`
+            }
           />
           {pendingBookings[0].service.paymentTiming === "DEPOSIT_THEN_BALANCE" && (
             <BatchPayButton

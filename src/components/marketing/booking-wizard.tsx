@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { AlertTriangle, Loader2, ScrollText } from "lucide-react"
+import { AlertTriangle, Flag, Loader2, ScrollText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -652,7 +652,13 @@ export function BookingWizard({
                 {checkingAvailability ? "Checking…" : "Check availability"}
               </Button>
               {availabilityChecked && (
-                <p className={available ? "text-sm text-primary" : "text-sm text-destructive"}>
+                <p
+                  className={`flex items-center gap-1.5 text-sm ${available ? "text-primary" : "text-destructive"}`}
+                >
+                  <Flag
+                    className={`size-4 shrink-0 ${available ? "text-emerald-600" : "text-red-600"}`}
+                    aria-hidden="true"
+                  />
                   {available
                     ? "Available!"
                     : (availabilityReason ?? "Sorry, not available for these dates.")}

@@ -57,7 +57,11 @@ export function BatchBookingCard({
           <BatchPayButton
             bookingIds={pendingBookings.map((b) => b.id)}
             type="DEPOSIT"
-            label={`Pay deposit for all ${pendingBookings.length} dates — ${formatPence(depositTotalPence)}`}
+            label={
+              first.service.paymentTiming === "FULL_UPFRONT"
+                ? `Pay for all ${pendingBookings.length} dates — ${formatPence(depositTotalPence)}`
+                : `Pay deposit for all ${pendingBookings.length} dates — ${formatPence(depositTotalPence)}`
+            }
             size="sm"
             fullWidth={false}
           />
