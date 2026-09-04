@@ -80,6 +80,7 @@ export function BookingActions({
   const cancellationTier = getCancellationTier(booking.startDate, freeDays, noRefundHours)
   const expectedRefundPence = getExpectedRefundPence(cancellationTier, depositPaidPence, balancePaidPence)
   const pendingInvoice = booking.payments.find((p) => p.type === "INVOICE" && p.status === "PENDING")
+  const hasPassedTrial = booking.trialVisits.some((tv) => tv.outcome === "PASSED")
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -129,15 +130,20 @@ export function BookingActions({
           </a>
         </Button>
       )}
-      {!NON_CANCELLABLE_STATUSES.includes(booking.status) && (
-        <CancelBookingButton
-          bookingId={booking.id}
-          paidPence={depositPaidPence + balancePaidPence}
-          expectedRefundPence={expectedRefundPence}
-          cancellationTier={cancellationTier}
-          freeDays={freeDays}
-        />
-      )}
+      {!NON_CANCELLABLE_STATUSES.includes(booking.status) &&
+        (hasPassedTrial ? (
+          <p className="text-xs text-muted-foreground">
+            This Meet &amp; Greet has passed and can no longer be cancelled.
+          </p>
+        ) : (
+          <CancelBookingButton
+            bookingId={booking.id}
+            paidPence={depositPaidPence + balancePaidPence}
+            expectedRefundPence={expectedRefundPence}
+            cancellationTier={cancellationTier}
+            freeDays={freeDays}
+          />
+        ))}
     </div>
   )
 }

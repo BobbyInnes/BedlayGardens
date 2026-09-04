@@ -38,13 +38,16 @@ export async function cancelBooking(bookingId: string, reason?: string): Promise
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
-    include: { payments: true, service: true, customer: true },
+    include: { payments: true, service: true, customer: true, trialVisits: true },
   })
   if (!booking || booking.customerId !== session.user.id) {
     return { status: "error", message: "Booking not found." }
   }
   if (NON_CANCELLABLE_STATUSES.includes(booking.status)) {
     return { status: "error", message: "This booking can no longer be cancelled." }
+  }
+  if (booking.trialVisits.some((tv) => tv.outcome === "PASSED")) {
+    return { status: "error", message: "This Meet & Greet has passed and can no longer be cancelled." }
   }
 
   const freeDays = Number(await getSetting("cancellation_free_days", "14"))
