@@ -33,7 +33,7 @@ function BookingRow({
   }
 }) {
   return (
-    <li className={`rounded-lg border p-3 text-sm ${bookingCardClasses(booking.service.name)}`}>
+    <li className={`rounded-lg border p-3 text-sm ${bookingCardClasses(booking.service.name, booking.status)}`}>
       <p className="font-medium">
         {booking.service.name} <BookingDogTag names={booking.bookingDogs.map((bd) => bd.dog.name)} />
       </p>

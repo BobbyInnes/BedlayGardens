@@ -50,7 +50,7 @@ function BookingRow({
   }
 }) {
   return (
-    <li className={`space-y-1 rounded-lg border p-3 text-sm ${bookingCardClasses(booking.service.name)}`}>
+    <li className={`space-y-1 rounded-lg border p-3 text-sm ${bookingCardClasses(booking.service.name, booking.status)}`}>
       <Link href={`/admin/bookings/${booking.id}`} className="block hover:underline">
         <p className="whitespace-nowrap font-medium">
           {booking.service.name} <BookingDogTag names={booking.bookingDogs.map((bd) => bd.dog.name)} />

@@ -56,7 +56,7 @@ export function BookingCard({
   const completedTrialVisits = booking.trialVisits.filter((tv) => tv.outcome)
 
   return (
-    <li className={`rounded-lg border p-4 text-sm ${bookingCardClasses(booking.service.name)}`}>
+    <li className={`rounded-lg border p-4 text-sm ${bookingCardClasses(booking.service.name, booking.status)}`}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="font-medium">
