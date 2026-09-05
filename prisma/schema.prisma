@@ -307,6 +307,11 @@ model Service {
   active            Boolean       @default(true)
   sortOrder         Int           @default(0)
   requiresTrial     Boolean       @default(false)
+  // Days before a booking's start date to email the customer an upcoming-booking
+  // reminder (outstanding balance + cancellation warning). Null = no reminder sent.
+  reminderDaysBefore       Int?
+  // Home Boarding only: a second, later reminder. Null elsewhere/unused.
+  secondReminderDaysBefore Int?
 
   bookings        Booking[]
   addons          Addon[]

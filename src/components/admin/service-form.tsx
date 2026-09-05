@@ -28,6 +28,7 @@ export function ServiceForm({
 }) {
   const [state, formAction, pending] = useActionState(action, initialState)
   const isDaycare = service?.slug === "daycare"
+  const isHomeBoarding = service?.slug === "overnight-boarding"
 
   return (
     <form action={formAction} className="max-w-xl space-y-5">
@@ -154,6 +155,44 @@ export function ServiceForm({
           Requires a passed meet & greet trial visit before a dog&rsquo;s first booking
         </span>
       </label>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="reminderDaysBefore">
+            {isHomeBoarding ? "1st reminder — days before booking" : "Reminder — days before booking"}
+          </Label>
+          <Input
+            id="reminderDaysBefore"
+            name="reminderDaysBefore"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            step={1}
+            defaultValue={service?.reminderDaysBefore ?? ""}
+            placeholder="e.g. 7"
+          />
+        </div>
+        {isHomeBoarding && (
+          <div className="space-y-2">
+            <Label htmlFor="secondReminderDaysBefore">2nd reminder — days before booking</Label>
+            <Input
+              id="secondReminderDaysBefore"
+              name="secondReminderDaysBefore"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              step={1}
+              defaultValue={service?.secondReminderDaysBefore ?? ""}
+              placeholder="e.g. 2"
+            />
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground sm:col-span-2">
+          Sends the customer an email reminding them of their upcoming booking, and warning that any
+          outstanding balance must be paid or the booking will be cancelled and any deposit forfeited.
+          Leave blank to send no reminder.
+        </p>
+      </div>
 
       <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : submitLabel}

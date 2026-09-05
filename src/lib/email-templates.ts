@@ -1188,6 +1188,64 @@ export function batchBookingReservedEmail(
   }
 }
 
+// Sent by the cron's upcoming-booking-reminder scan (see send-reminders'
+// sendUpcomingBookingReminders) once a service's configured
+// reminderDaysBefore/secondReminderDaysBefore is reached. Distinct from
+// balanceDueReminderEmail (fires off Booking.balanceDueDate, a fixed
+// per-booking date) and checkinReminderEmail (always the day before,
+// no payment framing) — this is an admin-configurable "days before the
+// booking" nudge that only mentions payment/cancellation risk when
+// there's actually something outstanding.
+export function upcomingBookingReminderEmail(
+  branding: EmailBranding,
+  booking: { serviceName: string; startDate: Date; endDate: Date },
+  outstandingPence: number
+): { subject: string; html: string } {
+  const dateLabel = dateRange(booking.startDate, booking.endDate)
+  return {
+    subject: `Reminder — your ${booking.serviceName} is coming up on ${dateLabel}`,
+    html: layout(
+      branding,
+      `Your ${booking.serviceName} is coming up`,
+      `
+        <p>Just a reminder that your <strong>${booking.serviceName}</strong> booking on <strong>${dateLabel}</strong> is coming up.</p>
+        ${
+          outstandingPence > 0
+            ? `<p>You still have an outstanding balance of <strong>${formatPence(outstandingPence)}</strong>. Please pay this before your booking date — if it isn't paid in time, this booking will be cancelled and any deposit already paid will not be refunded.</p>`
+            : `<p>Everything is paid up for this booking — we look forward to seeing you.</p>`
+        }
+      `
+    ),
+  }
+}
+
+// Sent by the same cron scan when a booking reaches its start date with an
+// outstanding balance still unpaid (service opted in via
+// reminderDaysBefore/secondReminderDaysBefore) — mirrors
+// vaccinationBookingCancelledEmail's no-refund wording, applied to unpaid
+// balances instead of missing certificates.
+export function unpaidBookingCancelledEmail(
+  branding: EmailBranding,
+  booking: { serviceName: string; startDate: Date }
+): { subject: string; html: string } {
+  const dateLabel = booking.startDate.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })
+  return {
+    subject: `Booking cancelled — outstanding balance unpaid`,
+    html: layout(
+      branding,
+      "Your booking has been cancelled",
+      `
+        <p>Your <strong>${booking.serviceName}</strong> booking on <strong>${dateLabel}</strong> has been cancelled — an outstanding balance was not paid in time.</p>
+        <p>As advised in your reminder email, any deposit already paid is not refundable in this case. Please get in touch if you have any questions, or log in to your account to book again.</p>
+      `
+    ),
+  }
+}
+
 // Sent by the pending-vaccination cron job when a booking's start date
 // arrives with the gate still unresolved — the booking is cancelled and
 // (per the warning given at booking time) any deposit already paid is

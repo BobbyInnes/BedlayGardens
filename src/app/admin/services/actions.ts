@@ -33,6 +33,8 @@ const serviceSchema = z.object({
   paymentTiming: z.enum(["FULL_UPFRONT", "DEPOSIT_THEN_BALANCE", "INVOICE_AFTER"]),
   sortOrder: z.coerce.number().int().default(0),
   requiresTrial: z.boolean().default(false),
+  reminderDaysBefore: z.coerce.number().int().min(0).optional().nullable(),
+  secondReminderDaysBefore: z.coerce.number().int().min(0).optional().nullable(),
 })
 
 function readServiceFields(formData: FormData) {
@@ -46,6 +48,8 @@ function readServiceFields(formData: FormData) {
     paymentTiming: formData.get("paymentTiming"),
     sortOrder: formData.get("sortOrder") || "0",
     requiresTrial: formData.get("requiresTrial") === "on",
+    reminderDaysBefore: formData.get("reminderDaysBefore") || undefined,
+    secondReminderDaysBefore: formData.get("secondReminderDaysBefore") || undefined,
   })
 }
 
@@ -123,6 +127,8 @@ export async function updateService(
       paymentTiming: before.paymentTiming,
       sortOrder: before.sortOrder,
       requiresTrial: before.requiresTrial,
+      reminderDaysBefore: before.reminderDaysBefore,
+      secondReminderDaysBefore: before.secondReminderDaysBefore,
     },
     {
       name: parsed.data.name,
@@ -134,6 +140,8 @@ export async function updateService(
       paymentTiming: parsed.data.paymentTiming,
       sortOrder: parsed.data.sortOrder,
       requiresTrial: parsed.data.requiresTrial,
+      reminderDaysBefore: parsed.data.reminderDaysBefore ?? null,
+      secondReminderDaysBefore: parsed.data.secondReminderDaysBefore ?? null,
     },
     {
       name: "Name",
@@ -144,6 +152,8 @@ export async function updateService(
       paymentTiming: "Payment timing",
       sortOrder: "Sort order",
       requiresTrial: "Requires trial",
+      reminderDaysBefore: "Reminder (days before)",
+      secondReminderDaysBefore: "Second reminder (days before)",
     }
   )
   const descriptionNote = newDescription !== before.description ? "Description: changed" : null

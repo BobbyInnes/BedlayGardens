@@ -793,22 +793,26 @@ export function BookingWizard({
             <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm">
               <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden="true" />
               <div>
-                <p className="font-medium">Vaccinations needed before booking:</p>
-                <ul className="mt-1 list-disc pl-5">
-                  {vaccinationWarning.map((entry) => (
-                    <li key={entry.dogName}>
-                      {entry.dogName}: {entry.missingTypes.join(", ")}
-                    </li>
-                  ))}
-                </ul>
+                {vaccinationWarning.map((entry) => (
+                  <div key={entry.dogName} className="mt-1 first:mt-0">
+                    <p className="font-medium">Vaccinations needed by {entry.dogName} before the booking date.</p>
+                    <p>{entry.missingTypes.join(", ")}</p>
+                  </div>
+                ))}
                 <Link href="/portal/vaccinations" className="mt-2 inline-block font-medium underline">
                   Add vaccination records
                 </Link>
                 <div className="mt-3 space-y-2 rounded-md border border-border bg-background p-3">
                   <p className="text-sm text-muted-foreground">
-                    Already added a certificate? Hit Continue below to re-check. Or you can book now anyway —
-                    it&apos;ll be placed on the waitlist. Upload all valid certificates before the booking date,
-                    or this booking will be cancelled and any deposit paid will not be refunded.
+                    Already added vaccine certificates? Click Continue below to re-verify your documents.
+                    Alternatively, you can proceed with your booking now, and your request will be placed on
+                    our waitlist, awaiting the upload of your valid vaccine certificates.
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">Important Note:</span> Please ensure that
+                    your active vaccine certifications cover the entirety of your selected booking period. All
+                    valid certificates must be uploaded prior to the booking start date; otherwise, the
+                    reservation will be automatically cancelled and any deposits paid will be non-refundable.
                   </p>
                   <Button
                     type="button"

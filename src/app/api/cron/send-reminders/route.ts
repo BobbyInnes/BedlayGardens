@@ -15,6 +15,8 @@ import {
   vaccinationBookingCancelledEmail,
   reviewRequestEmail,
   vaccinationReviewDigestEmail,
+  upcomingBookingReminderEmail,
+  unpaidBookingCancelledEmail,
 } from "@/lib/email-templates"
 import { createBookingInvoice } from "@/lib/invoicing"
 import { findAtRiskBookings } from "@/lib/booking-vaccination-risk"
@@ -77,6 +79,114 @@ async function sendBalanceDueReminders(settings: Record<string, string>) {
     sent++
   }
   return sent
+}
+
+// INVOICE_AFTER services collect nothing before the service itself, so
+// there's never a meaningful "outstanding balance" to warn about or forfeit
+// for them — always treated as fully settled here.
+function outstandingBalancePence(booking: {
+  totalPence: number
+  paymentTiming: string
+  payments: { type: string; status: string; amountPence: number }[]
+}) {
+  if (booking.paymentTiming === "INVOICE_AFTER") return 0
+  const paidPence = booking.payments
+    .filter((p) => p.status === "SUCCEEDED" && (p.type === "DEPOSIT" || p.type === "BALANCE"))
+    .reduce((sum, p) => sum + p.amountPence, 0)
+  return Math.max(0, booking.totalPence - paidPence)
+}
+
+// Admin-configurable "days before the booking" nudge (Service.reminderDaysBefore
+// / secondReminderDaysBefore — the second slot is only ever set for Home
+// Boarding, but this loops over whatever's configured rather than hardcoding
+// that). Unlike sendBalanceDueReminders (keyed off Booking.balanceDueDate)
+// this is a general "your booking is coming up" reminder that only adds the
+// payment/cancellation warning when there's actually something outstanding.
+async function sendUpcomingBookingReminders(settings: Record<string, string>) {
+  const services = await prisma.service.findMany({
+    where: { OR: [{ reminderDaysBefore: { not: null } }, { secondReminderDaysBefore: { not: null } }] },
+  })
+
+  let sent = 0
+  for (const service of services) {
+    for (const [slot, days] of [
+      [1, service.reminderDaysBefore],
+      [2, service.secondReminderDaysBefore],
+    ] as const) {
+      if (days == null) continue
+      const targetDate = addDays(today(), days)
+      const bookings = await prisma.booking.findMany({
+        where: { serviceId: service.id, startDate: targetDate, status: { in: ACTIVE_BOOKING_STATUSES } },
+        include: { customer: true, payments: true },
+      })
+
+      const logType = `UPCOMING_BOOKING_REMINDER_${slot}`
+      for (const booking of bookings) {
+        if (await alreadySent(logType, { bookingId: booking.id })) continue
+
+        const outstanding = outstandingBalancePence({ ...booking, paymentTiming: service.paymentTiming })
+        const email = upcomingBookingReminderEmail(
+          settings,
+          { serviceName: service.name, startDate: booking.startDate, endDate: booking.endDate },
+          outstanding
+        )
+        await notifyCustomer(booking.customerId, "UPCOMING_BOOKING_REMINDER", {
+          subject: email.subject,
+          html: email.html,
+          smsBody: `Reminder: your ${service.name} booking on ${booking.startDate.toLocaleDateString("en-GB")} is coming up.${outstanding > 0 ? ` £${(outstanding / 100).toFixed(2)} is still due.` : ""}`,
+        })
+        await prisma.emailLog.create({ data: { type: logType, bookingId: booking.id } })
+        sent++
+      }
+    }
+  }
+  return sent
+}
+
+// Companion to sendUpcomingBookingReminders — once a booking's start date
+// arrives with a service-opted-in outstanding balance still unpaid, cancel
+// it and forfeit any deposit already paid, exactly as warned in the
+// reminder email. Only applies to services with reminderDaysBefore or
+// secondReminderDaysBefore configured, so it changes nothing for services
+// left at the default (null).
+async function cancelUnresolvedUnpaidBookings(settings: Record<string, string>) {
+  const bookings = await prisma.booking.findMany({
+    where: {
+      startDate: { lte: today() },
+      status: { in: ACTIVE_BOOKING_STATUSES },
+      service: { OR: [{ reminderDaysBefore: { not: null } }, { secondReminderDaysBefore: { not: null } }] },
+    },
+    include: { service: true, customer: true, payments: true },
+  })
+
+  let cancelled = 0
+  for (const booking of bookings) {
+    const outstanding = outstandingBalancePence({ ...booking, paymentTiming: booking.service.paymentTiming })
+    if (outstanding <= 0) continue
+
+    await prisma.$transaction([
+      prisma.booking.update({
+        where: { id: booking.id },
+        data: {
+          status: "CANCELLED_BY_ADMIN",
+          cancellationReason: "Outstanding balance not paid before the booking date — deposit forfeited",
+          cancelledAt: new Date(),
+        },
+      }),
+      prisma.kennelOccupancy.deleteMany({ where: { bookingId: booking.id } }),
+      prisma.walkBooking.deleteMany({ where: { bookingId: booking.id } }),
+      prisma.vanRunStop.deleteMany({ where: { bookingId: booking.id } }),
+    ])
+    await offerNextInLine(booking.serviceId, booking.startDate)
+
+    const email = unpaidBookingCancelledEmail(settings, {
+      serviceName: booking.service.name,
+      startDate: booking.startDate,
+    })
+    await sendEmail({ to: booking.customer.email, subject: email.subject, html: email.html })
+    cancelled++
+  }
+  return cancelled
 }
 
 async function sendCheckinReminders(settings: Record<string, string>) {
@@ -347,6 +457,10 @@ export async function GET(request: Request) {
   // Runs before the reminder scan below so a booking cancelled today (start
   // date reached) isn't also sent a "still needed" reminder in the same run.
   const pendingVaccinationCancellations = await cancelUnresolvedPendingVaccinationBookings(settings)
+  // Same reasoning as above, for the upcoming-booking-reminder's own
+  // opted-in services: cancel first so today's cancellations don't also get
+  // today's reminder in the same run.
+  const unpaidBookingCancellations = await cancelUnresolvedUnpaidBookings(settings)
 
   const [
     balanceDueReminders,
@@ -354,6 +468,7 @@ export async function GET(request: Request) {
     vaccinationExpiryWarnings,
     bookingVaccinationRiskWarnings,
     pendingVaccinationReminders,
+    upcomingBookingReminders,
     vaccinationReviewDigest,
     reviewRequests,
   ] = await Promise.all([
@@ -362,6 +477,7 @@ export async function GET(request: Request) {
     sendVaccinationExpiryWarnings(settings),
     sendBookingVaccinationRiskWarnings(settings),
     sendPendingVaccinationReminders(settings),
+    sendUpcomingBookingReminders(settings),
     sendVaccinationReviewDigest(settings),
     sendReviewRequests(settings),
   ])
@@ -373,6 +489,8 @@ export async function GET(request: Request) {
     bookingVaccinationRiskWarnings,
     pendingVaccinationReminders,
     pendingVaccinationCancellations,
+    upcomingBookingReminders,
+    unpaidBookingCancellations,
     vaccinationReviewDigest,
     reviewRequests,
     invoicedBookings,

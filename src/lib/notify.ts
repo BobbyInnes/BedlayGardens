@@ -10,6 +10,7 @@ export type NotificationType =
   | "WAITLIST_JOINED"
   | "VACCINATION_REVIEWED"
   | "BOOKING_VACCINATION_RISK"
+  | "UPCOMING_BOOKING_REMINDER"
 
 /**
  * Sends a customer notification on their preferred channel(s) (defaulting to

@@ -1,10 +1,13 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { expireStaleOffers } from "@/lib/waitlist"
 import { WaitlistRow } from "@/components/admin/waitlist-row"
 import { offerToNextInLine } from "@/app/admin/waitlist/actions"
-import { fullName } from "@/lib/format"
+import { fullName, formatPence } from "@/lib/format"
+import { formatBookingNumber } from "@/lib/customer-dog-numbers"
+import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 
 export const metadata: Metadata = {
   title: "Waitlist | Admin",
@@ -13,11 +16,21 @@ export const metadata: Metadata = {
 export default async function AdminWaitlistPage() {
   await expireStaleOffers()
 
-  const entries = await prisma.waitlistEntry.findMany({
-    where: { status: { in: ["WAITING", "OFFERED"] } },
-    orderBy: { createdAt: "asc" },
-    include: { service: true, dog: true, customer: true },
-  })
+  const [entries, actionNeededBookings] = await Promise.all([
+    prisma.waitlistEntry.findMany({
+      where: { status: { in: ["WAITING", "OFFERED"] } },
+      orderBy: { createdAt: "asc" },
+      include: { service: true, dog: true, customer: true },
+    }),
+    // Mirrors the "Action needed" card on the customer's own portal waitlist
+    // (/portal/waitlist) — shown here too so admin can keep an eye on
+    // bookings at risk of auto-cancelling for a missing certificate.
+    prisma.booking.findMany({
+      where: { status: "PENDING_VACCINATION" },
+      orderBy: { startDate: "asc" },
+      include: { service: true, customer: true, bookingDogs: { include: { dog: true } } },
+    }),
+  ])
 
   const groups = new Map<
     string,
@@ -46,6 +59,54 @@ export default async function AdminWaitlistPage() {
           automatically offered to whoever is first in line.
         </p>
       </div>
+
+      {actionNeededBookings.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold">
+            Bookings needing action ({actionNeededBookings.length})
+          </h2>
+          <ul className="space-y-3">
+            {actionNeededBookings.map((booking) => (
+              <li key={booking.id} className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="font-medium">
+                      {booking.service.name}{" "}
+                      <BookingDogTag names={booking.bookingDogs.map((bd) => bd.dog.name)} />
+                    </p>
+                    <p className="text-muted-foreground">
+                      {fullName(booking.customer)} — {booking.customer.email}
+                    </p>
+                    <p className="text-muted-foreground">
+                      {booking.startDate.toLocaleDateString("en-GB")} —{" "}
+                      {formatBookingNumber(booking.bookingNumber)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">{formatPence(booking.totalPence)}</p>
+                    <p className="text-muted-foreground">Pending Vaccination</p>
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <p className="font-medium text-destructive">Action needed — vaccine certificate required</p>
+                  <p className="text-muted-foreground">
+                    Upload all valid, in-date certificates for{" "}
+                    {booking.bookingDogs.map((bd) => bd.dog.name).join(", ")} before{" "}
+                    {booking.startDate.toLocaleDateString("en-GB")}, or this booking will be cancelled and any
+                    deposit paid will not be refunded.
+                  </p>
+                  <Link
+                    href={`/admin/bookings/${booking.id}`}
+                    className="mt-1 inline-block font-medium underline"
+                  >
+                    View booking
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {groups.size > 0 ? (
         <div className="space-y-6">
@@ -92,7 +153,9 @@ export default async function AdminWaitlistPage() {
           })}
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">No one is currently on a waitlist.</p>
+        actionNeededBookings.length === 0 && (
+          <p className="text-sm text-muted-foreground">No one is currently on a waitlist.</p>
+        )
       )}
     </div>
   )
