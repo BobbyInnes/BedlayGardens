@@ -1157,6 +1157,37 @@ export function bookingReservedEmail(
   }
 }
 
+// Same as bookingReservedEmail but for a Day Care multi-date batch
+// (Booking.batchId) — one email covering every date reserved in the same
+// pass, rather than one per date. `totalPence`/`depositPence` are already
+// summed across the dates by the caller, same convention as
+// batchPaymentReceiptEmail.
+export function batchBookingReservedEmail(
+  branding: EmailBranding,
+  serviceName: string,
+  dates: Date[],
+  totalPence: number,
+  depositPence: number,
+  payUrl: string
+): { subject: string; html: string } {
+  const dateList = dates
+    .map((d) => d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }))
+    .join(", ")
+  const isFullPayment = depositPence === totalPence
+  return {
+    subject: `Booking reserved — pay to confirm your ${serviceName}`,
+    html: layout(
+      branding,
+      `Your ${serviceName} has been reserved`,
+      `
+        <p>We've reserved ${dates.length} <strong>${serviceName}</strong> booking${dates.length === 1 ? "" : "s"}: <strong>${dateList}</strong>.</p>
+        <p>To confirm ${dates.length === 1 ? "this booking" : "these bookings"}, please pay ${isFullPayment ? "the full amount" : "your deposit"} of <strong>${formatPence(depositPence)}</strong>. Your reservation isn't guaranteed until payment is received.</p>
+        <p style="margin: 16px 0;"><a href="${payUrl}" style="color: #3f5a3a; font-weight: bold;">Pay now to confirm your booking${dates.length === 1 ? "" : "s"} →</a></p>
+      `
+    ),
+  }
+}
+
 // Sent by the pending-vaccination cron job when a booking's start date
 // arrives with the gate still unresolved — the booking is cancelled and
 // (per the warning given at booking time) any deposit already paid is

@@ -22,6 +22,7 @@ import {
   bookingConfirmationDepositInvoiceEmail,
   pendingVaccinationEmail,
   bookingReservedEmail,
+  batchBookingReservedEmail,
 } from "@/lib/email-templates"
 import { logAudit } from "@/lib/audit"
 import { fullName } from "@/lib/format"
@@ -916,6 +917,35 @@ export async function createDaycareBookings(
       requiresTrialVisit: lastError?.requiresTrialVisit,
       failedDates,
     }
+  }
+
+  // Same "reserved, awaiting payment" notification as the single-booking
+  // flow (see createBooking) — one combined email covering every date that
+  // landed on PENDING_PAYMENT, rather than one per date. A date that
+  // instead landed on PENDING_VACCINATION already gets its own, more
+  // specific email. A failed notification email must not fail the booking.
+  try {
+    const created = await prisma.booking.findMany({
+      where: { id: { in: bookingIds }, status: "PENDING_PAYMENT" },
+      include: { service: true, customer: true },
+      orderBy: { startDate: "asc" },
+    })
+    if (created.length > 0) {
+      const settings = await getSettings()
+      const email = batchBookingReservedEmail(
+        settings,
+        created[0].service.name,
+        created.map((b) => b.startDate),
+        created.reduce((sum, b) => sum + b.totalPence, 0),
+        created.reduce((sum, b) => sum + b.depositPence, 0),
+        created.length > 1
+          ? `${getSiteUrl()}/book/confirmation/multi?ids=${created.map((b) => b.id).join(",")}`
+          : `${getSiteUrl()}/book/confirmation/${created[0].id}`
+      )
+      await sendEmail({ to: created[0].customer.email, subject: email.subject, html: email.html })
+    }
+  } catch (error) {
+    console.error("[book] failed to send booking-reserved email", error)
   }
 
   revalidatePath("/portal/bookings")
