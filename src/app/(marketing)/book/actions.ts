@@ -21,6 +21,7 @@ import {
   bookingConfirmationEmail,
   bookingConfirmationDepositInvoiceEmail,
   pendingVaccinationEmail,
+  bookingReservedEmail,
 } from "@/lib/email-templates"
 import { logAudit } from "@/lib/audit"
 import { fullName } from "@/lib/format"
@@ -837,6 +838,35 @@ export async function createBooking(
 
   const result = await resolveBookingCreation(session.user.id, input)
   if (result.status === "error") return result
+
+  // Awaiting payment (not yet confirmed) — let the customer know the slot
+  // is held but not locked in yet. A booking that instead landed on
+  // PENDING_VACCINATION already gets its own, more specific email; nothing
+  // to add for one that went straight to CONFIRMED (INVOICE_AFTER, nothing
+  // due now). A failed notification email must not fail the booking itself.
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: result.bookingId },
+      include: { service: true, customer: true },
+    })
+    if (booking && booking.status === "PENDING_PAYMENT") {
+      const settings = await getSettings()
+      const email = bookingReservedEmail(
+        settings,
+        {
+          serviceName: booking.service.name,
+          startDate: booking.startDate,
+          endDate: booking.endDate,
+          totalPence: booking.totalPence,
+          depositPence: booking.depositPence,
+        },
+        `${getSiteUrl()}/book/confirmation/${booking.id}`
+      )
+      await sendEmail({ to: booking.customer.email, subject: email.subject, html: email.html })
+    }
+  } catch (error) {
+    console.error("[book] failed to send booking-reserved email", error)
+  }
 
   revalidatePath("/portal/bookings")
   redirect(`/book/confirmation/${result.bookingId}`)

@@ -1128,6 +1128,35 @@ export function pendingVaccinationEmail(
   }
 }
 
+// Sent the moment a single-date booking is created but still needs payment
+// to actually confirm it (status PENDING_PAYMENT — the slot is held, not
+// locked in). Distinct from bookingConfirmationEmail (sent once payment
+// succeeds) and pendingVaccinationEmail (sent instead of this when the
+// vaccination gate also failed at booking time).
+export function bookingReservedEmail(
+  branding: EmailBranding,
+  booking: { serviceName: string; startDate: Date; endDate: Date; totalPence: number; depositPence: number },
+  payUrl: string
+): { subject: string; html: string } {
+  const dateLabel = dateRange(booking.startDate, booking.endDate)
+  // FULL_UPFRONT sets depositPence to the whole total (see paymentFieldsFor)
+  // — same reasoning as the payment-receipt/pending-vaccination emails, so
+  // this never calls a full payment a "deposit".
+  const isFullPayment = booking.depositPence === booking.totalPence
+  return {
+    subject: `Booking reserved — pay to confirm your ${booking.serviceName}`,
+    html: layout(
+      branding,
+      `Your ${booking.serviceName} has been reserved`,
+      `
+        <p>We've reserved your <strong>${booking.serviceName}</strong> booking on <strong>${dateLabel}</strong>.</p>
+        <p>To confirm this booking, please pay ${isFullPayment ? "the full amount" : "your deposit"} of <strong>${formatPence(booking.depositPence)}</strong>. Your reservation isn't guaranteed until payment is received.</p>
+        <p style="margin: 16px 0;"><a href="${payUrl}" style="color: #3f5a3a; font-weight: bold;">Pay now to confirm your booking →</a></p>
+      `
+    ),
+  }
+}
+
 // Sent by the pending-vaccination cron job when a booking's start date
 // arrives with the gate still unresolved — the booking is cancelled and
 // (per the warning given at booking time) any deposit already paid is
