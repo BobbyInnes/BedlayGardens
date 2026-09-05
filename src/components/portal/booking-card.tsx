@@ -10,6 +10,7 @@ import { RedeemCreditForm } from "@/components/portal/redeem-credit-form"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 import { TRIAL_OUTCOME_LABELS } from "@/lib/trial-outcome"
 import { bookingCardClasses } from "@/lib/booking-card-colors"
+import { formatBookingNumber } from "@/lib/customer-dog-numbers"
 import type { Booking, Service, Payment, TrialVisit, BookingDog, Dog } from "@/generated/prisma/client"
 
 export const NON_CANCELLABLE_STATUSES = [
@@ -196,6 +197,8 @@ export function BookingCard({
             {booking.endDate.getTime() !== booking.startDate.getTime()
               ? ` – ${booking.endDate.toLocaleDateString("en-GB")}`
               : ""}
+            {" — "}
+            {formatBookingNumber(booking.bookingNumber)}
           </p>
         </div>
         <div className="flex items-center gap-3">

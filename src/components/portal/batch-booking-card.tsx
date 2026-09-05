@@ -3,6 +3,7 @@ import { formatPence } from "@/lib/format"
 import { BatchPayButton } from "@/components/marketing/batch-pay-button"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 import { bookingCardClasses } from "@/lib/booking-card-colors"
+import { formatBookingNumber } from "@/lib/customer-dog-numbers"
 import { BookingActions, VaccinationNotice, type BookingCardBooking } from "@/components/portal/booking-card"
 
 // One combined card for a Day Care multi-date batch (Booking.batchId) —
@@ -83,6 +84,7 @@ export function BatchBookingCard({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="font-medium">{booking.startDate.toLocaleDateString("en-GB")}</p>
+                <p className="text-xs text-muted-foreground">{formatBookingNumber(booking.bookingNumber)}</p>
                 {!uniformStatus && (
                   <p className="text-xs text-muted-foreground capitalize">
                     {booking.status.toLowerCase().replace(/_/g, " ")}
