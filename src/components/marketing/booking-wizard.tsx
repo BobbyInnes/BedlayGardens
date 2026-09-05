@@ -960,9 +960,9 @@ export function BookingWizard({
 
           <p className="text-xs text-muted-foreground">
             {service.paymentTiming === "FULL_UPFRONT"
-              ? "Confirming reserves your booking — you'll then pay securely with Stripe to lock it in."
+              ? "Reserve your booking and then confirm it with payment via Stripe."
               : service.paymentTiming === "DEPOSIT_THEN_BALANCE"
-                ? "Confirming reserves your booking — you'll then pay your deposit securely with Stripe, and we'll collect the balance before check-in."
+                ? "Reserve your booking and then confirm it with your deposit via Stripe — we'll collect the balance before check-in."
                 : "Nothing to pay now — your booking is confirmed straight away and we'll email you an invoice after the service."}
           </p>
 
@@ -994,7 +994,8 @@ export function BookingWizard({
           </div>
           {termsError && (
             <p className="text-sm text-destructive">
-              You must agree to the Terms &amp; Conditions before confirming your booking.
+              You must agree to the Terms &amp; Conditions before{" "}
+              {service.paymentTiming === "INVOICE_AFTER" ? "confirming" : "reserving"} your booking.
             </p>
           )}
 
@@ -1003,7 +1004,13 @@ export function BookingWizard({
               Back
             </Button>
             <Button onClick={handleSubmit} disabled={submitting}>
-              {submitting ? "Confirming…" : "Confirm booking"}
+              {service.paymentTiming === "INVOICE_AFTER"
+                ? submitting
+                  ? "Confirming…"
+                  : "Confirm booking"
+                : submitting
+                  ? "Reserving…"
+                  : "Reserve booking"}
             </Button>
           </div>
           {submitError && requiresTrialVisit ? (
