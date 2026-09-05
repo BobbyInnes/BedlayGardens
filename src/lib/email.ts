@@ -32,13 +32,25 @@ export async function sendEmail(options: { to: string; subject: string; html: st
   }
 
   try {
-    await resend.emails.send({
+    // The SDK never throws for an API-level rejection (unverified/sandbox
+    // sender, invalid recipient, quota, etc.) — it resolves with { error }
+    // instead, so that has to be checked explicitly or a rejected send
+    // silently gets logged as SENT. Confirmed 2026-09-05: EMAIL_FROM was
+    // never set, so every send fell back to Resend's sandbox address
+    // (onboarding@resend.dev), which only delivers to the account's own
+    // verified email — every other recipient was being rejected this way.
+    const { error } = await resend.emails.send({
       from: process.env.EMAIL_FROM ?? "Bedlay Gardens <onboarding@resend.dev>",
       to: options.to,
       subject: options.subject,
       html: options.html,
       attachments: logoAttachment ? [logoAttachment] : undefined,
     })
+    if (error) {
+      console.error("[email] Resend rejected the email", error)
+      await logSentEmail(options, "FAILED", error.message)
+      return
+    }
     await logSentEmail(options, "SENT")
   } catch (error) {
     console.error("[email] Failed to send email", error)
