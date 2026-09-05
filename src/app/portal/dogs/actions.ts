@@ -33,22 +33,20 @@ const dogSchema = z.object({
       },
       { message: `Date of birth cannot be more than ${MAX_DOG_AGE_YEARS} years ago` }
     ),
-  sex: z.enum(["male", "female", ""]).optional(),
-  size: z.enum(["MINIATURE", "SMALL", "MEDIUM", "LARGE", "GIANT", ""]).optional(),
+  sex: z.enum(["male", "female"], { message: "Sex is required" }),
+  size: z.enum(["MINIATURE", "SMALL", "MEDIUM", "LARGE", "GIANT"], { message: "Pet size is required" }),
   neutered: z.coerce.boolean().optional(),
   weightKg: z.coerce
     .number()
-    .positive()
-    .max(MAX_DOG_WEIGHT_KG, `Weight cannot exceed ${MAX_DOG_WEIGHT_KG}kg`)
-    .optional()
-    .or(z.literal("")),
+    .positive("Weight is required")
+    .max(MAX_DOG_WEIGHT_KG, `Weight cannot exceed ${MAX_DOG_WEIGHT_KG}kg`),
   feedingNotes: z.string().trim().max(2000).optional(),
   medicationNotes: z.string().trim().max(2000).optional(),
   behaviourNotes: z.string().trim().max(2000).optional(),
   allergies: z.string().trim().max(2000).optional(),
   medicalHistorySummary: z.string().trim().max(2000).optional(),
   microchipNumber: z.string().trim().max(50).optional(),
-  color: z.string().trim().max(100).optional(),
+  color: z.string().trim().min(1, "Colour is required").max(100),
   // runType, temperament, and groupPlayApproved are deliberately not
   // accepted here — they're kennel-assessed fields set by admin staff (see
   // admin/customers/actions.ts), not something a customer submits.
@@ -206,10 +204,10 @@ export async function createDog(
       name: data.name,
       breed: data.breed,
       dob: data.dob ? new Date(data.dob) : null,
-      sex: data.sex || null,
-      size: data.size || null,
+      sex: data.sex,
+      size: data.size,
       neutered: !!data.neutered,
-      weightKg: data.weightKg === "" || data.weightKg === undefined ? null : data.weightKg,
+      weightKg: data.weightKg,
       feedingNotes: data.feedingNotes || null,
       medicationNotes: data.medicationNotes || null,
       behaviourNotes: data.behaviourNotes || null,
@@ -290,10 +288,10 @@ export async function updateDog(
     name: data.name,
     breed: data.breed,
     dob: data.dob ? new Date(data.dob) : null,
-    sex: data.sex || null,
-    size: data.size || null,
+    sex: data.sex,
+    size: data.size,
     neutered: !!data.neutered,
-    weightKg: data.weightKg === "" || data.weightKg === undefined ? null : data.weightKg,
+    weightKg: data.weightKg,
     // feedingNotes and medicationNotes are no longer form fields (their free-text
     // boxes were removed in favour of the structured Feeding instructions / Medical
     // history lists) — preserve whatever's on record rather than silently wiping it

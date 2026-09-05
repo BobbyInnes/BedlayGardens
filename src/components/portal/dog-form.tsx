@@ -267,6 +267,9 @@ export function DogForm({
                   <SelectItem value="female">Female</SelectItem>
                 </SelectContent>
               </Select>
+              {state.fieldErrors?.sex && (
+                <p className="text-sm text-destructive">{state.fieldErrors.sex}</p>
+              )}
             </div>
             <div className="space-y-1">
               <Label htmlFor="weightKg" className="text-xs font-normal">
@@ -279,6 +282,7 @@ export function DogForm({
                 step="0.1"
                 min="0"
                 max="200"
+                required
                 defaultValue={values ? values.weightKg : (dog?.weightKg ?? "")}
               />
               {state.fieldErrors?.weightKg && (
@@ -301,6 +305,9 @@ export function DogForm({
                   <SelectItem value="GIANT">Giant</SelectItem>
                 </SelectContent>
               </Select>
+              {state.fieldErrors?.size && (
+                <p className="text-sm text-destructive">{state.fieldErrors.size}</p>
+              )}
             </div>
             <div className="space-y-1">
               <Label htmlFor="microchipNumber" className="text-xs font-normal">
@@ -319,8 +326,12 @@ export function DogForm({
               <Input
                 id="color"
                 name="color"
+                required
                 defaultValue={values ? values.color : (dog?.color ?? "")}
               />
+              {state.fieldErrors?.color && (
+                <p className="text-sm text-destructive">{state.fieldErrors.color}</p>
+              )}
             </div>
           </div>
 
