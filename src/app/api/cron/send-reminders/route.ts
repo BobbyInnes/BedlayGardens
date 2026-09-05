@@ -19,6 +19,7 @@ import {
   unpaidBookingCancelledEmail,
 } from "@/lib/email-templates"
 import { createBookingInvoice } from "@/lib/invoicing"
+import { getSiteUrl } from "@/lib/stripe"
 import { findAtRiskBookings } from "@/lib/booking-vaccination-risk"
 import { offerNextInLine } from "@/lib/waitlist"
 import type { BookingStatus } from "@/generated/prisma/client"
@@ -117,7 +118,7 @@ async function sendUpcomingBookingReminders(settings: Record<string, string>) {
       const targetDate = addDays(today(), days)
       const bookings = await prisma.booking.findMany({
         where: { serviceId: service.id, startDate: targetDate, status: { in: ACTIVE_BOOKING_STATUSES } },
-        include: { customer: true, payments: true },
+        include: { customer: true, payments: true, bookingDogs: { include: { dog: true } } },
       })
 
       const logType = `UPCOMING_BOOKING_REMINDER_${slot}`
@@ -127,8 +128,14 @@ async function sendUpcomingBookingReminders(settings: Record<string, string>) {
         const outstanding = outstandingBalancePence({ ...booking, paymentTiming: service.paymentTiming })
         const email = upcomingBookingReminderEmail(
           settings,
-          { serviceName: service.name, startDate: booking.startDate, endDate: booking.endDate },
-          outstanding
+          {
+            serviceName: service.name,
+            startDate: booking.startDate,
+            endDate: booking.endDate,
+            dogNames: booking.bookingDogs.map((bd) => bd.dog.name),
+          },
+          outstanding,
+          `${getSiteUrl()}/book/confirmation/${booking.id}`
         )
         await notifyCustomer(booking.customerId, "UPCOMING_BOOKING_REMINDER", {
           subject: email.subject,

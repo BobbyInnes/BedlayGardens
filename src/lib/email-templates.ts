@@ -1195,23 +1195,29 @@ export function batchBookingReservedEmail(
 // per-booking date) and checkinReminderEmail (always the day before,
 // no payment framing) — this is an admin-configurable "days before the
 // booking" nudge that only mentions payment/cancellation risk when
-// there's actually something outstanding.
+// there's actually something outstanding. `payUrl` is only rendered when
+// there's a balance owing — it's the same booking-confirmation page used
+// by the reserved-booking emails, which already shows a "Pay balance"
+// button once a booking is CONFIRMED with money still due.
 export function upcomingBookingReminderEmail(
   branding: EmailBranding,
-  booking: { serviceName: string; startDate: Date; endDate: Date },
-  outstandingPence: number
+  booking: { serviceName: string; startDate: Date; endDate: Date; dogNames: string[] },
+  outstandingPence: number,
+  payUrl: string
 ): { subject: string; html: string } {
   const dateLabel = dateRange(booking.startDate, booking.endDate)
+  const dogList = booking.dogNames.join(" and ")
   return {
     subject: `Reminder — your ${booking.serviceName} is coming up on ${dateLabel}`,
     html: layout(
       branding,
       `Your ${booking.serviceName} is coming up`,
       `
-        <p>Just a reminder that your <strong>${booking.serviceName}</strong> booking on <strong>${dateLabel}</strong> is coming up.</p>
+        <p>Just a reminder that ${dogList ? `<strong>${dogList}</strong>&rsquo;s` : "your"} <strong>${booking.serviceName}</strong> booking on <strong>${dateLabel}</strong> is coming up.</p>
         ${
           outstandingPence > 0
-            ? `<p>You still have an outstanding balance of <strong>${formatPence(outstandingPence)}</strong>. Please pay this before your booking date — if it isn't paid in time, this booking will be cancelled and any deposit already paid will not be refunded.</p>`
+            ? `<p>You still have an outstanding balance of <strong>${formatPence(outstandingPence)}</strong>. Please pay this before your booking date — if it isn't paid in time, this booking will be cancelled and any deposit already paid will not be refunded.</p>
+               <p style="margin: 16px 0;"><a href="${payUrl}" style="color: #3f5a3a; font-weight: bold;">Pay outstanding balance →</a></p>`
             : `<p>Everything is paid up for this booking — we look forward to seeing you.</p>`
         }
       `

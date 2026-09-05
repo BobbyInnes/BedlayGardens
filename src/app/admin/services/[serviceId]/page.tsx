@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { formatPence } from "@/lib/format"
@@ -42,6 +43,16 @@ export default async function EditServicePage({
       </div>
 
       <ServiceForm service={service} action={boundUpdateService} submitLabel="Save changes" />
+
+      {(service.reminderDaysBefore != null || service.secondReminderDaysBefore != null) && (
+        <Link
+          href={`/admin/services/${service.id}/reminder-preview`}
+          target="_blank"
+          className="inline-block text-sm underline"
+        >
+          Preview reminder email(s) →
+        </Link>
+      )}
 
       <section className="max-w-2xl space-y-4">
         <h2 className="text-lg font-semibold">Add-ons</h2>
