@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -16,6 +17,7 @@ import { formatPence, fullName } from "@/lib/format"
 import { buildServiceColorMap } from "@/lib/service-colors"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 import { formatCustomerNumber } from "@/lib/customer-dog-numbers"
+import { BookingRowDeleteControl } from "@/components/admin/booking-row-delete-control"
 import type { BookingStatus } from "@/generated/prisma/client"
 
 export const metadata: Metadata = {
@@ -46,6 +48,8 @@ export default async function AdminBookingsPage({
   } = await searchParams
   const service = serviceParam === "ALL" ? "" : serviceParam
   const status = statusParam === "ALL" ? "" : statusParam
+  const session = await auth()
+  const isSuperAdmin = session?.user.isSuperAdmin ?? false
 
   const [bookings, services] = await Promise.all([
     prisma.booking.findMany({
@@ -132,11 +136,12 @@ export default async function AdminBookingsPage({
       {bookings.length > 0 ? (
         <ul className="divide-y divide-border rounded-lg border border-border">
           {bookings.map((booking) => (
-            <li key={booking.id}>
-              <Link
-                href={`/admin/bookings/${booking.id}`}
-                className="flex flex-wrap items-center justify-between gap-4 p-4 text-sm transition-colors hover:bg-muted/50 sm:p-5"
-              >
+            <li
+              key={booking.id}
+              className="flex items-center gap-3 p-4 text-sm transition-colors hover:bg-muted/50 sm:p-5"
+            >
+              {isSuperAdmin && <BookingRowDeleteControl bookingId={booking.id} />}
+              <Link href={`/admin/bookings/${booking.id}`} className="flex flex-1 flex-wrap items-center justify-between gap-4">
                 <div>
                   <p className="font-semibold text-foreground">
                     {fullName(booking.customer)}{" "}
