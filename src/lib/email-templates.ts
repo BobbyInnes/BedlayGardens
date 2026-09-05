@@ -763,6 +763,22 @@ export function previewBookingConfirmationDepositInvoiceEmail(
   }
 }
 
+// A "pay in full when booking" (FULL_UPFRONT) service's payment is stored
+// as a DEPOSIT-typed Payment row for the whole amount — Stripe only gives
+// one PaymentIntent per session and PaymentType has no "FULL" value — so
+// depositPence === totalPence (nothing left over for a separate balance
+// stage) is the reliable signal that a "DEPOSIT" payment is really the
+// full price, regardless of what the caller happened to label it as.
+// Fixing this here, at the display layer, covers every caller of
+// paymentReceiptEmail without touching any actual payment-processing logic.
+function effectivePaymentReceiptType(
+  booking: { depositPence: number; totalPence: number },
+  paymentType: "DEPOSIT" | "BALANCE" | "INVOICE" | "FULL"
+): "DEPOSIT" | "BALANCE" | "INVOICE" | "FULL" {
+  if (paymentType === "DEPOSIT" && booking.depositPence === booking.totalPence) return "FULL"
+  return paymentType
+}
+
 function buildPaymentReceiptVars(
   branding: EmailBranding,
   booking: BookingSummary,
@@ -771,10 +787,11 @@ function buildPaymentReceiptVars(
   // enough credit/voucher to cover the whole booking upfront) — same
   // "nothing more to do" copy as BALANCE, just a different label since no
   // deposit/balance split actually happened.
-  paymentType: "DEPOSIT" | "BALANCE" | "INVOICE" | "FULL",
+  rawPaymentType: "DEPOSIT" | "BALANCE" | "INVOICE" | "FULL",
   portalBookingsUrl: string,
   vat: InvoiceVatDetails
 ): Record<string, string> {
+  const paymentType = effectivePaymentReceiptType(booking, rawPaymentType)
   const dogLabel = booking.dogNames && booking.dogNames.length > 0 ? booking.dogNames.join(", ") : "your dog"
   const label =
     paymentType === "DEPOSIT"
@@ -852,6 +869,24 @@ function buildPaymentReceiptVars(
   }
 }
 
+// EMAIL_TEMPLATE_DEFS.PAYMENT_RECEIPT.heading is the generic fallback name
+// ("Deposit Payment Receipt") shown in the admin template editor — the
+// actual in-email heading varies with what was really paid (see
+// effectivePaymentReceiptType), so a full-upfront service's receipt never
+// says "Deposit" at all.
+function paymentReceiptHeading(paymentType: "DEPOSIT" | "BALANCE" | "INVOICE" | "FULL"): string {
+  switch (paymentType) {
+    case "DEPOSIT":
+      return "Deposit Payment Receipt"
+    case "BALANCE":
+      return "Balance Payment Receipt"
+    case "FULL":
+      return "Payment Receipt"
+    case "INVOICE":
+      return "Invoice Payment Receipt"
+  }
+}
+
 // Subject/surrounding text are admin-editable (EMAIL_TEMPLATE_DEFS.
 // PAYMENT_RECEIPT) — see buildPaymentReceiptVars for what each merge field
 // resolves to. `portalBookingsUrl` is where payLinkBlock's "pay the
@@ -866,7 +901,8 @@ export async function paymentReceiptEmail(
 ): Promise<{ subject: string; html: string }> {
   const vars = buildPaymentReceiptVars(branding, booking, amountPence, paymentType, portalBookingsUrl, vat)
   const tpl = await resolveEmailTemplate("PAYMENT_RECEIPT", vars)
-  return { subject: tpl.subject, html: layout(branding, EMAIL_TEMPLATE_DEFS.PAYMENT_RECEIPT.heading, tpl.bodyHtml) }
+  const heading = paymentReceiptHeading(effectivePaymentReceiptType(booking, paymentType))
+  return { subject: tpl.subject, html: layout(branding, heading, tpl.bodyHtml) }
 }
 
 // Same sample-data preview convenience as previewBookingConfirmationInvoiceEmail.
@@ -899,7 +935,11 @@ export function previewPaymentReceiptEmail(
   )
   return {
     subject: renderMergeFields(subjectTemplate, vars),
-    html: layout(branding, EMAIL_TEMPLATE_DEFS.PAYMENT_RECEIPT.heading, renderMergeFields(bodyTemplate, vars)),
+    html: layout(
+      branding,
+      paymentReceiptHeading(effectivePaymentReceiptType(sampleBooking, "DEPOSIT")),
+      renderMergeFields(bodyTemplate, vars)
+    ),
   }
 }
 
