@@ -38,7 +38,13 @@ function recordCoversType(recordType: string, requiredType: string): boolean {
   return (BRAND_ALIASES[required] ?? []).some((alias) => record.includes(alias))
 }
 
-/** A dog "has" a required type if any record of that type covers through `throughDate`. */
+/**
+ * A dog "has" a required type only if a record of that type covers through
+ * `throughDate` AND staff have verified it (status VERIFIED) — an
+ * UNVERIFIED record (just uploaded, not yet reviewed) must not satisfy the
+ * gate on its own, or a dog could book/advance off the waitlist purely by
+ * uploading a document before staff ever check it.
+ */
 export async function checkVaccinationGate(
   dogIds: string[],
   throughDate: Date
@@ -57,7 +63,9 @@ export async function checkVaccinationGate(
     const missingTypes = requiredTypes.filter((requiredType) => {
       return !dog.vaccinationRecords.some(
         (record) =>
-          recordCoversType(record.type, requiredType) && record.expiryDate >= throughDate
+          record.status === "VERIFIED" &&
+          recordCoversType(record.type, requiredType) &&
+          record.expiryDate >= throughDate
       )
     })
     return { dogId: dog.id, dogName: dog.name, missingTypes }
