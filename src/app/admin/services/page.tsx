@@ -30,7 +30,7 @@ export default async function AdminServicesPage() {
         </Button>
       </div>
 
-      <ul className="divide-y divide-border rounded-lg border border-border">
+      <ul className="max-w-3xl divide-y divide-border rounded-lg border border-border">
         {services.map((service) => (
           <li key={service.id} className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
             <div>
