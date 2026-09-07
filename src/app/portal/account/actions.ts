@@ -5,21 +5,16 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import bcrypt from "bcryptjs"
 import { z } from "zod"
-import { Prisma, type NotificationChannel } from "@/generated/prisma/client"
+import { Prisma } from "@/generated/prisma/client"
 import { auth, signOut } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { stripe, getSiteUrl } from "@/lib/stripe"
-import { setOptOut } from "@/lib/notification-preferences"
+import { setOptOut, setPetCareUpdatesPreference } from "@/lib/notification-preferences"
 import { logEntityChange } from "@/lib/audit"
 import { fullName } from "@/lib/format"
 import { SALUTATIONS } from "@/lib/salutations"
 
 export type ActionState = { status: "idle" | "success" | "error"; message?: string }
-
-// The channel is echoed back on success so the UI can trust the action's own
-// response as the source of truth, rather than depending on the page
-// re-fetching fresh props after the mutation (which proved unreliable here).
-export type NotificationActionState = ActionState & { channel?: NotificationChannel }
 
 const profileSchema = z
   .object({
@@ -289,46 +284,38 @@ export async function changePassword(
   return { status: "success", message: "Password updated." }
 }
 
-const notificationPreferenceSchema = z.object({
-  channel: z.enum(["EMAIL", "SMS", "BOTH", "NONE"]),
-})
-
-export async function updateNotificationPreference(
-  _prevState: NotificationActionState,
-  formData: FormData
-): Promise<NotificationActionState> {
+// Backs every toggle in NotificationSettingsForm (portal) and mirrors the
+// registration-time write in (marketing)/register/actions.ts. "marketing"
+// has no SMS variant — there's no marketing content ever sent by SMS in this
+// app (see notification-preferences.ts) — so that combination is rejected
+// rather than silently accepted and doing nothing.
+export async function setNotificationPreference(
+  category: "petCareUpdates" | "marketing",
+  channel: "email" | "sms",
+  enabled: boolean
+): Promise<ActionState> {
   const session = await auth()
   if (!session?.user) return { status: "error", message: "Unauthorized" }
 
-  const parsed = notificationPreferenceSchema.safeParse({ channel: formData.get("channel") })
-  if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
+  if (category === "marketing" && channel === "sms") {
+    return { status: "error", message: "Marketing messages aren't sent by SMS." }
   }
 
-  if (parsed.data.channel === "SMS" || parsed.data.channel === "BOTH") {
+  if (channel === "sms" && enabled) {
     const user = await prisma.user.findUnique({ where: { id: session.user.id } })
     if (!user?.phone) {
-      return { status: "error", message: "Add a phone number above before enabling SMS." }
+      return { status: "error", message: "Add a Mobile Tel-No above before enabling SMS." }
     }
   }
 
-  await prisma.notificationPreference.upsert({
-    where: { customerId: session.user.id },
-    update: { channel: parsed.data.channel },
-    create: { customerId: session.user.id, channel: parsed.data.channel },
-  })
+  if (category === "marketing") {
+    await setOptOut(session.user.id, "ABANDONED_BOOKING_REMINDER", !enabled)
+  } else {
+    await setPetCareUpdatesPreference(session.user.id, channel, enabled)
+  }
 
   revalidatePath("/portal/account")
-  return { status: "success", message: "Notification preference saved.", channel: parsed.data.channel }
-}
-
-export async function setAbandonedBookingOptOut(optedOut: boolean): Promise<ActionState> {
-  const session = await auth()
-  if (!session?.user) return { status: "error", message: "Unauthorized" }
-
-  await setOptOut(session.user.id, "ABANDONED_BOOKING_REMINDER", optedOut)
-  revalidatePath("/portal/account")
-  return { status: "success", message: optedOut ? "You won't receive these reminders." : "Reminders re-enabled." }
+  return { status: "success", message: "Notification settings saved." }
 }
 
 export async function openBillingPortal(): Promise<ActionState> {

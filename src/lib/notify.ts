@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { sendSms } from "@/lib/sms"
+import { derivePetCareUpdatesPreference } from "@/lib/notification-preferences"
 
 export type NotificationType =
   | "PICKUP_DROPOFF"
@@ -13,10 +14,12 @@ export type NotificationType =
   | "UPCOMING_BOOKING_REMINDER"
 
 /**
- * Sends a customer notification on their preferred channel(s) (defaulting to
- * email-only when no NotificationPreference row exists) and logs every send
- * to MessageLog. SMS is silently skipped if the customer has no phone number
- * on file, even if their preference is SMS/BOTH.
+ * Sends a customer notification on their "Pet Care Updates" channel(s) —
+ * every NotificationType here falls in that notification-settings group,
+ * gated per-channel via NotificationPreference (see
+ * lib/notification-preferences.ts for the email/SMS default rules) — and
+ * logs every send to MessageLog. SMS is silently skipped if the customer has
+ * no phone number on file, even if their preference has SMS enabled.
  */
 export async function notifyCustomer(
   customerId: string,
@@ -29,16 +32,16 @@ export async function notifyCustomer(
   ])
   if (!customer) return
 
-  const channel = preference?.channel ?? "EMAIL"
+  const { email, sms } = derivePetCareUpdatesPreference(preference?.perType ?? null, preference?.channel ?? null)
 
-  if (channel === "EMAIL" || channel === "BOTH") {
+  if (email) {
     await sendEmail({ to: customer.email, subject: content.subject, html: content.html })
     await prisma.messageLog.create({
       data: { customerId, channel: "EMAIL", type, payload: content.subject, status: "SENT" },
     })
   }
 
-  if ((channel === "SMS" || channel === "BOTH") && customer.phone) {
+  if (sms && customer.phone) {
     const sent = await sendSms(customer.phone, content.smsBody)
     await prisma.messageLog.create({
       data: { customerId, channel: "SMS", type, payload: content.smsBody, status: sent ? "SENT" : "FAILED" },

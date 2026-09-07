@@ -11,6 +11,7 @@ import { sendEmail } from "@/lib/email"
 import { welcomeEmail } from "@/lib/email-templates"
 import { fullName } from "@/lib/format"
 import { SALUTATIONS } from "@/lib/salutations"
+import { setOptOut, setPetCareUpdatesPreference } from "@/lib/notification-preferences"
 
 const registerSchema = z
   .object({
@@ -44,6 +45,9 @@ type RegisterFieldValues = {
   addressLine2: string
   addressCity: string
   addressPostcode: string
+  notifyPetCareEmail: boolean
+  notifyMarketingEmail: boolean
+  notifyPetCareSms: boolean
 }
 
 export type RegisterState = {
@@ -87,6 +91,14 @@ export async function registerAction(
     addressLine2: String(formData.get("addressLine2") ?? ""),
     addressCity: String(formData.get("addressCity") ?? ""),
     addressPostcode: String(formData.get("addressPostcode") ?? ""),
+    // Notification-settings toggles aren't part of registerSchema below —
+    // they're plain on/off switches with nothing to validate, same
+    // convention as other boolean form fields in this codebase (e.g.
+    // isSuperAdmin in staff/team/actions.ts): read directly as
+    // formData.get(name) === "on".
+    notifyPetCareEmail: formData.get("notifyPetCareEmail") === "on",
+    notifyMarketingEmail: formData.get("notifyMarketingEmail") === "on",
+    notifyPetCareSms: formData.get("notifyPetCareSms") === "on",
   }
 
   const parsed = registerSchema.safeParse({
@@ -153,6 +165,14 @@ export async function registerAction(
     entityId: user.id,
     meta: `${fullName(user)} <${user.email}> — self-registered`,
   })
+
+  // Only write a NotificationPreference row when the customer deviated from
+  // the defaults (Pet Care Updates + Marketing Emails on by email, SMS off)
+  // — matches every existing customer's implicit default, so an untouched
+  // account doesn't need a row at all.
+  if (!values.notifyPetCareEmail) await setPetCareUpdatesPreference(user.id, "email", false)
+  if (values.notifyPetCareSms) await setPetCareUpdatesPreference(user.id, "sms", true)
+  if (!values.notifyMarketingEmail) await setOptOut(user.id, "ABANDONED_BOOKING_REMINDER", true)
 
   // A failed welcome email must not fail the registration itself.
   try {

@@ -10,6 +10,7 @@ import { ToggleActiveButton } from "@/components/admin/toggle-active-button"
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
 import { CustomerNotesForm } from "@/components/admin/customer-notes-form"
 import { CustomerDetailsForm } from "@/components/admin/customer-details-form"
+import { CustomerNotificationSettingsForm } from "@/components/admin/customer-notification-settings-form"
 import { DogFlagsManager } from "@/components/admin/dog-flags-manager"
 import { DogCareProfileForm } from "@/components/admin/dog-care-profile-form"
 import { AddVaccinationForm } from "@/components/admin/add-vaccination-form"
@@ -19,6 +20,7 @@ import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 import { bookingCardClasses } from "@/lib/booking-card-colors"
 import { formatCustomerNumber, formatDogNumber } from "@/lib/customer-dog-numbers"
 import { toggleCustomerActive, deleteCustomer } from "@/app/admin/customers/actions"
+import { getPetCareUpdatesPreference, isOptedOut } from "@/lib/notification-preferences"
 import { getAvailableCreditPence } from "@/lib/vouchers"
 import { canManageAdmins } from "@/lib/admin-permissions"
 import { TRIAL_OUTCOME_LABELS } from "@/lib/trial-outcome"
@@ -101,7 +103,11 @@ export default async function AdminCustomerDetailPage({
     }),
   ])
   if (!customer) notFound()
-  const creditBalancePence = await getAvailableCreditPence(customer.id)
+  const [creditBalancePence, petCareUpdates, marketingOptedOut] = await Promise.all([
+    getAvailableCreditPence(customer.id),
+    getPetCareUpdatesPreference(customer.id),
+    isOptedOut(customer.id, "ABANDONED_BOOKING_REMINDER"),
+  ])
   const viewerCanManageAdmins = session ? await canManageAdmins(session) : false
 
   const revenuePence = customer.bookings.reduce((sum, booking) => {
@@ -174,6 +180,16 @@ export default async function AdminCustomerDetailPage({
               addressLine2={customer.addressLine2 ?? ""}
               addressCity={customer.addressCity ?? ""}
               addressPostcode={customer.addressPostcode ?? ""}
+            />
+          </section>
+
+          <section className="space-y-3 rounded-lg border border-gray-200 bg-gray-100 p-4">
+            <h2 className="text-sm font-semibold">Notification Settings</h2>
+            <CustomerNotificationSettingsForm
+              customerId={customer.id}
+              petCareEmail={petCareUpdates.email}
+              petCareSms={petCareUpdates.sms}
+              marketingEmail={!marketingOptedOut}
             />
           </section>
 

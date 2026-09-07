@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
+import { NotificationSettingsFields } from "@/components/marketing/notification-settings-fields"
 import { registerAction, type RegisterState } from "@/app/(marketing)/register/actions"
 import { SALUTATIONS } from "@/lib/salutations"
 
@@ -14,11 +16,14 @@ export function RegisterForm() {
   const [state, formAction, pending] = useActionState(registerAction, initialState)
   // On error, the action echoes back whatever was submitted (password
   // excluded) so a failed submission refills the form instead of blanking
-  // it — remount (via `key` below) so these `defaultValue`s take effect.
+  // it — remount (via `key` below) so these `defaultValue`s/`defaultChecked`s
+  // take effect.
   const values = state.status === "error" ? state.values : undefined
 
   return (
     <form key={values ? JSON.stringify(values) : "initial"} action={formAction} className="space-y-5">
+      <Label className="font-bold text-primary">Personal settings</Label>
+
       <div className="grid gap-4 sm:grid-cols-[120px_1fr_1fr]">
         <div className="space-y-2">
           <Label htmlFor="salutation">Title</Label>
@@ -84,7 +89,7 @@ export function RegisterForm() {
         )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="homePhone" className="whitespace-nowrap">Home Tel-No</Label>
           <PhoneInput id="homePhone" name="homePhone" defaultValue={values?.homePhone} autoComplete="tel" />
@@ -145,6 +150,14 @@ export function RegisterForm() {
           />
         </div>
       </div>
+
+      <Separator />
+
+      <NotificationSettingsFields
+        defaultPetCareEmail={values ? values.notifyPetCareEmail : true}
+        defaultMarketingEmail={values ? values.notifyMarketingEmail : true}
+        defaultPetCareSms={values ? values.notifyPetCareSms : false}
+      />
 
       <Button type="submit" disabled={pending} className="w-full">
         {pending ? "Creating account…" : "Create account"}

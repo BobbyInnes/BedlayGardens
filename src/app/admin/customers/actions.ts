@@ -9,6 +9,7 @@ import { sendEmail } from "@/lib/email"
 import { getSettings } from "@/lib/settings"
 import { formatPence, fullName } from "@/lib/format"
 import { canManageAdmins } from "@/lib/admin-permissions"
+import { setOptOut, setPetCareUpdatesPreference } from "@/lib/notification-preferences"
 import { deleteCustomerAndAllData } from "@/lib/delete-customer"
 import { saveUpload } from "@/lib/storage"
 import { checkWaitlistAfterVaccination } from "@/lib/waitlist"
@@ -105,6 +106,47 @@ export async function updateCustomerContactDetails(
 
   revalidatePath(`/admin/customers/${customerId}`)
   return { status: "idle", message: "Details saved." }
+}
+
+// Mirrors setNotificationPreference in portal/account/actions.ts (same
+// category/channel rules — see notification-preferences.ts for why
+// marketing has no SMS variant) but admin-gated and checking the *customer's*
+// phone number rather than the signed-in user's.
+export async function setCustomerNotificationPreference(
+  customerId: string,
+  category: "petCareUpdates" | "marketing",
+  channel: "email" | "sms",
+  enabled: boolean
+): Promise<AdminActionState> {
+  const session = await requireAdmin()
+
+  if (category === "marketing" && channel === "sms") {
+    return { status: "error", message: "Marketing messages aren't sent by SMS." }
+  }
+
+  if (channel === "sms" && enabled) {
+    const customer = await prisma.user.findUnique({ where: { id: customerId } })
+    if (!customer?.phone) {
+      return { status: "error", message: "This customer has no Mobile Tel-No on file." }
+    }
+  }
+
+  if (category === "marketing") {
+    await setOptOut(customerId, "ABANDONED_BOOKING_REMINDER", !enabled)
+  } else {
+    await setPetCareUpdatesPreference(customerId, channel, enabled)
+  }
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_CUSTOMER_NOTIFICATION_PREFERENCE",
+    entity: "User",
+    entityId: customerId,
+    meta: `${category} (${channel}) — ${enabled ? "on" : "off"}`,
+  })
+
+  revalidatePath(`/admin/customers/${customerId}`)
+  return { status: "idle", message: "Notification settings saved." }
 }
 
 export async function toggleCustomerActive(customerId: string, active: boolean) {
