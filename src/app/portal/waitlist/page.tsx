@@ -74,10 +74,11 @@ export default async function PortalWaitlistPage() {
     <div className="max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Waitlist</h1>
-        <p className="mt-1 text-sm text-destructive">
-          Bookings that need something from you (like a vaccine certificate or a meet and greet) and any
-          waitlist spots you&rsquo;re waiting on both show here — we&rsquo;ll email you the moment a waitlist
-          space opens up.
+        <p className="mt-1 text-sm text-foreground">
+          Bookings that need something from you (like a{" "}
+          <span className="text-destructive">vaccine certificate</span> or a{" "}
+          <span className="text-destructive">meet and greet</span>) and any waitlist spots you&rsquo;re
+          waiting on both show here — we&rsquo;ll email you the moment a waitlist space opens up.
         </p>
       </div>
 
