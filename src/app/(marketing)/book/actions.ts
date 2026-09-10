@@ -30,7 +30,7 @@ import { fullName } from "@/lib/format"
 import { GROUP_BLOCKING_FLAGS, SHARED_KENNEL_BLOCKING_FLAGS, DOG_FLAG_LABELS } from "@/lib/dog-flags"
 import { largestDogSize } from "@/lib/dog-size-colors"
 import { hasCurrentSignedAgreement } from "@/lib/agreement"
-import { checkTrialGate } from "@/lib/trial"
+import { checkTrialGate, serviceRequiresTrial } from "@/lib/trial"
 import { getApplicablePriceRules, minNightsRequired } from "@/lib/price-rules"
 import {
   findDogBookingConflicts,
@@ -193,7 +193,7 @@ export async function resolveBookingCreation(
     }
   }
 
-  if (service.requiresTrial) {
+  if (serviceRequiresTrial(service)) {
     const missingTrial = await checkTrialGate(service.id, data.dogIds)
     if (missingTrial.length > 0) {
       return {

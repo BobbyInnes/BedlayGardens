@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma"
 import { logAudit } from "@/lib/audit"
 import { notifyCustomerVaccinationReviewed } from "@/lib/vaccination-review-notify"
 import { fullName } from "@/lib/format"
+import { checkPendingVaccinationBookings } from "@/lib/booking-vaccination-risk"
+import { checkWaitlistAfterVaccination } from "@/lib/waitlist"
 
 async function requireStaff() {
   const session = await auth()
@@ -41,7 +43,19 @@ export async function verifyVaccinationRecord(
     status,
   })
 
+  // Verifying a customer's upload is itself a vaccination event, same as
+  // the other two ways a record can end up VERIFIED (admin adding one
+  // manually, or the gate checked again at check-in) — without this, a
+  // PENDING_VACCINATION booking stayed stuck showing "Action needed" even
+  // after the certificate it was waiting on was verified.
+  if (status === "VERIFIED") {
+    await checkWaitlistAfterVaccination(record.dogId)
+    await checkPendingVaccinationBookings(record.dogId)
+  }
+
   revalidatePath("/staff/vaccinations")
   revalidatePath("/admin/vaccinations")
   revalidatePath("/portal/vaccinations")
+  revalidatePath("/portal/waitlist")
+  revalidatePath("/portal/bookings")
 }

@@ -186,7 +186,11 @@ export function VaccinationNotice({ booking }: { booking: BookingCardBooking }) 
 // requiresTrial services block booking creation on a missing evaluation
 // (see checkTrialGate) — other services (e.g. Dog Walking) can still be
 // booked with the evaluation outstanding, and this is where that shows.
+// Never shown on a meet-greet booking itself — that booking IS how the dog
+// gets its evaluation, so "not evaluated yet" ahead of its own Meet & Greet
+// isn't an action item, it's just not time yet.
 export function EvaluationNotice({ booking }: { booking: BookingCardBooking }) {
+  if (booking.service.slug === "meet-greet") return null
   if (EVALUATION_NOTICE_DONE_STATUSES.includes(booking.status)) return null
   const outstandingNames = booking.bookingDogs
     .map((bd) => bd.dog)

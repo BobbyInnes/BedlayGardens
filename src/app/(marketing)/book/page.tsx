@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma"
 import { formatPriceWithSuffix } from "@/lib/format"
 import { formatPenceCompact } from "@/lib/service-display"
 import { sanitizeRichText } from "@/lib/sanitize-html"
-import { checkTrialGate, formatTrialGateMessage } from "@/lib/trial"
+import { checkTrialGate, formatTrialGateMessage, serviceRequiresTrial } from "@/lib/trial"
 import { BookServiceList, type BookServiceTileData } from "@/components/marketing/book-service-list"
 import { Button } from "@/components/ui/button"
 
@@ -42,7 +42,7 @@ export default async function BookPage() {
   const tiles: BookServiceTileData[] = await Promise.all(
     services.map(async (service) => {
       let blockedMessage: string | null = null
-      if (service.requiresTrial && dogs.length > 0) {
+      if (serviceRequiresTrial(service) && dogs.length > 0) {
         const missing = await checkTrialGate(
           service.id,
           dogs.map((dog) => dog.id)

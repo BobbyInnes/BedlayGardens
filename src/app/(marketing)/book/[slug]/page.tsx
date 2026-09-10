@@ -6,7 +6,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { getSettings } from "@/lib/settings"
 import { hasCurrentSignedAgreement } from "@/lib/agreement"
-import { checkTrialGate, formatTrialGateMessage } from "@/lib/trial"
+import { checkTrialGate, formatTrialGateMessage, serviceRequiresTrial } from "@/lib/trial"
 import { BookingWizard } from "@/components/marketing/booking-wizard"
 import { Button } from "@/components/ui/button"
 
@@ -77,7 +77,7 @@ export default async function BookServicePage({
     )
   }
 
-  if (service.requiresTrial) {
+  if (serviceRequiresTrial(service)) {
     const missingTrial = await checkTrialGate(
       service.id,
       dogs.map((dog) => dog.id)

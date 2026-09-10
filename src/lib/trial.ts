@@ -1,6 +1,20 @@
 import { prisma } from "@/lib/prisma"
 
 /**
+ * Whether a service actually gates on a passed Meet & Greet — same as
+ * `service.requiresTrial`, except the meet-greet service itself is always
+ * exempt regardless of that flag. requiresTrial is a plain admin-editable
+ * setting (Admin -> Services -> "Requires trial"), and ticking it for
+ * meet-greet itself creates a self-defeating booking flow — a dog would
+ * need a passed Meet & Greet before it could book the Meet & Greet that
+ * gets it one. Every place that checks requiresTrial to decide whether to
+ * gate a booking should go through this instead, not the raw field.
+ */
+export function serviceRequiresTrial(service: { slug: string; requiresTrial: boolean }): boolean {
+  return service.requiresTrial && service.slug !== "meet-greet"
+}
+
+/**
  * For a service that requires a trial visit, returns the names of dogs among
  * `dogIds` that don't have a PASSED TrialVisit yet. Empty array means the
  * booking can proceed. A dog with bypassMeetGreetChecks set (admin-only,

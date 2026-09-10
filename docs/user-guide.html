@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bedlay Gardens — User Guide</title>
+<style>
+  :root{
+    --bg:#faf9f7; --fg:#2b2825; --muted:#6b6560; --accent:#6a7f5e; --accent-dark:#4f6247;
+    --card:#ffffff; --border:#e4e0da; --code-bg:#f1efe9; --warn-bg:#fdf3e3; --warn-border:#e8c780;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#1c1b19; --fg:#e9e6e0; --muted:#a8a29a; --accent:#9db98c; --accent-dark:#b7d1a6;
+      --card:#252420; --border:#3a3733; --code-bg:#2a2823; --warn-bg:#332c1a; --warn-border:#6b5a2a; }
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.65;
+  }
+  .wrap{max-width:840px; margin:0 auto; padding:3rem 1.5rem 6rem;}
+  header.page-header{margin-bottom:2.5rem;}
+  header.page-header h1{
+    font-size:2rem; margin:0 0 .35rem; color:var(--accent-dark); letter-spacing:-.01em;
+  }
+  header.page-header p.subtitle{margin:0; color:var(--muted); font-size:1.05rem;}
+  .source-note{
+    background:var(--card); border:1px solid var(--border); border-left:4px solid var(--accent);
+    border-radius:6px; padding:.9rem 1.1rem; margin:1.5rem 0 0; font-size:.92rem; color:var(--muted);
+  }
+  .source-note strong{color:var(--fg);}
+  nav.toc{
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    padding:1.25rem 1.5rem; margin:2rem 0 3rem;
+  }
+  nav.toc h2{font-size:.85rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 .75rem;}
+  nav.toc ol{margin:0; padding-left:1.25rem; columns:2; column-gap:2rem;}
+  nav.toc li{margin-bottom:.4rem; break-inside:avoid;}
+  nav.toc a{color:var(--accent-dark); text-decoration:none;}
+  nav.toc a:hover{text-decoration:underline;}
+  section{margin-bottom:2.75rem;}
+  h2{
+    font-size:1.4rem; color:var(--accent-dark); border-bottom:2px solid var(--border);
+    padding-bottom:.4rem; margin:0 0 1rem; scroll-margin-top:1.5rem;
+  }
+  h3{font-size:1.1rem; margin:1.5rem 0 .6rem; scroll-margin-top:1.5rem;}
+  p{margin:0 0 1rem;}
+  ul, ol{margin:0 0 1rem; padding-left:1.4rem;}
+  li{margin-bottom:.35rem;}
+  strong{color:var(--fg); font-weight:650;}
+  em{color:var(--muted);}
+  table{
+    width:100%; border-collapse:collapse; margin:1rem 0 1.5rem; font-size:.94rem;
+    background:var(--card); border:1px solid var(--border); border-radius:8px; overflow:hidden;
+  }
+  th, td{padding:.6rem .9rem; text-align:left; border-bottom:1px solid var(--border);}
+  th{background:var(--code-bg); color:var(--fg); font-weight:650; font-size:.85rem; text-transform:uppercase; letter-spacing:.03em;}
+  tr:last-child td{border-bottom:none;}
+  blockquote{
+    margin:1rem 0; padding:.85rem 1.1rem; background:var(--warn-bg); border-left:4px solid var(--warn-border);
+    border-radius:6px; color:var(--fg); font-size:.95rem;
+  }
+  blockquote p:last-child{margin-bottom:0;}
+  .callout{
+    background:var(--warn-bg); border:1px solid var(--warn-border); border-radius:8px;
+    padding:1rem 1.2rem; margin:1rem 0;
+  }
+  .callout p:last-child{margin-bottom:0;}
+  hr{border:none; border-top:1px solid var(--border); margin:2.5rem 0;}
+  footer{
+    margin-top:3rem; padding-top:1.5rem; border-top:1px solid var(--border);
+    color:var(--muted); font-size:.85rem; font-style:italic;
+  }
+  a{color:var(--accent-dark);}
+  code{background:var(--code-bg); padding:.1em .4em; border-radius:4px; font-size:.9em;}
+  .back-to-top{display:inline-block; margin-top:.5rem; font-size:.85rem; color:var(--muted); text-decoration:none;}
+  .back-to-top:hover{color:var(--accent-dark);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page-header">
+    <h1>Bedlay Gardens — User Guide</h1>
+    <p class="subtitle">A guide to using the Bedlay Gardens online booking system, for customers and for the business team.</p>
+    <div class="source-note">
+      <strong>Source note:</strong> Every factual claim in this guide is drawn from the application's actual code and database schema, not from marketing copy or assumptions. Where a detail is admin-configurable, seed/example data, or genuinely not visible in the code, that is stated explicitly rather than guessed.
+    </div>
+  </header>
+
+  <nav class="toc" aria-label="Table of contents">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#what-it-is">What Bedlay Gardens Is</a></li>
+      <li><a href="#account">Creating an Account</a></li>
+      <li><a href="#dogs">Your Dogs &amp; Vaccination Records</a></li>
+      <li><a href="#booking">Booking a Service</a></li>
+      <li><a href="#payments">Payments</a></li>
+      <li><a href="#vouchers">Vouchers, Subscriptions &amp; Waitlists</a></li>
+      <li><a href="#updates">Staying Updated</a></li>
+      <li><a href="#reviews">Reviews</a></li>
+      <li><a href="#terms">Signing the Terms Agreement</a></li>
+      <li><a href="#stakeholders">For Business Stakeholders</a></li>
+      <li><a href="#appendix">Appendix: What This Guide Could Not Confirm</a></li>
+    </ol>
+  </nav>
+
+  <section id="what-it-is">
+    <h2>1. What Bedlay Gardens Is</h2>
+    <p>Bedlay Gardens is a single-site dog boarding and care business (Cumbernauld Road, Chryston). This system is the online platform customers use to book and manage all of its services, and that staff and admins use to run day-to-day operations. It has four parts:</p>
+    <ul>
+      <li><strong>The public website</strong> — browse services, pricing, gallery, and submit enquiries. No account needed.</li>
+      <li><strong>Your customer account ("the portal")</strong> — manage your dogs, vaccination records, bookings, payments, vouchers, and reviews.</li>
+      <li><strong>The staff app</strong> — used by kennel/day-care staff for check-in/out, incident reports, and photo/video updates.</li>
+      <li><strong>The admin back office</strong> — used by managers for pricing, scheduling, reporting, and content.</li>
+    </ul>
+    <p>This guide covers the customer-facing experience in detail, with a shorter section for business stakeholders on what staff and admin tools provide.</p>
+  </section>
+
+  <section id="account">
+    <h2>2. Creating an Account</h2>
+    <p>You can browse services and prices without an account, but <strong>completing a booking requires one</strong>. Registration needs:</p>
+    <ul>
+      <li>Your name</li>
+      <li>Email address</li>
+      <li>A password (8–200 characters — there's no complexity requirement like mandatory symbols)</li>
+      <li>At least one phone number (home, mobile, or work)</li>
+      <li>Your address (line 1 is required; line 2, city, and postcode are optional)</li>
+    </ul>
+
+    <h3>Signing in</h3>
+    <p>Signing in works two ways:</p>
+    <ul>
+      <li><strong>Password</strong> — the standard email + password sign-in.</li>
+      <li><strong>Magic link</strong> — request a one-time sign-in link by email instead of typing a password.</li>
+    </ul>
+
+    <p><strong>Forgotten your password?</strong> Requesting a reset always shows the same confirmation message whether or not the email is registered (this is a deliberate privacy measure, not a bug). If the email is registered, you'll receive a reset link valid for <strong>1 hour</strong>, usable once.</p>
+
+    <div class="callout">
+      <p><strong>How long does a session last?</strong> You'll generally stay signed in for about <strong>30 days of inactivity</strong>, refreshing as you use the site. If your account is deactivated, demoted, or your password is changed by staff, that only takes effect the next time you sign in — not immediately on your current session.</p>
+    </div>
+
+    <p>Once signed in, you'll need to <strong>add at least one dog profile</strong> to your account before you can book anything.</p>
+  </section>
+
+  <section id="dogs">
+    <h2>3. Your Dogs &amp; Vaccination Records</h2>
+    <p>Each dog profile can hold medication notes, feeding preferences, and behavioural/compatibility flags staff use for kennel planning.</p>
+
+    <h3>Vaccination requirements ("the vaccination gate")</h3>
+    <p>Before (or during) booking, the system checks that every dog on the booking has an <strong>in-date vaccination certificate on file</strong> covering each vaccine type the business currently requires. The check recognises common vaccine brand names (e.g. "Nobivac", "Vanguard"), not just generic vaccine-type names, so a certificate showing a product name should still be accepted.</p>
+
+    <p><strong>Uploading a certificate</strong>: when you upload a certificate, the system uses an AI-assisted process to try to read the vaccine details automatically and pre-fill the form for you to check. If that automatic reading fails or comes back empty, you can fill the details in yourself — and every certificate is separately reviewed by staff (marked Unverified → Verified) regardless of what the AI extracted.</p>
+
+    <p><strong>If a dog is missing valid vaccination cover</strong>, you can still submit the booking, but:</p>
+    <ul>
+      <li>The booking is held in a "pending vaccination" state rather than confirmed.</li>
+      <li>If a valid certificate isn't filed before the booking's start date, the booking is <strong>automatically cancelled and the deposit is forfeited</strong>.</li>
+      <li>Staff can, in exceptional cases, override this check for a specific dog — every such override is logged for accountability.</li>
+    </ul>
+
+    <blockquote>
+      <p>One detail we could not confirm to pixel-level: the exact on-screen wording/style the booking wizard uses to warn you about a missing vaccination — the underlying data and blocking behaviour are confirmed, but not the exact banner text.</p>
+    </blockquote>
+
+    <h3>Meet &amp; Greet trial requirement</h3>
+    <p>Some services require your dog to pass a <strong>paid, one-off Meet &amp; Greet evaluation visit</strong> before you can book them (which services require this is admin-configurable). Staff record the outcome as <strong>Passed</strong>, <strong>Retry</strong>, or <strong>Not Suitable</strong>, and the pass can carry an expiry date after which your dog needs re-assessment. Only an actual recorded "Passed" outcome satisfies this requirement.</p>
+  </section>
+
+  <section id="booking">
+    <h2>4. Booking a Service</h2>
+
+    <h3>The five services offered</h3>
+    <table>
+      <thead>
+        <tr><th>Service</th><th>What it is</th><th>Example pricing structure*</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Meet &amp; Greet</strong></td><td>The first-step evaluation visit before booking other services</td><td>Per session</td></tr>
+        <tr><td><strong>Day Care</strong></td><td>Full-day or half-day (AM/PM) supervised care</td><td>Per day (separate half-day rate)</td></tr>
+        <tr><td><strong>Secure Forest Walks</strong></td><td>Private-hire, securely enclosed woodland for off-lead exercise</td><td>Per session</td></tr>
+        <tr><td><strong>Home Boarding</strong></td><td>Overnight stay at the kennels</td><td>Per night</td></tr>
+        <tr><td><strong>Dog Walking (Van Collection)</strong></td><td>Your dog is picked up from home, walked, and returned</td><td>Per session</td></tr>
+      </tbody>
+    </table>
+    <p><em>*Exact prices are admin-configurable and can change; the figures used during development were placeholder/test values, so always check current pricing on the live site rather than assuming a fixed number. Pricing can also be adjusted by peak-season rules and minimum-stay requirements.</em></p>
+
+    <h3>The booking flow</h3>
+    <p>The booking wizard walks you through, in order: <strong>choosing dates</strong> → <strong>selecting your dog(s)</strong> → <strong>choosing add-ons</strong> → <strong>reviewing and confirming</strong>. Along the way, the system automatically checks for scheduling conflicts, the Meet &amp; Greet requirement, and vaccination status for the dogs you've selected — if your dog hasn't passed a required trial yet, the wizard won't let you move past dog selection until that's resolved.</p>
+    <p>If you're signed in but haven't added a dog yet, the wizard will prompt you to add one before you can continue.</p>
+
+    <h3>Dog Walking (Van Collection) specifics</h3>
+    <p>For this service, staff plan scheduled van routes; your dog becomes a stop on that route with your pickup address and any access notes you provide. Each stop progresses through pending → collected → walked → dropped off as the run happens.</p>
+  </section>
+
+  <section id="payments">
+    <h2>5. Payments</h2>
+    <ul>
+      <li><strong>Deposit</strong>: for most services, a deposit is charged online at the time you submit your booking.</li>
+      <li><strong>Balance</strong>: the remaining balance is normally auto-charged to your saved card <strong>7 days before your check-in date</strong> (this default is admin-configurable and could change). If you don't have a saved, chargeable payment method, the booking is flagged and will need manual follow-up.</li>
+      <li><strong>Invoice-based services</strong>: some services skip up-front payment entirely and are invoiced afterward instead — this depends on how the specific service is configured, not something you choose.</li>
+    </ul>
+
+    <h3>Cancellations &amp; refunds</h3>
+    <p>The business currently enforces (in the system's actual logic, regardless of what the public terms page text says — see the note below) a three-tier cancellation policy:</p>
+    <table>
+      <thead>
+        <tr><th>When you cancel</th><th>Outcome (default thresholds — admin-configurable)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>14 or more days before check-in</strong></td><td>Full refund</td></tr>
+        <tr><td><strong>Within 14 days</strong></td><td>Deposit is forfeited (any already-paid balance is refunded)</td></tr>
+        <tr><td><strong>Within 48 hours</strong></td><td>No refund</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <p><strong>Important caveat:</strong> the public Terms &amp; Conditions page on the live site is designed to show the business's own official policy text, but at the time of this analysis, if no official text has been entered by the business, the page falls back to placeholder wording that literally says it needs to be replaced before launch. The cancellation table above reflects the actual enforced code logic and its default settings — not necessarily what any given visitor currently sees on the terms page. If you're unsure what currently applies, check directly with the business.</p>
+    </div>
+
+    <p>One more nuance: for a booking type where you only ever pay a single up-front amount (no separate balance, such as a Meet &amp; Greet), the "deposit forfeited" tier effectively refunds nothing, the same as the "no refund" tier, since there's no separate balance to give back.</p>
+  </section>
+
+  <section id="vouchers">
+    <h2>6. Vouchers, Subscriptions &amp; Waitlists</h2>
+    <p><strong>Vouchers</strong> work like gift cards: you buy one for an amount within the business's allowed range, optionally send it to someone else's email, and it arrives as a redeemable code. Anyone holding the code can redeem it against a booking balance; if a voucher is worth more than what's owed, the extra becomes account credit for future bookings.</p>
+
+    <p><strong>Subscriptions</strong> are recurring bookings for one dog, one service, on chosen weekdays. Currently, <strong>only Day Care subscriptions automatically generate bookings</strong> each week (a daily process creates the actual booking about a week ahead). Dog Walking subscriptions exist for billing/visibility purposes but don't auto-create bookings, because van-run scheduling needs pickup-address details a subscription doesn't capture — those still need manual booking. Subscriptions can be paused until a date you choose.</p>
+
+    <p><strong>Waitlists</strong>: if your preferred date/service is full, you can join a waitlist. When a spot opens up, you're offered it by email/text and given a window to claim it — <strong>12 hours by default</strong> (admin-configurable) — before it's offered to the next person in line, in the order people joined.</p>
+  </section>
+
+  <section id="updates">
+    <h2>7. Staying Updated</h2>
+    <ul>
+      <li><strong>Pupdates</strong>: staff can post a photo/video update about your dog during their stay, viewable in your account.</li>
+      <li><strong>Notification preferences</strong>: you can control whether you're notified by email, text, both, or neither, and there's support for per-notification-type preferences (though we could not fully confirm every update type, including pupdates specifically, is exposed as an individually configurable choice in the current interface).</li>
+    </ul>
+  </section>
+
+  <section id="reviews">
+    <h2>8. Reviews</h2>
+    <p>Reviews you submit go into a moderation queue and require <strong>staff approval before appearing publicly</strong> — they are not published automatically.</p>
+  </section>
+
+  <section id="terms">
+    <h2>9. Signing the Terms Agreement</h2>
+    <p>You'll be asked to type your name to electronically sign the current terms — this is a typed-name signature, not a drawn one. If the business publishes an updated version of the terms later, you may be asked to re-sign, since your existing signature is tied to the specific version you originally agreed to.</p>
+  </section>
+
+  <section id="stakeholders">
+    <h2>10. For Business Stakeholders: What Staff &amp; Admin Tools Provide</h2>
+    <ul>
+      <li><strong>Staff app</strong>: daily care schedules, booking check-in/check-out, incident reporting, posting pupdates, van-run management, vaccination-certificate review, and Meet &amp; Greet outcome recording.</li>
+      <li><strong>Admin back office</strong>: managing bookings, customers, dogs, services and pricing, vaccination policy, site content/media, email templates, reviews (moderation), waitlists, van runs, plus reporting:
+        <ul>
+          <li><strong>Occupancy</strong> — a calendar view of bookings and blocked dates.</li>
+          <li><strong>Reports</strong> — monthly occupancy percentage, revenue (including a breakdown by service), and an upcoming-bookings list, exportable to CSV.</li>
+          <li><strong>Accounting</strong> — a transaction ledger with VAT breakdown <em>if</em> VAT is enabled in settings; if it isn't, VAT is simply shown as £0 rather than calculated.</li>
+          <li><strong>Audit log</strong> — a record of sensitive actions (including any admin override of a dog's vaccination or Meet &amp; Greet requirement), showing who did what and when.</li>
+        </ul>
+      </li>
+    </ul>
+
+    <h3>Things worth knowing operationally</h3>
+    <ul>
+      <li>The business operates from a <strong>single physical site</strong> — the system has no multi-location model.</li>
+      <li>Several safety-relevant automated checks (payment reminders, balance charging, subscription booking generation, and recovery of abandoned bookings) run on a <strong>daily automated schedule</strong>. If the shared configuration secret that protects these automated jobs were ever left unset, they would silently stop running rather than failing loudly — worth including in any operational checklist.</li>
+      <li>There is currently no automated protection (like a CAPTCHA or rate limit) against repeated automated attempts on login, password reset, or the contact form — a business/operations consideration outside this guide's scope, noted here for awareness.</li>
+    </ul>
+  </section>
+
+  <section id="appendix">
+    <h2>Appendix: What This Guide Could Not Confirm</h2>
+    <p>In keeping with a code-only, no-assumptions basis, a few customer-facing details could not be fully verified from the codebase alone and are flagged rather than guessed:</p>
+    <ul>
+      <li>The exact on-screen wording/style of vaccination and trial-gate warnings during booking.</li>
+      <li>Whether "pupdate" notifications specifically (as opposed to bookings/vaccination reminders generally) are individually configurable in your notification preferences today.</li>
+      <li>Whether extraction failures during certificate upload show you a friendly error message or a generic one (the underlying error-handling gap is confirmed in code; the front-end's handling of it was not traced).</li>
+      <li>The exact current live pricing and official Terms &amp; Conditions text — both are admin-editable and were only available as placeholder/seed values at the time of analysis.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <p>This guide was generated from direct source-code and database-schema analysis of the Bedlay Gardens application, cross-checked against a prior specialist API and security review of the same code, on 2026-09-06.</p>
+    <a class="back-to-top" href="#what-it-is">↑ Back to top</a>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { checkTrialGate } from "@/lib/trial"
+import { checkTrialGate, serviceRequiresTrial } from "@/lib/trial"
 
 export async function GET(request: Request) {
   const session = await auth()
@@ -30,11 +30,13 @@ export async function GET(request: Request) {
   // services — see requiresTrial), but the customer should still be told if
   // a selected dog hasn't had one, as a non-blocking heads-up rather than
   // the hard "can't book" gate below. `requiresTrial` in the response tells
-  // the wizard which of the two this is.
-  if (!service.requiresTrial && service.slug !== "dog-walking") {
+  // the wizard which of the two this is. serviceRequiresTrial (not the raw
+  // field) also keeps meet-greet itself exempt regardless of that setting —
+  // see its doc comment.
+  if (!serviceRequiresTrial(service) && service.slug !== "dog-walking") {
     return NextResponse.json({ missing: [], requiresTrial: false })
   }
 
   const missing = await checkTrialGate(service.id, dogIds)
-  return NextResponse.json({ missing, requiresTrial: service.requiresTrial })
+  return NextResponse.json({ missing, requiresTrial: serviceRequiresTrial(service) })
 }

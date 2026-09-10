@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bedlay Gardens — Architecture Overview</title>
+<style>
+  :root{
+    --bg:#faf9f7; --fg:#2b2825; --muted:#6b6560; --accent:#5b7fa6; --accent-dark:#3f6288;
+    --card:#ffffff; --border:#e4e0da; --code-bg:#f1efe9; --warn-bg:#fdf3e3; --warn-border:#e8c780;
+    --danger-bg:#fbeaea; --danger-border:#dba3a3; --danger-fg:#8a3a3a;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#1c1b19; --fg:#e9e6e0; --muted:#a8a29a; --accent:#8fb3d9; --accent-dark:#a9c8e8;
+      --card:#252420; --border:#3a3733; --code-bg:#2a2823; --warn-bg:#332c1a; --warn-border:#6b5a2a;
+      --danger-bg:#3a2424; --danger-border:#7a4444; --danger-fg:#e0a3a3; }
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.65;
+  }
+  .wrap{max-width:900px; margin:0 auto; padding:3rem 1.5rem 6rem;}
+  header.page-header{margin-bottom:2.5rem;}
+  header.page-header h1{
+    font-size:2rem; margin:0 0 .35rem; color:var(--accent-dark); letter-spacing:-.01em;
+  }
+  header.page-header p.subtitle{margin:0; color:var(--muted); font-size:1.05rem;}
+  .source-note{
+    background:var(--card); border:1px solid var(--border); border-left:4px solid var(--accent);
+    border-radius:6px; padding:.9rem 1.1rem; margin:1.5rem 0 0; font-size:.92rem; color:var(--muted);
+  }
+  .source-note strong{color:var(--fg);}
+  nav.toc{
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    padding:1.25rem 1.5rem; margin:2rem 0 3rem;
+  }
+  nav.toc h2{font-size:.85rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 .75rem;}
+  nav.toc ol{margin:0; padding-left:1.25rem; columns:2; column-gap:2rem;}
+  nav.toc li{margin-bottom:.4rem; break-inside:avoid;}
+  nav.toc a{color:var(--accent-dark); text-decoration:none;}
+  nav.toc a:hover{text-decoration:underline;}
+  section{margin-bottom:2.75rem;}
+  h2{
+    font-size:1.4rem; color:var(--accent-dark); border-bottom:2px solid var(--border);
+    padding-bottom:.4rem; margin:0 0 1rem; scroll-margin-top:1.5rem;
+  }
+  h3{font-size:1.1rem; margin:1.5rem 0 .6rem; scroll-margin-top:1.5rem;}
+  p{margin:0 0 1rem;}
+  ul, ol{margin:0 0 1rem; padding-left:1.4rem;}
+  li{margin-bottom:.35rem;}
+  strong{color:var(--fg); font-weight:650;}
+  em{color:var(--muted);}
+  table{
+    width:100%; border-collapse:collapse; margin:1rem 0 1.5rem; font-size:.92rem;
+    background:var(--card); border:1px solid var(--border); border-radius:8px; overflow:hidden;
+  }
+  th, td{padding:.55rem .85rem; text-align:left; border-bottom:1px solid var(--border); vertical-align:top;}
+  th{background:var(--code-bg); color:var(--fg); font-weight:650; font-size:.82rem; text-transform:uppercase; letter-spacing:.03em;}
+  tr:last-child td{border-bottom:none;}
+  blockquote{
+    margin:1rem 0; padding:.85rem 1.1rem; background:var(--warn-bg); border-left:4px solid var(--warn-border);
+    border-radius:6px; color:var(--fg); font-size:.95rem;
+  }
+  blockquote p:last-child{margin-bottom:0;}
+  .callout{
+    background:var(--warn-bg); border:1px solid var(--warn-border); border-radius:8px;
+    padding:1rem 1.2rem; margin:1rem 0;
+  }
+  .callout.danger{background:var(--danger-bg); border-color:var(--danger-border);}
+  .callout.danger strong{color:var(--danger-fg);}
+  .callout p:last-child{margin-bottom:0;}
+  hr{border:none; border-top:1px solid var(--border); margin:2.5rem 0;}
+  footer{
+    margin-top:3rem; padding-top:1.5rem; border-top:1px solid var(--border);
+    color:var(--muted); font-size:.85rem; font-style:italic;
+  }
+  a{color:var(--accent-dark);}
+  code{background:var(--code-bg); padding:.1em .4em; border-radius:4px; font-size:.9em; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+  pre{
+    background:var(--code-bg); border:1px solid var(--border); border-radius:8px;
+    padding:1rem 1.2rem; overflow-x:auto; font-size:.85rem; line-height:1.5;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  pre code{background:none; padding:0;}
+  .back-to-top{display:inline-block; margin-top:.5rem; font-size:.85rem; color:var(--muted); text-decoration:none;}
+  .back-to-top:hover{color:var(--accent-dark);}
+  .table-wrap{overflow-x:auto;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page-header">
+    <h1>Bedlay Gardens — Architecture Overview</h1>
+    <p class="subtitle">For developers, operations staff, and technically-minded business stakeholders.</p>
+    <div class="source-note">
+      <strong>Source note:</strong> Every claim below is drawn directly from the source code, <code>prisma/schema.prisma</code>, <code>next.config.ts</code>, <code>vercel.json</code>, and <code>package.json</code> — not from README/PRD/design docs — and was independently cross-checked by a specialist API review, a specialist security review, and two rounds of fact-checking review. Known gaps are marked as such rather than guessed.
+    </div>
+  </header>
+
+  <nav class="toc" aria-label="Table of contents">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#what-it-is">What This System Is</a></li>
+      <li><a href="#stack">Technology Stack</a></li>
+      <li><a href="#integrations">External Integrations</a></li>
+      <li><a href="#architecture">System Architecture</a></li>
+      <li><a href="#data-model">Data Model</a></li>
+      <li><a href="#auth">Authentication &amp; Authorization</a></li>
+      <li><a href="#storage">Storage &amp; File Handling</a></li>
+      <li><a href="#cron">Scheduled Jobs</a></li>
+      <li><a href="#payments">Payments</a></li>
+      <li><a href="#security">Security Posture Summary</a></li>
+      <li><a href="#config">Configuration Reference</a></li>
+      <li><a href="#debt">Known Technical Debt &amp; Recommendations</a></li>
+    </ol>
+  </nav>
+
+  <section id="what-it-is">
+    <h2>1. What This System Is</h2>
+    <p>Bedlay Gardens is a <strong>single Next.js application</strong> (a monolith, not microservices) serving a single-site dog boarding/day-care business. One deployment, one Postgres database, four route-grouped applications inside it:</p>
+    <ul>
+      <li><strong>Marketing site</strong> (<code>src/app/(marketing)</code>) — public pages, booking wizard entry point, login/register.</li>
+      <li><strong>Customer portal</strong> (<code>src/app/portal</code>) — authenticated customer self-service.</li>
+      <li><strong>Staff app</strong> (<code>src/app/staff</code>) — operational tools for kennel/day-care staff.</li>
+      <li><strong>Admin back office</strong> (<code>src/app/admin</code>) — management, pricing, reporting, content.</li>
+    </ul>
+    <p>There is no separate backend service and no message queue — everything is synchronous request/response, either through Next.js Server Actions (the primary mutation surface) or a small set of true HTTP route handlers.</p>
+  </section>
+
+  <section id="stack">
+    <h2>2. Technology Stack</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Layer</th><th>Technology</th><th>Version (as pinned in <code>package.json</code>)</th></tr></thead>
+      <tbody>
+        <tr><td>Framework</td><td>Next.js, App Router, Turbopack build</td><td><code>16.2.10</code> (exact pin)</td></tr>
+        <tr><td>UI</td><td>React</td><td><code>19.2.4</code> (exact pin)</td></tr>
+        <tr><td>ORM</td><td>Prisma</td><td><code>^7.8.0</code> (custom client output path: <code>src/generated/prisma</code>)</td></tr>
+        <tr><td>Database</td><td>PostgreSQL, via Neon serverless driver adapter</td><td>—</td></tr>
+        <tr><td>Auth</td><td>NextAuth / Auth.js v5</td><td><code>^5.0.0-beta.31</code> — floating caret on a prerelease</td></tr>
+        <tr><td>Payments</td><td>Stripe SDK</td><td><code>^22.3.1</code></td></tr>
+        <tr><td>Validation</td><td>Zod</td><td><code>^4.4.3</code></td></tr>
+        <tr><td>Styling</td><td>Tailwind CSS v4, Radix UI (via shadcn CLI)</td><td>—</td></tr>
+        <tr><td>E2E testing</td><td>Playwright</td><td>—</td></tr>
+        <tr><td>CI</td><td><strong>None</strong> — <code>.github/workflows/</code> exists but is empty</td><td>—</td></tr>
+      </tbody>
+    </table></div>
+    <p><strong>Deployment target</strong>: Vercel. <code>vercel.json</code> defines 4 scheduled Cron Jobs; no per-environment overrides are defined in-repo. No <code>engines</code> field or <code>.nvmrc</code> constrains the Node.js version.</p>
+  </section>
+
+  <section id="integrations">
+    <h2>3. External Integrations</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>System</th><th>Purpose</th><th>Where</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Neon (Postgres)</strong></td><td>Primary datastore</td><td><code>src/lib/prisma.ts</code></td></tr>
+        <tr><td><strong>Stripe</strong></td><td>Payments, invoices, subscriptions, refunds</td><td><code>src/lib/stripe.ts</code>, <code>src/app/api/webhooks/stripe/route.ts</code></td></tr>
+        <tr><td><strong>Resend</strong></td><td>Transactional email + NextAuth magic-link delivery</td><td><code>src/lib/email.ts</code></td></tr>
+        <tr><td><strong>Twilio</strong></td><td>SMS notifications</td><td><code>src/lib/sms.ts</code></td></tr>
+        <tr><td><strong>Cloudflare R2</strong></td><td>Object storage — two buckets, see §7</td><td><code>src/lib/storage.ts</code></td></tr>
+        <tr><td><strong>Anthropic API</strong></td><td>Vaccination-certificate data extraction</td><td><code>src/lib/vaccination-extraction.ts</code></td></tr>
+      </tbody>
+    </table></div>
+    <p>No message broker, no APM/error-tracking integration (Sentry, OpenTelemetry, etc. — confirmed absent by exhaustive grep), no CDN beyond what Vercel provides by default.</p>
+  </section>
+
+  <section id="architecture">
+    <h2>4. System Architecture</h2>
+    <pre><code>Browser (Server/Client Components)
+        │
+        ├──► Server Action ("use server" files, ~40 modules)
+        │           │
+        └──► API Route Handler (18 route.ts files)
+                    │
+                    ▼
+            src/lib/* business logic (58 files)
+                    │
+                    ▼
+            Prisma → Postgres (Neon)
+                    │
+        ┌───────────┼───────────┬───────────┬──────────┐
+        ▼           ▼           ▼           ▼          ▼
+     Stripe      Resend      Twilio         R2      Anthropic
+   (payments)   (email)      (SMS)      (storage)  (AI extraction)</code></pre>
+    <p>Stripe webhooks and the 4 cron routes re-enter the <em>same</em> <code>src/lib/*</code> modules that Server Actions use (e.g. <code>payments.ts</code>, <code>waitlist.ts</code>), so booking-state transitions stay consistent regardless of what triggered them.</p>
+
+    <h3>Route-handler inventory (18 total)</h3>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Method</th><th>Path</th><th>Purpose</th><th>Auth</th></tr></thead>
+      <tbody>
+        <tr><td>GET+POST</td><td><code>/api/auth/[...nextauth]</code></td><td>NextAuth handler</td><td>N/A</td></tr>
+        <tr><td>POST</td><td><code>/api/webhooks/stripe</code></td><td>Stripe event ingestion</td><td>Stripe signature verification</td></tr>
+        <tr><td>GET</td><td><code>/api/cron/{4 routes}</code></td><td>Scheduled jobs (see §8)</td><td><code>Bearer $CRON_SECRET</code>, fails closed if unset</td></tr>
+        <tr><td>GET</td><td><code>/api/files/[...key]</code></td><td>Private R2 file proxy</td><td>Session + per-category ownership</td></tr>
+        <tr><td>GET</td><td><code>/api/book/{5 pre-check routes}</code></td><td>Availability/conflict/trial/vaccination pre-checks</td><td>Session (+ dog ownership on 3 of 5 — see §9)</td></tr>
+        <tr><td>GET</td><td><code>/api/admin/{4 export routes}</code></td><td>CSV exports</td><td><code>role === "ADMIN"</code> (2 return 403, 2 return 404 — deliberate existence-hiding)</td></tr>
+        <tr><td>POST</td><td><code>/api/admin/content/upload-image</code></td><td>Admin rich-text image upload</td><td><code>role === "ADMIN"</code></td></tr>
+        <tr><td>POST</td><td><code>/api/portal/vaccinations/extract</code></td><td>AI certificate extraction</td><td>Session + dog ownership</td></tr>
+      </tbody>
+    </table></div>
+    <p><strong>Server Actions</strong> (40 <code>actions.ts</code> files) are the actual primary mutation surface — larger and more central than the HTTP route count suggests. They are not directly callable as conventional REST endpoints, but every export of a <code>"use server"</code> module <em>is</em> a callable RPC endpoint in the App Router, which matters for §6.</p>
+  </section>
+
+  <section id="data-model">
+    <h2>5. Data Model</h2>
+    <p>Postgres via Prisma: <strong>48 models, 19 enums</strong>. Grouped by domain:</p>
+    <ul>
+      <li><strong>Identity/Access</strong>: <code>User</code>, <code>Account</code>, <code>Session</code>, <code>VerificationToken</code>, <code>PasswordResetToken</code></li>
+      <li><strong>Booking core</strong>: <code>Service</code>, <code>Dog</code>, <code>DogMedication</code>, <code>DogFeedingItem</code>, <code>DogFlag</code>/<code>DogFlagType</code>, <code>VaccinationRecord</code>, <code>KennelUnit</code>, <code>KennelOccupancy</code>, <code>Booking</code>, <code>BookingDog</code>, <code>Addon</code>, <code>BookingAddon</code>, <code>BlockedDate</code></li>
+      <li><strong>Payments</strong>: <code>Payment</code>, <code>Voucher</code>, <code>CreditLedger</code>, <code>PriceRule</code>, <code>Subscription</code></li>
+      <li><strong>Service-specific ops</strong>: <code>WalkSlot</code>, <code>WalkBooking</code>, <code>VanRun</code>, <code>VanRunStop</code>, <code>CareTask</code>/<code>CareTaskType</code>, <code>ToDoTask</code>, <code>IncidentReport</code>, <code>TrialVisit</code>/<code>TrialOutcome</code>, <code>Pupdate</code></li>
+      <li><strong>Content/CMS</strong>: <code>MediaItem</code>, <code>GalleryCategory</code>, <code>Testimonial</code>, <code>Faq</code>, <code>Setting</code></li>
+      <li><strong>Notification</strong>: <code>ContactMessage</code>, <code>EmailLog</code>, <code>SentEmail</code>, <code>EmailTemplate</code>, <code>NotificationPreference</code>, <code>MessageLog</code></li>
+      <li><strong>Compliance</strong>: <code>AuditLog</code>, <code>Agreement</code>, <code>SignedAgreement</code>, <code>Review</code>, <code>WaitlistEntry</code></li>
+    </ul>
+
+    <h3>Concurrency safety</h3>
+    <p><code>KennelOccupancy</code> has a <code>@@unique([kennelUnitId, date])</code> constraint — this is what makes kennel double-booking structurally impossible, not just application-level checking. Day-care/meet-greet capacity uses <code>SERIALIZABLE</code>-isolation transactions with retry (<code>MAX_ATTEMPTS = 5</code>, 3 call sites) rather than a unique constraint, since capacity there is a count, not a 1:1 slot. <code>tests/e2e/concurrency-race.spec.ts</code> directly exercises this behavior — the strongest available corroboration that the design works as intended.</p>
+
+    <h3><code>BookingStatus</code> state machine (9 values)</h3>
+    <p><code>DRAFT → PENDING_PAYMENT/PENDING_VACCINATION → CONFIRMED → CHECKED_IN → CHECKED_OUT → COMPLETED</code>, with <code>CANCELLED_BY_CUSTOMER</code> / <code>CANCELLED_BY_ADMIN</code> / <code>NO_SHOW</code> as terminal states reachable from various points. There is no formal state-machine table in the codebase — this is assembled from reading the relevant modules (payment-timing, vaccination-gate, staff check-in/out actions, the Stripe webhook, and the abandoned-booking-recovery cron).</p>
+  </section>
+
+  <section id="auth">
+    <h2>6. Authentication &amp; Authorization Model</h2>
+    <ul>
+      <li><strong>Authentication</strong>: NextAuth v5 (beta) — Credentials (email + bcrypt) and Resend magic-link providers, JWT session strategy.</li>
+      <li><strong>Session lifetime</strong>: no <code>maxAge</code>/<code>updateAge</code> override → library defaults apply (30-day idle expiry, refreshed at most once per 24h of activity). Role/<code>isSuperAdmin</code>/other claims are written into the JWT <strong>only at sign-in</strong> and never re-read from the database afterward — deactivating, demoting, or password-resetting a signed-in user does not end their existing session early.</li>
+      <li><strong>Route gating</strong>: centralized in <code>src/auth.config.ts</code>'s <code>authorized</code> callback, enforced by <code>src/proxy.ts</code>'s matcher (<code>/admin/:path*</code>, <code>/staff/:path*</code>, <code>/portal/:path*</code>). <code>/admin</code> requires <code>role === "ADMIN"</code>; <code>/staff</code> requires <code>STAFF</code> or <code>ADMIN</code>; <strong>&#8203;<code>/portal</code> requires only being logged in — no role check</strong>. <code>Role</code> is a flat 3-value enum with no hierarchy; portal data is protected by per-resource ownership checks, not by role.</li>
+      <li><strong>Critical gap — Server Actions and API routes are NOT covered by the middleware.</strong> Each must self-check <code>auth()</code>/a <code>require*()</code> helper. This is duplicated ad hoc across 20+ near-identical definitions rather than one shared, testable module.</li>
+    </ul>
+
+    <div class="callout danger">
+      <p><strong>Confirmed live authorization bypass:</strong> <code>resolveBookingCreation</code> in <code>src/app/(marketing)/book/actions.ts</code> (line 150) is exported from a <code>"use server"</code> module with <strong>no <code>auth()</code> call</strong>, taking a caller-supplied <code>customerId</code> plus admin-only safety-override parameters (<code>skipVaccinationGate</code>, <code>overrideCompatibilityFlags</code>). Because every export of a <code>"use server"</code> module is a directly callable endpoint regardless of who imports it internally, this is reachable directly — independently confirmed by a specialist security review as High severity. This should be <strong>fixed</strong> (move the shared logic to a plain <code>src/lib/</code> module with no directive), not just documented.</p>
+    </div>
+
+    <p><strong>Super-admin bootstrap</strong>: the <em>first</em> admin action is allowed when zero super admins exist system-wide — a one-time self-elevation window that closes itself once a super admin exists, but is open by default on any fresh/staging/restored environment.</p>
+  </section>
+
+  <section id="storage">
+    <h2>7. Storage &amp; File Handling</h2>
+    <p>Two Cloudflare R2 buckets:</p>
+    <ul>
+      <li><strong>Private bucket</strong> — vaccination certificates, dog photos, agreements, pupdate media. Served only through <code>/api/files/[...key]</code>, which enforces session + per-category ownership before proxying.</li>
+      <li><strong>Public bucket</strong> — gallery/hero/content media, <strong>and also staff photos and agreement template PDFs</strong> (world-readable by design at the public R2 base URL).</li>
+    </ul>
+    <p>Legacy local upload directories (<code>storage/uploads/</code>, <code>public/uploads/</code>) exist in the repo but are confirmed dead — zero code references anywhere. Path-traversal safety is enforced via <code>assertSafeKey()</code> (rejects <code>..</code> and leading <code>/</code>) plus filename sanitization.</p>
+  </section>
+
+  <section id="cron">
+    <h2>8. Scheduled Jobs (Vercel Cron)</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Route</th><th>Schedule</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>generate-subscription-bookings</code></td><td>Daily 05:00 UTC</td><td>Auto-creates the week's Day Care bookings from active subscriptions</td></tr>
+        <tr><td><code>charge-balances</code></td><td>Daily 06:00 UTC</td><td>Auto-charges balances due (default: 7 days before check-in)</td></tr>
+        <tr><td><code>send-reminders</code></td><td>Daily 07:00 UTC</td><td>Vaccination/payment reminder emails and SMS</td></tr>
+        <tr><td><code>abandoned-booking-recovery</code></td><td>Daily 08:00 UTC</td><td>Cancels stale <code>PENDING_VACCINATION</code>/unresolved bookings</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout">
+      <p>All four carry an identical <code>Bearer $CRON_SECRET</code> guard that <strong>fails closed</strong> (returns 400) if the secret is unset — meaning a misconfiguration silently stops these jobs rather than crashing loudly, which is worth including in any operational monitoring checklist since there is no error-tracking/alerting integration in this codebase to catch it otherwise.</p>
+    </div>
+  </section>
+
+  <section id="payments">
+    <h2>9. Payments</h2>
+    <p>Stripe handles deposits, balances, invoices, subscriptions, and refunds. The webhook (<code>/api/webhooks/stripe</code>) verifies signatures correctly and handles: <code>checkout.session.completed</code>, <code>payment_intent.succeeded</code>, <code>payment_intent.payment_failed</code>, <code>charge.refunded</code>, <code>invoice.paid</code>, <code>invoice.payment_failed</code>, <code>invoice.voided</code>, <code>invoice.marked_uncollectible</code>. There is no explicit idempotency check against Stripe's <code>event.id</code> — each handler instead relies on its own state check (e.g. <code>if (payment.status === "SUCCEEDED") return</code>), a reasonable but implicit strategy worth documenting explicitly for anyone modifying webhook handlers.</p>
+    <p>Vouchers and account credit use a read-then-write pattern at default (READ COMMITTED) isolation with no row lock or status predicate on the write — unlike the booking-capacity path, which correctly uses SERIALIZABLE + retry. This is a concurrency gap on the payment side flagged by the security review as a double-spend risk under simultaneous redemption.</p>
+  </section>
+
+  <section id="security">
+    <h2>10. Security Posture Summary</h2>
+    <p><em>Full severity ratings and remediation guidance live in the companion security review; this section states only the architecturally load-bearing facts.</em></p>
+    <p><strong>Confirmed working</strong>: no SQL injection surface (no raw queries), Stripe signature verification reads the raw body correctly, payment amounts are always recomputed server-side, HTML sanitization is a tight allowlist applied at both save and render, the private-file proxy's ownership model is correct across every upload call site.</p>
+    <p><strong>Confirmed gaps</strong>: the <code>resolveBookingCreation</code> authorization bypass (§6); session claims never re-validated against the database; no rate limiting anywhere in the codebase (login, password reset, contact form, and the AI-extraction endpoint are all unthrottled); the auth library is on a floating prerelease version; a voucher/credit double-spend race under concurrent redemption; CSV exports use unescaped-formula-safe quoting but not full CSV-injection neutralization for <code>=</code>/<code>+</code>/<code>-</code>/<code>@</code>-prefixed values.</p>
+    <p><strong>CSP</strong> (<code>next.config.ts</code>, applied to every route): <code>script-src 'self' 'unsafe-inline'</code> (plus <code>'unsafe-eval'</code> in dev only), enumerated <code>frame-src</code> allowlist (Google, YouTube, Vimeo), <code>object-src 'none'</code>, <code>frame-ancestors 'none'</code>, plus HSTS with preload. The <code>'unsafe-inline'</code> script/style allowance is a documented, deliberate tradeoff (JSON-LD structured-data tags and the admin rich-text editor's inline color swatches) rather than an oversight.</p>
+  </section>
+
+  <section id="config">
+    <h2>11. Configuration Reference</h2>
+    <h3>Environment variables (complete)</h3>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Variable</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>DATABASE_URL</code></td><td>Postgres (Neon) connection string</td></tr>
+        <tr><td><code>AUTH_SECRET</code></td><td>NextAuth/Auth.js JWT signing secret</td></tr>
+        <tr><td><code>RESEND_API_KEY</code>, <code>EMAIL_FROM</code></td><td>Email delivery</td></tr>
+        <tr><td><code>ANTHROPIC_API_KEY</code></td><td>Vaccination-certificate AI extraction</td></tr>
+        <tr><td><code>STRIPE_SECRET_KEY</code>, <code>STRIPE_WEBHOOK_SECRET</code></td><td>Stripe API + webhook verification</td></tr>
+        <tr><td><code>CRON_SECRET</code></td><td>Bearer-token gate for <strong>all four</strong> cron routes (the <code>.env.example</code> comment describing it as scoped to one route is stale)</td></tr>
+        <tr><td><code>TWILIO_ACCOUNT_SID</code>, <code>TWILIO_AUTH_TOKEN</code>, <code>TWILIO_FROM_NUMBER</code></td><td>SMS</td></tr>
+        <tr><td><code>R2_ACCOUNT_ID</code>, <code>R2_ACCESS_KEY_ID</code>, <code>R2_SECRET_ACCESS_KEY</code>, <code>R2_PRIVATE_BUCKET</code>, <code>R2_PUBLIC_BUCKET</code>, <code>R2_PUBLIC_BASE_URL</code></td><td>Cloudflare R2</td></tr>
+        <tr><td><code>NEXT_PUBLIC_SITE_URL</code></td><td>Client-exposed site origin</td></tr>
+        <tr><td><code>NODE_ENV</code></td><td>Toggles CSP's <code>'unsafe-eval'</code> in dev</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Body-size configuration gotcha</h3>
+    <p><code>next.config.ts</code> sets <code>experimental.serverActions.bodySizeLimit: "200mb"</code> <strong>and</strong> <code>experimental.proxyClientMaxBodySize: "200mb"</code> — both are required together because <code>src/proxy.ts</code> buffers request bodies independently at a 10MB default; setting only one causes large uploads (photos/video) to fail with a generic form-parsing error before reaching the Server Action.</p>
+
+    <h3>Build &amp; deploy</h3>
+    <p><code>npm run build</code> runs <code>node scripts/warm-db.mjs && prisma migrate deploy && next build</code>. There is no CI pipeline — <code>.github/workflows/</code> exists but is empty, so there is no automated build/lint/test gate before a Vercel deploy beyond Vercel's own build step.</p>
+  </section>
+
+  <section id="debt">
+    <h2>12. Known Technical Debt &amp; Recommendations</h2>
+    <h3>Fix first</h3>
+    <ol>
+      <li><code>resolveBookingCreation</code>'s missing <code>auth()</code> check (§6) — a live authorization gap, not just a documentation gap.</li>
+      <li>Dependency versions: <code>next-auth</code>/<code>@auth/core</code> on a floating prerelease and <code>next@16.2.10</code> both carry advisories relevant to this codebase's exact patterns; a non-major upgrade path exists.</li>
+    </ol>
+    <h3>Address soon</h3>
+    <ul>
+      <li>Extract one shared <code>requireRole()</code>/<code>requireAdmin()</code>/<code>requireStaff()</code> helper to replace the 20+ near-duplicate ad hoc checks — this is the structural root cause of gap #1 above.</li>
+      <li>Split <code>src/app/(marketing)/book/actions.ts</code> (953 lines, 5 service types' worth of booking logic in one file) into per-service modules.</li>
+      <li>Add rate limiting to public-facing forms and auth endpoints.</li>
+      <li>Fix the voucher/credit double-spend race with the same SERIALIZABLE+retry pattern already used for booking capacity.</li>
+    </ul>
+    <h3>Lower priority / awareness only</h3>
+    <ul>
+      <li>Remove the dead <code>storage/uploads/</code>/<code>public/uploads/</code> directories to avoid confusion with the R2-only storage model.</li>
+      <li>No <code>ServiceType</code> enum exists — the five service slugs are hard-coded string literals in the booking-creation branching logic, so a sixth <code>Service</code> an admin creates would get pricing/listing but no corresponding booking-creation branch until code is added.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <p>This overview was generated from direct source-code and database-schema analysis, cross-checked against independent API-specialist and security-specialist reviews of the same codebase, on 2026-09-06.</p>
+    <a class="back-to-top" href="#what-it-is">↑ Back to top</a>
+  </footer>
+
+</div>
+</body>
+</html>
