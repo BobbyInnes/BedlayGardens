@@ -4,7 +4,12 @@ import { BatchPayButton } from "@/components/marketing/batch-pay-button"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 import { bookingCardClasses } from "@/lib/booking-card-colors"
 import { formatBookingNumber } from "@/lib/customer-dog-numbers"
-import { BookingActions, VaccinationNotice, type BookingCardBooking } from "@/components/portal/booking-card"
+import {
+  BookingActions,
+  VaccinationNotice,
+  EvaluationNotice,
+  type BookingCardBooking,
+} from "@/components/portal/booking-card"
 
 // One combined card for a Day Care multi-date batch (Booking.batchId) —
 // all dates share the same service/dogs, so only the date, status, and
@@ -99,6 +104,7 @@ export function BatchBookingCard({
               />
             </div>
             <VaccinationNotice booking={booking} />
+            <EvaluationNotice booking={booking} />
           </li>
         ))}
       </ul>

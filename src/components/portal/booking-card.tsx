@@ -26,8 +26,18 @@ export type BookingCardBooking = Booking & {
   service: Service
   payments: Payment[]
   trialVisits: (TrialVisit & { dog: Dog })[]
-  bookingDogs: (BookingDog & { dog: Dog })[]
+  bookingDogs: (BookingDog & { dog: Dog & { trialVisits: TrialVisit[] } })[]
 }
+
+// Bookings past this point are done one way or another — no point flagging
+// an outstanding evaluation on something already cancelled or wrapped up.
+const EVALUATION_NOTICE_DONE_STATUSES = [
+  "CANCELLED_BY_CUSTOMER",
+  "CANCELLED_BY_ADMIN",
+  "NO_SHOW",
+  "COMPLETED",
+  "CHECKED_OUT",
+]
 
 /**
  * Groups bookings sharing a non-null batchId (see Booking.batchId — set only
@@ -169,6 +179,31 @@ export function VaccinationNotice({ booking }: { booking: BookingCardBooking }) 
   )
 }
 
+// A booking's "Action needed" evaluation notice — same check as the dog
+// card on /portal/dogs (no admin bypass, no passed/completed trial yet),
+// surfaced per dog on the booking rather than gated to it: unlike the
+// vaccination notice this isn't tied to one booking status, since only
+// requiresTrial services block booking creation on a missing evaluation
+// (see checkTrialGate) — other services (e.g. Dog Walking) can still be
+// booked with the evaluation outstanding, and this is where that shows.
+export function EvaluationNotice({ booking }: { booking: BookingCardBooking }) {
+  if (EVALUATION_NOTICE_DONE_STATUSES.includes(booking.status)) return null
+  const outstandingNames = booking.bookingDogs
+    .map((bd) => bd.dog)
+    .filter((dog) => !dog.bypassMeetGreetChecks && !dog.trialVisits[0]?.outcome)
+    .map((dog) => dog.name)
+  if (outstandingNames.length === 0) return null
+  return (
+    <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+      <p className="font-medium text-destructive">Action needed — evaluation outstanding</p>
+      <p className="mt-1 text-muted-foreground">
+        {outstandingNames.join(", ")} {outstandingNames.length === 1 ? "hasn't" : "haven't"} had a Meet
+        &amp; Greet evaluation yet.
+      </p>
+    </div>
+  )
+}
+
 // One booking row on My Bookings and (for a PENDING_VACCINATION booking) on
 // the Waitlist page — shared so "upload a certificate, then the booking
 // moves off Waitlist" doesn't mean maintaining two copies of this markup.
@@ -213,6 +248,7 @@ export function BookingCard({
       </div>
 
       <VaccinationNotice booking={booking} />
+      <EvaluationNotice booking={booking} />
 
       {completedTrialVisits.length > 0 && (
         <div className="mt-3 space-y-2 border-t border-border pt-3">

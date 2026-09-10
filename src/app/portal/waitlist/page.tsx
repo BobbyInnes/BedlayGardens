@@ -42,7 +42,9 @@ export default async function PortalWaitlistPage() {
         service: true,
         payments: true,
         trialVisits: { include: { dog: true } },
-        bookingDogs: { include: { dog: true } },
+        bookingDogs: {
+          include: { dog: { include: { trialVisits: { orderBy: { completedAt: "desc" }, take: 1 } } } },
+        },
       },
     }),
     getSetting("cancellation_free_days", "14"),
