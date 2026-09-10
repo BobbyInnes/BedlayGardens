@@ -197,9 +197,11 @@ export function EvaluationNotice({ booking }: { booking: BookingCardBooking }) {
     <div className="mt-3 rounded-md border border-destructive/30 bg-destructive/5 p-3">
       <p className="font-medium text-destructive">Action needed — evaluation outstanding</p>
       <p className="mt-1 text-muted-foreground">
-        {outstandingNames.join(", ")} {outstandingNames.length === 1 ? "hasn't" : "haven't"} had a Meet
-        &amp; Greet evaluation yet.
+        {`${outstandingNames.join(", ")} ${outstandingNames.length === 1 ? "hasn't" : "haven't"} had a Meet & Greet evaluation yet.`}
       </p>
+      <Link href="/book/meet-greet" className="mt-2 inline-block font-medium text-primary hover:underline">
+        Book a Meet &amp; Greet
+      </Link>
     </div>
   )
 }
