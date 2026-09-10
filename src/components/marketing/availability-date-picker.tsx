@@ -5,26 +5,45 @@ import { CalendarIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { toDateInputValue } from "@/lib/dates"
+import type { WalkType } from "@/generated/prisma/client"
 
-type BaseProps = { serviceSlug: "daycare" | "meet-greet" }
+// NOT src/lib/dates.ts's toDateInputValue — that one deliberately reads UTC
+// components, because every Date elsewhere in the app is a UTC-midnight
+// instant (see the note on it). A day-picker cell Date is the opposite: the
+// underlying calendar library builds it as LOCAL midnight for that calendar
+// day. Reading UTC components off a local-midnight Date shifts by a day
+// whenever the browser's UTC offset isn't zero (e.g. BST, UTC+1) — bug found
+// 2026-09-10: every cell one day out of sync with the server's `available`
+// set, and picking a day selected the day before it. Local components are
+// the correct read here; the resulting "YYYY-MM-DD" string is still exactly
+// what the server expects (a bare date string parses as UTC midnight).
+function toLocalDateInputValue(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+type BaseProps = { serviceSlug: "daycare" | "meet-greet" | "dog-walking"; walkType?: WalkType }
 type SingleProps = BaseProps & { mode?: "single"; value: string; onChange: (value: string) => void }
 type MultipleProps = BaseProps & { mode: "multiple"; value: string[]; onChange: (value: string[]) => void }
 
 /**
- * Date-based booking step (daycare / meet & greet) picker. Circles every
- * weekday in the visible month that's actually available, fetched in one
- * batch per month rather than checking day by day — the highlight is just a
- * guide though, not the final word: "Check availability" still re-verifies
- * whatever day(s) get picked, since someone else could book one in between.
+ * Date-based booking step (daycare / meet & greet / dog walking) picker.
+ * Circles every weekday in the visible month that's actually available,
+ * fetched in one batch per month rather than checking day by day — the
+ * highlight is just a guide though, not the final word: whatever day(s) get
+ * picked are re-verified again at booking creation, since someone else could
+ * book one in between.
  *
- * `mode="multiple"` lets daycare bookings cover several dates in one go —
- * each still becomes its own booking server-side, this just lets the
- * customer pick them all before checking availability. Meet & Greet stays
- * single-mode since only one can happen per day anyway.
+ * `mode="multiple"` lets daycare/dog-walking bookings cover several dates in
+ * one go — each still becomes its own booking server-side, this just lets
+ * the customer pick them all up front. Meet & Greet stays single-mode since
+ * only one can happen per day anyway. For dog walking, pass `walkType` too —
+ * capacity (and so the highlight) differs per type.
  */
 export function AvailabilityDatePicker(props: SingleProps | MultipleProps) {
-  const { serviceSlug } = props
+  const { serviceSlug, walkType } = props
   const multiple = props.mode === "multiple"
 
   const [open, setOpen] = React.useState(false)
@@ -37,7 +56,8 @@ export function AvailabilityDatePicker(props: SingleProps | MultipleProps) {
   React.useEffect(() => {
     let cancelled = false
     const monthParam = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`
-    fetch(`/api/book/availability-month?serviceSlug=${serviceSlug}&month=${monthParam}`)
+    const walkTypeParam = walkType ? `&walkType=${walkType}` : ""
+    fetch(`/api/book/availability-month?serviceSlug=${serviceSlug}&month=${monthParam}${walkTypeParam}`)
       .then((res) => res.json())
       .then((data: { available?: string[] }) => {
         if (!cancelled) setAvailableDays(new Set(data.available ?? []))
@@ -48,7 +68,7 @@ export function AvailabilityDatePicker(props: SingleProps | MultipleProps) {
     return () => {
       cancelled = true
     }
-  }, [serviceSlug, month])
+  }, [serviceSlug, walkType, month])
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -79,9 +99,9 @@ export function AvailabilityDatePicker(props: SingleProps | MultipleProps) {
             month={month}
             onMonthChange={setMonth}
             disabled={[{ before: today }, { dayOfWeek: [0, 6] }]}
-            modifiers={{ available: (date) => availableDays.has(toDateInputValue(date)) }}
+            modifiers={{ available: (date) => availableDays.has(toLocalDateInputValue(date)) }}
             modifiersClassNames={{ available: "ring-2 ring-primary ring-inset rounded-full" }}
-            onSelect={(dates) => props.onChange((dates ?? []).map(toDateInputValue).sort())}
+            onSelect={(dates) => props.onChange((dates ?? []).map(toLocalDateInputValue).sort())}
           />
         ) : (
           <Calendar
@@ -90,11 +110,11 @@ export function AvailabilityDatePicker(props: SingleProps | MultipleProps) {
             month={month}
             onMonthChange={setMonth}
             disabled={[{ before: today }, { dayOfWeek: [0, 6] }]}
-            modifiers={{ available: (date) => availableDays.has(toDateInputValue(date)) }}
+            modifiers={{ available: (date) => availableDays.has(toLocalDateInputValue(date)) }}
             modifiersClassNames={{ available: "ring-2 ring-primary ring-inset rounded-full" }}
             onSelect={(date) => {
               if (date) {
-                props.onChange(toDateInputValue(date))
+                props.onChange(toLocalDateInputValue(date))
                 setOpen(false)
               }
             }}

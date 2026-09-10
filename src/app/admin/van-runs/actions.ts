@@ -148,6 +148,74 @@ export async function moveStop(vanRunId: string, stopId: string, direction: "up"
   revalidatePath(`/admin/van-runs/${vanRunId}`)
 }
 
+const assignStopSchema = z.object({ bookingId: z.string().min(1, "Select a booking") })
+
+// Dog Walking (Van Collection) bookings no longer pick a van run at booking
+// time (see WalkType) — staff assign each date's bookings to an actual run
+// here instead, one VanRunStop per dog on the booking, pre-filled from the
+// booking's own pickupAddress/accessNotes.
+export async function assignBookingToVanRun(
+  vanRunId: string,
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  const session = await requireAdmin()
+  const parsed = assignStopSchema.safeParse({ bookingId: formData.get("bookingId") })
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
+  }
+
+  const [vanRun, booking] = await Promise.all([
+    prisma.vanRun.findUnique({ where: { id: vanRunId }, include: { stops: true } }),
+    prisma.booking.findUnique({
+      where: { id: parsed.data.bookingId },
+      include: { bookingDogs: true, vanRunStops: true },
+    }),
+  ])
+  if (!vanRun) return { status: "error", message: "Van run not found." }
+  if (!booking) return { status: "error", message: "Booking not found." }
+  if (booking.vanRunStops.length > 0) {
+    return { status: "error", message: "That booking is already assigned to a run." }
+  }
+  if (vanRun.maxDogs - vanRun.stops.length < booking.bookingDogs.length) {
+    return { status: "error", message: "Not enough space left on this run for that booking's dog(s)." }
+  }
+
+  await prisma.vanRunStop.createMany({
+    data: booking.bookingDogs.map((bd, index) => ({
+      vanRunId,
+      bookingId: booking.id,
+      dogId: bd.dogId,
+      pickupAddress: booking.pickupAddress ?? "",
+      accessNotes: booking.accessNotes,
+      sortOrder: vanRun.stops.length + index,
+    })),
+  })
+  await logAudit({
+    actorId: session.user.id,
+    action: "ASSIGN_BOOKING_TO_VAN_RUN",
+    entity: "VanRun",
+    entityId: vanRunId,
+    meta: `booking ${booking.bookingNumber}`,
+  })
+
+  revalidatePath(`/admin/van-runs/${vanRunId}`)
+  return { status: "idle" }
+}
+
+export async function removeVanRunStop(vanRunId: string, stopId: string) {
+  const session = await requireAdmin()
+  const stop = await prisma.vanRunStop.delete({ where: { id: stopId } })
+  await logAudit({
+    actorId: session.user.id,
+    action: "REMOVE_VAN_RUN_STOP",
+    entity: "VanRun",
+    entityId: vanRunId,
+    meta: `stop ${stop.id} (booking ${stop.bookingId})`,
+  })
+  revalidatePath(`/admin/van-runs/${vanRunId}`)
+}
+
 export async function updateServiceAreaPostcodes(
   _prevState: AdminActionState,
   formData: FormData

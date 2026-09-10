@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { AlertTriangle, Flag, Loader2, ScrollText } from "lucide-react"
+import { AlertTriangle, Flag, HeartPulse, Loader2, ScrollText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,13 +10,16 @@ import { Textarea } from "@/components/ui/textarea"
 import { formatPence } from "@/lib/format"
 import { isWeekend, isPastDaycareHalfDayAmCutoff } from "@/lib/dates"
 import { cn } from "@/lib/utils"
+import type { WalkType } from "@/generated/prisma/client"
 import {
   createBooking,
   createDaycareBookings,
+  createDogWalkingBookings,
   type BookingActionState,
 } from "@/app/(marketing)/book/actions"
 import { joinWaitlist } from "@/app/portal/waitlist/actions"
 import { AvailabilityDatePicker } from "@/components/marketing/availability-date-picker"
+import { WALK_TYPES, WALK_TYPE_LABELS, WALK_TYPE_PRICE_PENCE, DEFAULT_WALK_TYPE } from "@/lib/walk-types"
 
 type PricingModel = "PER_NIGHT" | "PER_DAY" | "PER_SESSION"
 type PaymentTiming = "FULL_UPFRONT" | "DEPOSIT_THEN_BALANCE" | "INVOICE_AFTER"
@@ -35,7 +38,6 @@ type DogInfo = { id: string; name: string; breed: string }
 type AddonInfo = { id: string; name: string; description: string | null; pricePence: number }
 
 type WalkSlotOption = { id: string; date: string; time: string; durationMin: number; remaining: number }
-type VanRunOption = { id: string; date: string; name: string; startTime: string; remaining: number }
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10)
@@ -97,11 +99,12 @@ export function BookingWizard({
   const [daycareHalfDaySlot, setDaycareHalfDaySlot] = React.useState<"AM" | "PM" | "">("")
   const [walkSlots, setWalkSlots] = React.useState<WalkSlotOption[]>([])
   const [selectedSlotId, setSelectedSlotId] = React.useState("")
-  const [vanRuns, setVanRuns] = React.useState<VanRunOption[]>([])
-  const [selectedRunId, setSelectedRunId] = React.useState("")
+  const [dogWalkingDates, setDogWalkingDates] = React.useState<string[]>([])
+  const [walkType, setWalkType] = React.useState<WalkType>(DEFAULT_WALK_TYPE)
   const [pickupAddress, setPickupAddress] = React.useState("")
   const [postcode, setPostcode] = React.useState("")
   const [accessNotes, setAccessNotes] = React.useState("")
+  const [dogHealthAgreed, setDogHealthAgreed] = React.useState(false)
 
   const dateError = isMeetGreet ? dateBasedDateError(date) : null
 
@@ -163,11 +166,6 @@ export function BookingWizard({
         .then((res) => res.json())
         .then((data) => setWalkSlots(data.slots ?? []))
     }
-    if (isDogWalking) {
-      fetch(`/api/book/availability?serviceSlug=${service.slug}`)
-        .then((res) => res.json())
-        .then((data) => setVanRuns(data.runs ?? []))
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -210,6 +208,23 @@ export function BookingWizard({
         const data = await res.json()
         setAvailable(!!data.available)
         setAvailabilityReason(data.reason ?? null)
+      } else if (isDogWalking) {
+        const results = await Promise.all(
+          dogWalkingDates.map(async (d) => {
+            const params = new URLSearchParams({ serviceSlug: service.slug, date: d, walkType })
+            const res = await fetch(`/api/book/availability?${params}`)
+            const data = await res.json()
+            return { date: d, available: !!data.available }
+          })
+        )
+        const failed = results.filter((r) => !r.available).map((r) => r.date)
+        setFailedDaycareDates(failed)
+        setAvailable(dogWalkingDates.length > 0 && failed.length === 0)
+        setAvailabilityReason(
+          failed.length > 0
+            ? `Not available: ${failed.map((d) => new Date(`${d}T00:00:00`).toLocaleDateString("en-GB")).join(", ")}`
+            : null
+        )
       }
       setAvailabilityChecked(true)
       setWaitlistMessage(null)
@@ -278,8 +293,8 @@ export function BookingWizard({
       const d = walkSlots.find((s) => s.id === selectedSlotId)?.date
       return d ? [{ start: d, end: d }] : []
     }
-    const d = vanRuns.find((r) => r.id === selectedRunId)?.date
-    return d ? [{ start: d, end: d }] : []
+    if (isDogWalking) return dogWalkingDates.map((d) => ({ start: d, end: d }))
+    return []
   }
 
   async function goToReviewFromDogs() {
@@ -328,7 +343,9 @@ export function BookingWizard({
           ? date
           : isForestWalk
             ? walkSlots.find((s) => s.id === selectedSlotId)?.date
-            : vanRuns.find((r) => r.id === selectedRunId)?.date
+            : isDogWalking
+              ? [...dogWalkingDates].sort().at(-1)
+              : undefined
 
     if (!throughDate) {
       setStepIndex((i) => i + 1)
@@ -360,9 +377,16 @@ export function BookingWizard({
 
   // Client-side price preview mirroring the server's boarding discount logic.
   const nights = isBoarding ? nightsBetween(startDate, endDate) : 1
-  const units = isBoarding ? nights : isDaycare ? Math.max(1, daycareDates.length) : 1
-  const unitPricePence =
-    isDaycare && effectiveDaycareDuration === "HALF_DAY" && service.halfDayPricePence != null
+  const units = isBoarding
+    ? nights
+    : isDaycare
+      ? Math.max(1, daycareDates.length)
+      : isDogWalking
+        ? Math.max(1, dogWalkingDates.length)
+        : 1
+  const unitPricePence = isDogWalking
+    ? WALK_TYPE_PRICE_PENCE[walkType]
+    : isDaycare && effectiveDaycareDuration === "HALF_DAY" && service.halfDayPricePence != null
       ? service.halfDayPricePence
       : service.basePricePence
   let basePreviewPence: number
@@ -400,20 +424,25 @@ export function BookingWizard({
               effectiveDaycareDuration === "HALF_DAY" && effectiveHalfDaySlot ? effectiveHalfDaySlot : undefined,
             proceedWithoutValidVaccines,
           })
-        : await createBooking({
-            serviceSlug: service.slug,
-            dogIds: selectedDogIds,
-            addons: selectedAddonIds.map((addonId) => ({ addonId, quantity: 1 })),
-            startDate: isBoarding ? startDate : undefined,
-            endDate: isBoarding ? endDate : undefined,
-            date: isMeetGreet ? date : undefined,
-            walkSlotId: isForestWalk ? selectedSlotId : undefined,
-            vanRunId: isDogWalking ? selectedRunId : undefined,
-            pickupAddress: isDogWalking ? pickupAddress : undefined,
-            accessNotes: isDogWalking ? accessNotes : undefined,
-            postcode: isDogWalking ? postcode : undefined,
-            proceedWithoutValidVaccines,
-          })
+        : isDogWalking
+          ? await createDogWalkingBookings(dogWalkingDates, walkType, {
+              dogIds: selectedDogIds,
+              addons: [],
+              pickupAddress,
+              accessNotes,
+              postcode,
+              proceedWithoutValidVaccines,
+            })
+          : await createBooking({
+              serviceSlug: service.slug,
+              dogIds: selectedDogIds,
+              addons: selectedAddonIds.map((addonId) => ({ addonId, quantity: 1 })),
+              startDate: isBoarding ? startDate : undefined,
+              endDate: isBoarding ? endDate : undefined,
+              date: isMeetGreet ? date : undefined,
+              walkSlotId: isForestWalk ? selectedSlotId : undefined,
+              proceedWithoutValidVaccines,
+            })
       if (result?.status === "error") {
         setSubmitError(result.message ?? "Something went wrong.")
         if (result.missingVaccinations) setVaccinationWarning(result.missingVaccinations)
@@ -583,29 +612,39 @@ export function BookingWizard({
           {isDogWalking && (
             <div className="space-y-5">
               <div className="space-y-2">
-                <Label>Choose a van run</Label>
-                {vanRuns.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No runs available right now.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {vanRuns.map((run) => (
-                      <button
-                        key={run.id}
-                        type="button"
-                        onClick={() => setSelectedRunId(run.id)}
-                        className={`flex w-full items-center justify-between rounded-lg border p-3 text-left text-sm ${
-                          selectedRunId === run.id ? "border-primary bg-primary/5" : "border-border"
-                        }`}
-                      >
-                        <span>
-                          {run.name} — {new Date(run.date).toLocaleDateString("en-GB")} at{" "}
-                          {run.startTime}
-                        </span>
-                        <span className="text-muted-foreground">{run.remaining} spaces left</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <Label htmlFor="walkType">Walk type</Label>
+                <select
+                  id="walkType"
+                  value={walkType}
+                  onChange={(e) => {
+                    setWalkType(e.target.value as WalkType)
+                    setAvailabilityChecked(false)
+                  }}
+                  className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                >
+                  {WALK_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {WALK_TYPE_LABELS[type]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dogWalkingDates">Dates</Label>
+                <AvailabilityDatePicker
+                  mode="multiple"
+                  serviceSlug="dog-walking"
+                  walkType={walkType}
+                  value={dogWalkingDates}
+                  onChange={(value) => {
+                    setDogWalkingDates(value)
+                    setAvailabilityChecked(false)
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Pick as many weekdays as you&rsquo;d like — each is booked and paid for separately.
+                  Not available Saturdays or Sundays.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="pickupAddress">Pickup address</Label>
@@ -637,7 +676,7 @@ export function BookingWizard({
             </div>
           )}
 
-          {(isBoarding || isDateBased) && (
+          {(isBoarding || isDateBased || isDogWalking) && (
             <div className="space-y-2">
               <Button
                 variant="outline"
@@ -646,7 +685,8 @@ export function BookingWizard({
                   checkingAvailability ||
                   (isBoarding && (!startDate || !endDate)) ||
                   (isDaycare && daycareDates.length === 0) ||
-                  (isMeetGreet && (!date || !!dateError))
+                  (isMeetGreet && (!date || !!dateError)) ||
+                  (isDogWalking && (dogWalkingDates.length === 0 || !pickupAddress || !postcode))
                 }
               >
                 {checkingAvailability ? "Checking…" : "Check availability"}
@@ -710,7 +750,7 @@ export function BookingWizard({
               (isBoarding && !available) ||
               (isDateBased && !available) ||
               (isForestWalk && !selectedSlotId) ||
-              (isDogWalking && (!selectedRunId || !pickupAddress || !postcode)) ||
+              (isDogWalking && (!available || !pickupAddress || !postcode)) ||
               (isDaycare && effectiveDaycareDuration === "HALF_DAY" && !effectiveHalfDaySlot)
             }
           >
@@ -830,13 +870,38 @@ export function BookingWizard({
             </div>
           )}
 
+          {isDogWalking && (
+            <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+              <HeartPulse className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={dogHealthAgreed}
+                  onChange={(e) => setDogHealthAgreed(e.target.checked)}
+                  className="mt-0.5 size-4 shrink-0 rounded border-input"
+                />
+                <span>
+                  I agree &amp; understand that my dog will NOT attend if they are unwell (eg.
+                  diarrhoea), currently on antibiotics, in season or recently finished their season, or
+                  within 14 days of receiving a live Kennel Cough vaccination.
+                </span>
+              </label>
+            </div>
+          )}
+
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setStepIndex((i) => i - 1)}>
               Back
             </Button>
             <Button
               onClick={goToReviewFromDogs}
-              disabled={selectedDogIds.length === 0 || checkingVaccinations || checkingTrial || checkingConflicts}
+              disabled={
+                selectedDogIds.length === 0 ||
+                checkingVaccinations ||
+                checkingTrial ||
+                checkingConflicts ||
+                (isDogWalking && !dogHealthAgreed)
+              }
             >
               {checkingVaccinations || checkingTrial || checkingConflicts ? (
                 <>
@@ -893,7 +958,7 @@ export function BookingWizard({
           <div className="space-y-2 rounded-lg border border-border p-4 text-sm">
             <div className="flex justify-between">
               <span>
-                {service.name}
+                {isDogWalking ? WALK_TYPE_LABELS[walkType] : service.name}
                 {isDaycare
                   ? effectiveDaycareDuration === "HALF_DAY"
                     ? ` (Half Day${effectiveHalfDaySlot ? ` – ${effectiveHalfDaySlot}` : ""})`
@@ -902,6 +967,9 @@ export function BookingWizard({
                 × {dogCount} dog{dogCount > 1 ? "s" : ""}
                 {isBoarding ? ` × ${nights} night${nights === 1 ? "" : "s"}` : ""}
                 {isDaycare ? ` × ${daycareDates.length} date${daycareDates.length === 1 ? "" : "s"}` : ""}
+                {isDogWalking
+                  ? ` × ${dogWalkingDates.length} date${dogWalkingDates.length === 1 ? "" : "s"}`
+                  : ""}
               </span>
               <span>{formatPence(basePreviewPence)}</span>
             </div>
@@ -909,6 +977,16 @@ export function BookingWizard({
               <p className="text-xs text-muted-foreground">
                 {daycareDates.map((d) => new Date(`${d}T00:00:00`).toLocaleDateString("en-GB")).join(", ")}
               </p>
+            )}
+            {isDogWalking && (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  {dogWalkingDates.map((d) => new Date(`${d}T00:00:00`).toLocaleDateString("en-GB")).join(", ")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Pickup: {pickupAddress}, {postcode}
+                </p>
+              </>
             )}
             {selectedAddonIds.map((id) => {
               const addon = addons.find((a) => a.id === id)
@@ -955,7 +1033,7 @@ export function BookingWizard({
             is calculated when you confirm and shown on your booking confirmation.
           </p>
 
-          {isDaycare && daycareDates.length > 1 && (
+          {((isDaycare && daycareDates.length > 1) || (isDogWalking && dogWalkingDates.length > 1)) && (
             <p className="text-xs text-muted-foreground">
               Each date above becomes its own booking with its own payment — if one date turns out to
               be unavailable when you confirm, the rest still go ahead.

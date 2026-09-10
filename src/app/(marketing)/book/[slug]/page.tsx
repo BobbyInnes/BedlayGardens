@@ -10,6 +10,20 @@ import { checkTrialGate, formatTrialGateMessage } from "@/lib/trial"
 import { BookingWizard } from "@/components/marketing/booking-wizard"
 import { Button } from "@/components/ui/button"
 
+// The full service name ("Dog Walking (Van Collection)") is what shows
+// elsewhere — booking cards, admin lists, emails — where "Van Collection" is
+// useful disambiguation. On the booking page itself it's just noise once the
+// service includes its own description right underneath the title (see
+// DOG_WALKING_DESCRIPTION below), so this shortens it there only.
+function bookingPageTitle(service: { slug: string; name: string }): string {
+  return service.slug === "dog-walking" ? "Dog Walking" : service.name
+}
+
+const DOG_WALKING_DESCRIPTION =
+  "This service includes pick up and drop off your dog, in our modern dog transport van, " +
+  "which is a brand new Transit Custom, fully equipped with purpose built, custom designed, " +
+  "integrated dog transport crates."
+
 export async function generateMetadata({
   params,
 }: {
@@ -17,7 +31,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params
   const service = await prisma.service.findUnique({ where: { slug } })
-  return { title: service ? `Book ${service.name}` : "Book" }
+  return { title: service ? `Book ${bookingPageTitle(service)}` : "Book" }
 }
 
 export default async function BookServicePage({
@@ -48,7 +62,7 @@ export default async function BookServicePage({
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
         <h1 className="mb-8 text-2xl font-semibold tracking-tight sm:text-3xl">
-          Book {service.name}
+          Book {bookingPageTitle(service)}
         </h1>
         <div className="flex items-start gap-3 rounded-xl border border-destructive bg-destructive/10 p-4 text-destructive sm:items-center">
           <AlertTriangle className="mt-0.5 size-5 shrink-0 sm:mt-0" aria-hidden="true" />
@@ -78,7 +92,7 @@ export default async function BookServicePage({
       return (
         <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
           <h1 className="mb-8 text-2xl font-semibold tracking-tight sm:text-3xl">
-            Book {service.name}
+            Book {bookingPageTitle(service)}
           </h1>
           <div className="flex items-start gap-3 rounded-xl border border-destructive bg-destructive/10 p-4 text-destructive sm:items-center">
             <AlertTriangle className="mt-0.5 size-5 shrink-0 sm:mt-0" aria-hidden="true" />
@@ -96,9 +110,16 @@ export default async function BookServicePage({
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
-      <h1 className="mb-8 text-2xl font-semibold tracking-tight sm:text-3xl">
-        Book {service.name}
+      <h1
+        className={`text-2xl font-semibold tracking-tight sm:text-3xl ${
+          service.slug === "dog-walking" ? "" : "mb-8"
+        }`}
+      >
+        Book {bookingPageTitle(service)}
       </h1>
+      {service.slug === "dog-walking" && (
+        <p className="mt-2 mb-8 text-muted-foreground">{DOG_WALKING_DESCRIPTION}</p>
+      )}
       <BookingWizard
         service={{
           id: service.id,

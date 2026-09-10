@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { isPastDaycareHalfDayAmCutoff } from "@/lib/dates"
+import type { WalkType } from "@/generated/prisma/client"
+import { WALK_TYPES, WALK_TYPE_LABELS, DEFAULT_WALK_TYPE } from "@/lib/walk-types"
 import {
   Select,
   SelectContent,
@@ -28,7 +30,6 @@ type ServiceInfo = { id: string; slug: string; name: string; pricingModel: Prici
 type Customer = { id: string; forename: string; surname: string; email: string; phone: string | null }
 type DogOption = { id: string; name: string; breed: string }
 type WalkSlotOption = { id: string; date: string; time: string; durationMin: number; remaining: number }
-type VanRunOption = { id: string; date: string; name: string; startTime: string; remaining: number }
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10)
@@ -68,8 +69,7 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
   const [daycareHalfDaySlot, setDaycareHalfDaySlot] = React.useState<"AM" | "PM" | "">("")
   const [walkSlots, setWalkSlots] = React.useState<WalkSlotOption[]>([])
   const [selectedSlotId, setSelectedSlotId] = React.useState("")
-  const [vanRuns, setVanRuns] = React.useState<VanRunOption[]>([])
-  const [selectedRunId, setSelectedRunId] = React.useState("")
+  const [walkType, setWalkType] = React.useState<WalkType>(DEFAULT_WALK_TYPE)
   const [pickupAddress, setPickupAddress] = React.useState("")
   const [postcode, setPostcode] = React.useState("")
   const [accessNotes, setAccessNotes] = React.useState("")
@@ -169,11 +169,6 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
         .then((res) => res.json())
         .then((data) => setWalkSlots(data.slots ?? []))
     }
-    if (slug === "dog-walking") {
-      fetch(`/api/book/availability?serviceSlug=${slug}`)
-        .then((res) => res.json())
-        .then((data) => setVanRuns(data.runs ?? []))
-    }
   }
 
   function toggleDog(dogId: string) {
@@ -196,12 +191,12 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
         dogIds: selectedDogIds,
         startDate: isBoarding ? startDate : undefined,
         endDate: isBoarding ? endDate : undefined,
-        date: isDateBased ? date : undefined,
+        date: isDateBased || isDogWalking ? date : undefined,
         daycareDuration: isDaycare ? effectiveDaycareDuration : undefined,
         daycareHalfDaySlot:
           isDaycare && effectiveDaycareDuration === "HALF_DAY" && effectiveHalfDaySlot ? effectiveHalfDaySlot : undefined,
         walkSlotId: isForestWalk ? selectedSlotId : undefined,
-        vanRunId: isDogWalking ? selectedRunId : undefined,
+        walkType: isDogWalking ? walkType : undefined,
         pickupAddress: isDogWalking ? pickupAddress : undefined,
         accessNotes: isDogWalking ? accessNotes : undefined,
         postcode: isDogWalking ? postcode : undefined,
@@ -246,7 +241,7 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
         : isForestWalk
           ? !!selectedSlotId
           : isDogWalking
-            ? !!selectedRunId && !!pickupAddress
+            ? !!date && !!pickupAddress && !!postcode
             : false)
 
   return (
@@ -591,29 +586,24 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
           {isDogWalking && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Choose a van run</Label>
-                {vanRuns.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No runs available right now.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {vanRuns.map((run) => (
-                      <button
-                        key={run.id}
-                        type="button"
-                        onClick={() => setSelectedRunId(run.id)}
-                        className={`flex w-full items-center justify-between rounded-lg border p-3 text-left text-sm ${
-                          selectedRunId === run.id ? "border-primary bg-primary/5" : "border-border"
-                        }`}
-                      >
-                        <span>
-                          {run.name} — {new Date(run.date).toLocaleDateString("en-GB")} at{" "}
-                          {run.startTime}
-                        </span>
-                        <span className="text-muted-foreground">{run.remaining} spaces left</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <Label htmlFor="walkType">Walk type</Label>
+                <select
+                  id="walkType"
+                  value={walkType}
+                  onChange={(e) => setWalkType(e.target.value as WalkType)}
+                  className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                >
+                  {WALK_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {WALK_TYPE_LABELS[type]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="date">Date</Label>
+                <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                <p className="text-xs text-muted-foreground">Not available Saturdays or Sundays.</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="pickupAddress">Pickup address</Label>

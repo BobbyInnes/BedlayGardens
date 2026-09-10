@@ -130,6 +130,20 @@ enum ReviewStatus {
   REJECTED
 }
 
+// Dog Walking (Van Collection) walk type — chosen by the customer at
+// booking time (see Booking.walkType), default GROUP_WALK. Replaces the old
+// flow of picking a pre-scheduled VanRun: capacity is now a fixed daily cap
+// per type (see WALK_TYPE_MAX_PER_DAY in src/lib/walk-types.ts), and staff
+// assign each date's bookings to an actual VanRun/VanRunStop afterward for
+// route planning (see /admin/van-runs). A dog flagged NO_GROUP_WALKS can
+// only book SOLO_WALK/PUPPY_WALK_AND_PLAY, not GROUP_WALK — see
+// GROUP_BLOCKING_FLAGS in resolveBookingCreation.
+enum WalkType {
+  GROUP_WALK
+  SOLO_WALK
+  PUPPY_WALK_AND_PLAY
+}
+
 enum DogFlagType {
   NOT_DOG_SOCIABLE
   NO_SHARED_KENNEL
@@ -486,6 +500,14 @@ model Booking {
   scheduledTime      String?
   assignedStaffId    String?
   assignedStaff      User?               @relation("BookingAssignedStaff", fields: [assignedStaffId], references: [id])
+  // Dog Walking (Van Collection) only — captured directly on the booking
+  // since it no longer creates a VanRunStop at booking time (see WalkType).
+  // pickupAddress/accessNotes here are the customer-entered values; once
+  // staff assign this booking to an actual VanRun, its VanRunStop rows carry
+  // their own copies (pre-filled from these) for the collection route.
+  walkType           WalkType?
+  pickupAddress      String?
+  accessNotes        String?
 
   bookingDogs       BookingDog[]
   bookingAddons     BookingAddon[]
@@ -505,6 +527,7 @@ model Booking {
   @@index([kennelUnitId, startDate, endDate])
   @@index([batchId])
   @@index([assignedStaffId])
+  @@index([serviceId, startDate])
 }
 
 model BookingDog {

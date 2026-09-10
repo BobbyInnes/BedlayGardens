@@ -1,9 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { ArrowUp, ArrowDown } from "lucide-react"
+import { ArrowUp, ArrowDown, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { moveStop } from "@/app/admin/van-runs/actions"
+import { moveStop, removeVanRunStop } from "@/app/admin/van-runs/actions"
 
 type Stop = {
   id: string
@@ -18,6 +18,12 @@ export function VanRunStopsList({ vanRunId, stops }: { vanRunId: string; stops: 
   async function handleMove(stopId: string, direction: "up" | "down") {
     setPendingId(stopId)
     await moveStop(vanRunId, stopId, direction)
+    setPendingId(null)
+  }
+
+  async function handleRemove(stopId: string) {
+    setPendingId(stopId)
+    await removeVanRunStop(vanRunId, stopId)
     setPendingId(null)
   }
 
@@ -54,6 +60,16 @@ export function VanRunStopsList({ vanRunId, stops }: { vanRunId: string; stops: 
               aria-label="Move down"
             >
               <ArrowDown className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              disabled={pendingId === stop.id}
+              onClick={() => handleRemove(stop.id)}
+              aria-label="Remove stop"
+            >
+              <X className="size-4" />
             </Button>
           </div>
         </li>

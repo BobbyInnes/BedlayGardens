@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma"
-import type { DogSize } from "@/generated/prisma/client"
+import type { DogSize, WalkType } from "@/generated/prisma/client"
 import { addDays, isWeekend, nightsBetween, startOfDay, toDateInputValue } from "@/lib/dates"
 import { DOG_SIZE_ORDER } from "@/lib/dog-size-colors"
 import { kennelSizeRank } from "@/lib/kennel-size"
+import { WALK_TYPE_MAX_PER_DAY } from "@/lib/walk-types"
 
 async function isSiteWideBlocked(dates: Date[]): Promise<boolean> {
   const count = await prisma.blockedDate.count({
@@ -128,15 +129,52 @@ export async function isMeetGreetAvailable(
 }
 
 /**
- * Batched version of isDaycareAvailable/isMeetGreetAvailable for an entire
- * date range — a handful of queries instead of one round trip per candidate
- * day, so the booking calendar can highlight every available weekday in a
- * month at once.
+ * Dog Walking (Van Collection) — weekday-only, capacity is a fixed daily cap
+ * per walk type (see WALK_TYPE_MAX_PER_DAY), not a settings-driven number
+ * like daycare's. Mirrors isDaycareAvailable's shape.
+ */
+export async function isDogWalkingAvailable(
+  date: Date,
+  walkType: WalkType
+): Promise<{ available: boolean; remaining: number; reason?: string }> {
+  const day = startOfDay(date)
+
+  if (isWeekend(day)) {
+    return { available: false, remaining: 0, reason: "This service isn't available on Saturdays or Sundays." }
+  }
+
+  const [blocked, existingDogCount] = await Promise.all([
+    prisma.blockedDate.count({ where: { kennelUnitId: null, date: day } }),
+    prisma.bookingDog.count({
+      where: {
+        booking: {
+          startDate: day,
+          service: { slug: "dog-walking" },
+          walkType,
+          status: { notIn: ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] },
+        },
+      },
+    }),
+  ])
+
+  if (blocked > 0) return { available: false, remaining: 0 }
+
+  const capacity = WALK_TYPE_MAX_PER_DAY[walkType]
+  const remaining = Math.max(0, capacity - existingDogCount)
+  return { available: remaining > 0, remaining }
+}
+
+/**
+ * Batched version of isDaycareAvailable/isMeetGreetAvailable/
+ * isDogWalkingAvailable for an entire date range — a handful of queries
+ * instead of one round trip per candidate day, so the booking calendar can
+ * highlight every available weekday in a month at once.
  */
 export async function listAvailableDays(
-  serviceSlug: "daycare" | "meet-greet",
+  serviceSlug: "daycare" | "meet-greet" | "dog-walking",
   rangeStart: Date,
-  rangeEnd: Date
+  rangeEnd: Date,
+  walkType?: WalkType
 ): Promise<string[]> {
   const today = startOfDay(new Date())
   const candidates: Date[] = []
@@ -164,6 +202,30 @@ export async function listAvailableDays(
     return candidates
       .map(toDateInputValue)
       .filter((d) => !blockedSet.has(d) && !bookedSet.has(d))
+  }
+
+  if (serviceSlug === "dog-walking") {
+    const resolvedWalkType = walkType ?? "GROUP_WALK"
+    const bookingDogs = await prisma.bookingDog.findMany({
+      where: {
+        booking: {
+          service: { slug: "dog-walking" },
+          walkType: resolvedWalkType,
+          startDate: { in: candidates },
+          status: { notIn: ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] },
+        },
+      },
+      select: { booking: { select: { startDate: true } } },
+    })
+    const capacity = WALK_TYPE_MAX_PER_DAY[resolvedWalkType]
+    const countByDay = new Map<string, number>()
+    for (const bd of bookingDogs) {
+      const d = toDateInputValue(bd.booking.startDate)
+      countByDay.set(d, (countByDay.get(d) ?? 0) + 1)
+    }
+    return candidates
+      .map(toDateInputValue)
+      .filter((d) => !blockedSet.has(d) && (countByDay.get(d) ?? 0) < capacity)
   }
 
   const [capacitySetting, bookingDogs] = await Promise.all([
@@ -199,15 +261,4 @@ export async function listAvailableWalkSlots(fromDate: Date) {
   return slots
     .map((slot) => ({ ...slot, remaining: slot.maxDogs - slot.walkBookings.length }))
     .filter((slot) => slot.remaining > 0)
-}
-
-export async function listAvailableVanRuns(fromDate: Date) {
-  const runs = await prisma.vanRun.findMany({
-    where: { date: { gte: startOfDay(fromDate) } },
-    orderBy: [{ date: "asc" }, { startTime: "asc" }],
-    include: { stops: true },
-  })
-  return runs
-    .map((run) => ({ ...run, remaining: run.maxDogs - run.stops.length }))
-    .filter((run) => run.remaining > 0)
 }

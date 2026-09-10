@@ -11,6 +11,7 @@ import { formatPence } from "@/lib/format"
 import { PayButton } from "@/components/marketing/pay-button"
 import { BatchPayButton } from "@/components/marketing/batch-pay-button"
 import { AutoPortalRedirect } from "@/components/marketing/auto-portal-redirect"
+import { WALK_TYPE_LABELS } from "@/lib/walk-types"
 
 export const metadata: Metadata = {
   title: "Bookings Confirmed",
@@ -109,6 +110,18 @@ export default async function MultiBookingConfirmationPage({
                 ? `Half Day${bookings[0].daycareHalfDaySlot ? ` (${bookings[0].daycareHalfDaySlot})` : ""}`
                 : "Full Day"}
             </span>
+          </div>
+        )}
+        {bookings[0].walkType && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Walk type</span>
+            <span className="font-medium">{WALK_TYPE_LABELS[bookings[0].walkType]}</span>
+          </div>
+        )}
+        {bookings[0].pickupAddress && (
+          <div className="flex justify-between gap-4">
+            <span className="shrink-0 text-muted-foreground">Pickup</span>
+            <span className="font-medium">{bookings[0].pickupAddress}</span>
           </div>
         )}
         <div className="flex justify-between">

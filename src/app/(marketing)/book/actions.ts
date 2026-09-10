@@ -4,12 +4,13 @@ import { randomUUID } from "node:crypto"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { Prisma, type PaymentTiming } from "@/generated/prisma/client"
+import { Prisma, type PaymentTiming, type WalkType } from "@/generated/prisma/client"
 import { isDriverAdapterError } from "@prisma/driver-adapter-utils"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { nightsBetween, startOfDay, isPastDaycareHalfDayAmCutoff } from "@/lib/dates"
+import { nightsBetween, startOfDay, isWeekend, isPastDaycareHalfDayAmCutoff } from "@/lib/dates"
 import { findAvailableKennelUnit, isDaycareAvailable, isMeetGreetAvailable } from "@/lib/availability"
+import { WALK_TYPE_PRICE_PENCE, WALK_TYPE_MAX_PER_DAY, DEFAULT_WALK_TYPE } from "@/lib/walk-types"
 import { checkVaccinationGate } from "@/lib/vaccination-gate"
 import { computeBookingPrice } from "@/lib/booking-pricing"
 import { paymentFieldsForGate } from "@/lib/payment-timing"
@@ -50,7 +51,7 @@ const baseSchema = z.object({
   daycareDuration: z.enum(["FULL_DAY", "HALF_DAY"]).optional(),
   daycareHalfDaySlot: z.enum(["AM", "PM"]).optional(),
   walkSlotId: z.string().optional(),
-  vanRunId: z.string().optional(),
+  walkType: z.enum(["GROUP_WALK", "SOLO_WALK", "PUPPY_WALK_AND_PLAY"]).optional(),
   pickupAddress: z.string().optional(),
   accessNotes: z.string().optional(),
   postcode: z.string().optional(),
@@ -203,6 +204,11 @@ export async function resolveBookingCreation(
     }
   }
 
+  // Dog Walking only — resolved once, up front, since it's needed both by
+  // the compatibility check right below and by the dog-walking creation
+  // branch further down.
+  const walkType: WalkType = data.walkType ?? DEFAULT_WALK_TYPE
+
   if (!overrideCompatibilityFlags) {
     if (dogs.length > 1) {
       const noSharedKennelDog = dogs.find((dog) =>
@@ -219,7 +225,12 @@ export async function resolveBookingCreation(
         }
       }
     }
-    if (["secure-forest-walks", "dog-walking"].includes(service.slug)) {
+    // Group-walk-blocking flags only rule out GROUP_WALK — Solo/Puppy Walk &
+    // Play Time are 1-on-1 with staff, exactly what those flags exist to
+    // require, so a flagged dog can (and should) book one of those instead.
+    const groupWalkCompatibilityApplies =
+      service.slug === "secure-forest-walks" || (service.slug === "dog-walking" && walkType === "GROUP_WALK")
+    if (groupWalkCompatibilityApplies) {
       const flaggedDog = dogs.find((dog) =>
         dog.flags.some((f) => GROUP_BLOCKING_FLAGS.includes(f.type))
       )
@@ -557,9 +568,17 @@ export async function resolveBookingCreation(
     }
     bookingId = booking.id
   } else if (service.slug === "dog-walking") {
-    if (!data.vanRunId || !data.pickupAddress) {
-      return { status: "error", message: "Select a van run and enter a pickup address." }
+    if (!data.date || !data.pickupAddress) {
+      return { status: "error", message: "Select a date and enter a pickup address." }
     }
+    const date = startOfDay(new Date(data.date))
+    if (Number.isNaN(date.getTime())) {
+      return { status: "error", message: "Enter a valid date." }
+    }
+    if (isWeekend(date)) {
+      return { status: "error", message: "This service isn't available on Saturdays or Sundays." }
+    }
+
     const postcodesRaw = await getSetting("dog_walking_service_postcodes", "")
     const allowedPostcodes = postcodesRaw
       .split(",")
@@ -574,13 +593,10 @@ export async function resolveBookingCreation(
       }
     }
 
-    const run = await prisma.vanRun.findUnique({ where: { id: data.vanRunId } })
-    if (!run) return { status: "error", message: "Van run not found." }
-
-    const duplicateConflict = await checkForDuplicateServiceBooking(data.dogIds, run.date, run.date)
+    const duplicateConflict = await checkForDuplicateServiceBooking(data.dogIds, date, date)
     if (duplicateConflict) return duplicateConflict
 
-    const gate = await checkVaccinationGate(data.dogIds, run.date)
+    const gate = await checkVaccinationGate(data.dogIds, date)
     const statusGateOk = gate.ok || skipVaccinationGate
     if (skipVaccinationGate && !gate.ok) vaccinationGateOverridden = true
     if (!statusGateOk && !data.proceedWithoutValidVaccines) {
@@ -597,25 +613,38 @@ export async function resolveBookingCreation(
     const pricing = await computeBookingPrice({
       serviceId: service.id,
       pricingModel: service.pricingModel,
-      basePricePence: service.basePricePence,
-      dates: [run.date],
+      basePricePence: WALK_TYPE_PRICE_PENCE[walkType],
+      dates: [date],
       dogCount: dogs.length,
       addons: [],
     })
 
-    const balanceDueDate = await balanceDueDateFor(service.paymentTiming, run.date)
+    const balanceDueDate = await balanceDueDateFor(service.paymentTiming, date)
 
-    const booking = await prisma.$transaction(async (tx) => {
-      const current = await tx.vanRun.findUnique({ where: { id: data.vanRunId }, include: { stops: true } })
-      if (!current || current.maxDogs - current.stops.length < dogs.length) {
-        throw new Error("RUN_FULL")
+    const booking = await runCapacityCheckedTransaction(async (tx) => {
+      const recheckCount = await tx.bookingDog.count({
+        where: {
+          booking: {
+            startDate: date,
+            service: { slug: "dog-walking" },
+            walkType,
+            status: { notIn: ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] },
+          },
+        },
+      })
+      if (recheckCount + dogs.length > WALK_TYPE_MAX_PER_DAY[walkType]) {
+        throw new Error("DOG_WALKING_FULL")
       }
       const created = await tx.booking.create({
         data: {
           customerId,
           serviceId: service.id,
-          startDate: current.date,
-          endDate: current.date,
+          startDate: date,
+          endDate: date,
+          walkType,
+          pickupAddress: data.pickupAddress!,
+          accessNotes: data.accessNotes || null,
+          batchId: options?.batchId,
           ...paymentFieldsForGate(service.paymentTiming, pricing, statusGateOk),
           totalPence: pricing.totalPence,
           balanceDueDate,
@@ -624,24 +653,14 @@ export async function resolveBookingCreation(
       await tx.bookingDog.createMany({
         data: data.dogIds.map((dogId) => ({ bookingId: created.id, dogId })),
       })
-      await tx.vanRunStop.createMany({
-        data: data.dogIds.map((dogId, index) => ({
-          vanRunId: data.vanRunId!,
-          bookingId: created.id,
-          dogId,
-          pickupAddress: data.pickupAddress!,
-          accessNotes: data.accessNotes || null,
-          sortOrder: current.stops.length + index,
-        })),
-      })
       return created
     }).catch((error) => {
-      if (error instanceof Error && error.message === "RUN_FULL") return null
+      if (error instanceof Error && error.message === "DOG_WALKING_FULL") return null
       throw error
     })
 
     if (!booking) {
-      return { status: "error", message: "That run just filled up. Please choose another." }
+      return { status: "error", message: "That date just filled up. Please try another date." }
     }
     bookingId = booking.id
   } else if (service.slug === "meet-greet") {
@@ -924,6 +943,81 @@ export async function createDaycareBookings(
   // landed on PENDING_PAYMENT, rather than one per date. A date that
   // instead landed on PENDING_VACCINATION already gets its own, more
   // specific email. A failed notification email must not fail the booking.
+  try {
+    const created = await prisma.booking.findMany({
+      where: { id: { in: bookingIds }, status: "PENDING_PAYMENT" },
+      include: { service: true, customer: true },
+      orderBy: { startDate: "asc" },
+    })
+    if (created.length > 0) {
+      const settings = await getSettings()
+      const email = batchBookingReservedEmail(
+        settings,
+        created[0].service.name,
+        created.map((b) => b.startDate),
+        created.reduce((sum, b) => sum + b.totalPence, 0),
+        created.reduce((sum, b) => sum + b.depositPence, 0),
+        created.length > 1
+          ? `${getSiteUrl()}/book/confirmation/multi?ids=${created.map((b) => b.id).join(",")}`
+          : `${getSiteUrl()}/book/confirmation/${created[0].id}`
+      )
+      await sendEmail({ to: created[0].customer.email, subject: email.subject, html: email.html })
+    }
+  } catch (error) {
+    console.error("[book] failed to send booking-reserved email", error)
+  }
+
+  revalidatePath("/portal/bookings")
+  redirect(`/book/confirmation/multi?ids=${bookingIds.join(",")}${failedDates.length > 0 ? `&failed=${failedDates.length}` : ""}`)
+}
+
+/**
+ * Dog Walking (Van Collection), for booking several dates of the same walk
+ * type in one pass — same shape as createDaycareBookings above, just for
+ * dog-walking instead: each date becomes its own booking, one date failing
+ * (no capacity that day, missing vaccinations, etc.) doesn't stop the rest.
+ */
+export async function createDogWalkingBookings(
+  dates: string[],
+  walkType: WalkType,
+  input: Omit<z.infer<typeof baseSchema>, "date" | "serviceSlug" | "walkType">
+): Promise<MultiBookingActionState> {
+  const session = await auth()
+  if (!session?.user) return { status: "error", message: "Please log in to book." }
+  if (dates.length === 0) return { status: "error", message: "Select at least one date." }
+
+  const bookingIds: string[] = []
+  const failedDates: string[] = []
+  let lastError: BookingCreationResult | null = null
+  const batchId = dates.length > 1 ? randomUUID() : undefined
+
+  for (const date of dates) {
+    const result = await resolveBookingCreation(
+      session.user.id,
+      { ...input, serviceSlug: "dog-walking", walkType, date },
+      { batchId, otherDaycareDates: dates.filter((d) => d !== date) }
+    )
+    if (result.status === "error") {
+      failedDates.push(date)
+      lastError = result
+    } else if (result.bookingId) {
+      bookingIds.push(result.bookingId)
+    }
+  }
+
+  if (bookingIds.length === 0) {
+    return {
+      status: "error",
+      message: lastError?.message ?? "Could not create any bookings.",
+      missingVaccinations: lastError?.missingVaccinations,
+      canWatchlist: lastError?.canWatchlist,
+      compatibilityBlocked: lastError?.compatibilityBlocked,
+      duplicateServiceBooking: lastError?.duplicateServiceBooking,
+      failedDates,
+    }
+  }
+
+  // Same "reserved, awaiting payment" notification as createDaycareBookings.
   try {
     const created = await prisma.booking.findMany({
       where: { id: { in: bookingIds }, status: "PENDING_PAYMENT" },

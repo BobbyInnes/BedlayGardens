@@ -242,7 +242,7 @@ const manualBookingSchema = z.object({
   daycareDuration: z.enum(["FULL_DAY", "HALF_DAY"]).optional(),
   daycareHalfDaySlot: z.enum(["AM", "PM"]).optional(),
   walkSlotId: z.string().optional(),
-  vanRunId: z.string().optional(),
+  walkType: z.enum(["GROUP_WALK", "SOLO_WALK", "PUPPY_WALK_AND_PLAY"]).optional(),
   pickupAddress: z.string().optional(),
   accessNotes: z.string().optional(),
   postcode: z.string().optional(),

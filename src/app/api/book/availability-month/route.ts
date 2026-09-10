@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/auth"
+import type { WalkType } from "@/generated/prisma/client"
 import { listAvailableDays } from "@/lib/availability"
 import { parseMonthParam } from "@/lib/dates"
+import { WALK_TYPES, DEFAULT_WALK_TYPE } from "@/lib/walk-types"
 
 export async function GET(request: Request) {
   const session = await auth()
@@ -11,7 +13,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url)
   const serviceSlug = searchParams.get("serviceSlug")
-  if (serviceSlug !== "daycare" && serviceSlug !== "meet-greet") {
+  if (serviceSlug !== "daycare" && serviceSlug !== "meet-greet" && serviceSlug !== "dog-walking") {
     return NextResponse.json({ error: "Unknown service" }, { status: 400 })
   }
 
@@ -19,6 +21,9 @@ export async function GET(request: Request) {
   const rangeStart = new Date(year, monthIndex, 1)
   const rangeEnd = new Date(year, monthIndex + 1, 0)
 
-  const available = await listAvailableDays(serviceSlug, rangeStart, rangeEnd)
+  const walkTypeParam = searchParams.get("walkType") as WalkType | null
+  const walkType = walkTypeParam && WALK_TYPES.includes(walkTypeParam) ? walkTypeParam : DEFAULT_WALK_TYPE
+
+  const available = await listAvailableDays(serviceSlug, rangeStart, rangeEnd, walkType)
   return NextResponse.json({ available })
 }

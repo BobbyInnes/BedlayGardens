@@ -4,11 +4,13 @@ import { prisma } from "@/lib/prisma"
 import {
   findAvailableKennelUnit,
   isDaycareAvailable,
+  isDogWalkingAvailable,
   isMeetGreetAvailable,
-  listAvailableVanRuns,
   listAvailableWalkSlots,
 } from "@/lib/availability"
 import { largestDogSize } from "@/lib/dog-size-colors"
+import { WALK_TYPES, DEFAULT_WALK_TYPE } from "@/lib/walk-types"
+import type { WalkType } from "@/generated/prisma/client"
 
 export async function GET(request: Request) {
   const session = await auth()
@@ -67,16 +69,12 @@ export async function GET(request: Request) {
   }
 
   if (serviceSlug === "dog-walking") {
-    const runs = await listAvailableVanRuns(new Date())
-    return NextResponse.json({
-      runs: runs.map((run) => ({
-        id: run.id,
-        date: run.date,
-        name: run.name,
-        startTime: run.startTime,
-        remaining: run.remaining,
-      })),
-    })
+    const date = searchParams.get("date")
+    if (!date) return NextResponse.json({ error: "Missing date" }, { status: 400 })
+    const walkTypeParam = searchParams.get("walkType") as WalkType | null
+    const walkType = walkTypeParam && WALK_TYPES.includes(walkTypeParam) ? walkTypeParam : DEFAULT_WALK_TYPE
+    const result = await isDogWalkingAvailable(new Date(date), walkType)
+    return NextResponse.json(result)
   }
 
   return NextResponse.json({ error: "Unknown service" }, { status: 400 })
