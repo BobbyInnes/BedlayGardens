@@ -307,7 +307,10 @@ export function BookingWizard({
       const trialData = await trialRes.json()
       if ((trialData.missing ?? []).length > 0) {
         setTrialWarning(trialData.missing)
-        return
+        // Only a hard stop when the service actually requires a passed
+        // trial — for Dog Walking (requiresTrial: false) this is shown as a
+        // heads-up alongside the rest of the checks below, not a block.
+        if (trialData.requiresTrial) return
       }
     } finally {
       setCheckingTrial(false)
@@ -797,13 +800,27 @@ export function BookingWizard({
             <div className="flex items-start gap-3 rounded-lg border border-destructive bg-destructive/10 p-4 text-destructive">
               <AlertTriangle className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
               <p className="text-sm font-bold">
-                {trialWarning.join(", ")}{" "}
-                {trialWarning.length === 1 ? "requires" : "require"} a mandatory Meet &amp; Greet
-                evaluation before {trialWarning.length === 1 ? "it" : "they"} can book any service.{" "}
-                <Link href="/book/meet-greet" className="font-medium underline">
-                  Book a Meet &amp; Greet
-                </Link>
-                .
+                {isDogWalking ? (
+                  <>
+                    {trialWarning.join(", ")}{" "}
+                    {trialWarning.length === 1 ? "hasn't" : "haven't"} had a Meet &amp; Greet
+                    evaluation yet.{" "}
+                    <Link href="/book/meet-greet" className="font-medium underline">
+                      Book a Meet &amp; Greet
+                    </Link>
+                    .
+                  </>
+                ) : (
+                  <>
+                    {trialWarning.join(", ")}{" "}
+                    {trialWarning.length === 1 ? "requires" : "require"} a mandatory Meet &amp; Greet
+                    evaluation before {trialWarning.length === 1 ? "it" : "they"} can book any service.{" "}
+                    <Link href="/book/meet-greet" className="font-medium underline">
+                      Book a Meet &amp; Greet
+                    </Link>
+                    .
+                  </>
+                )}
               </p>
             </div>
           )}

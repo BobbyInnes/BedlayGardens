@@ -26,10 +26,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Service not found" }, { status: 404 })
   }
 
-  if (!service.requiresTrial) {
-    return NextResponse.json({ missing: [] })
+  // Dog Walking doesn't require a passed trial to book (unlike most other
+  // services — see requiresTrial), but the customer should still be told if
+  // a selected dog hasn't had one, as a non-blocking heads-up rather than
+  // the hard "can't book" gate below. `requiresTrial` in the response tells
+  // the wizard which of the two this is.
+  if (!service.requiresTrial && service.slug !== "dog-walking") {
+    return NextResponse.json({ missing: [], requiresTrial: false })
   }
 
   const missing = await checkTrialGate(service.id, dogIds)
-  return NextResponse.json({ missing })
+  return NextResponse.json({ missing, requiresTrial: service.requiresTrial })
 }
