@@ -10,7 +10,7 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { nightsBetween, startOfDay, isWeekend, isPastDaycareHalfDayAmCutoff } from "@/lib/dates"
 import { findAvailableKennelUnit, isDaycareAvailable, isMeetGreetAvailable } from "@/lib/availability"
-import { WALK_TYPE_PRICE_PENCE, WALK_TYPE_MAX_PER_DAY, DEFAULT_WALK_TYPE } from "@/lib/walk-types"
+import { WALK_TYPE_MAX_PER_DAY, WALK_TYPE_SERVICE_SLUG, DEFAULT_WALK_TYPE } from "@/lib/walk-types"
 import { checkVaccinationGate } from "@/lib/vaccination-gate"
 import { computeBookingPrice } from "@/lib/booking-pricing"
 import { paymentFieldsForGate } from "@/lib/payment-timing"
@@ -567,7 +567,7 @@ export async function resolveBookingCreation(
       return { status: "error", message: "That slot just filled up. Please choose another." }
     }
     bookingId = booking.id
-  } else if (service.slug === "dog-walking") {
+  } else if (service.slug === "dog-walking" || service.slug === "walksolo") {
     if (!data.date || !data.pickupAddress) {
       return { status: "error", message: "Select a date and enter a pickup address." }
     }
@@ -613,7 +613,7 @@ export async function resolveBookingCreation(
     const pricing = await computeBookingPrice({
       serviceId: service.id,
       pricingModel: service.pricingModel,
-      basePricePence: WALK_TYPE_PRICE_PENCE[walkType],
+      basePricePence: service.basePricePence,
       dates: [date],
       dogCount: dogs.length,
       addons: [],
@@ -626,7 +626,7 @@ export async function resolveBookingCreation(
         where: {
           booking: {
             startDate: date,
-            service: { slug: "dog-walking" },
+            service: { slug: service.slug },
             walkType,
             status: { notIn: ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] },
           },
@@ -972,10 +972,13 @@ export async function createDaycareBookings(
 }
 
 /**
- * Dog Walking (Van Collection), for booking several dates of the same walk
- * type in one pass — same shape as createDaycareBookings above, just for
- * dog-walking instead: each date becomes its own booking, one date failing
- * (no capacity that day, missing vaccinations, etc.) doesn't stop the rest.
+ * Dog Walking, for booking several dates of the same walk type in one pass —
+ * same shape as createDaycareBookings above, just for dog-walking instead:
+ * each date becomes its own booking, one date failing (no capacity that
+ * day, missing vaccinations, etc.) doesn't stop the rest. Group Walk and
+ * Puppy Walk & Play book against the "Dog Walking (Van Collection)" service;
+ * Solo Walk books against its own "Dog Walking (Solo)" service — see
+ * WALK_TYPE_SERVICE_SLUG.
  */
 export async function createDogWalkingBookings(
   dates: string[],
@@ -994,7 +997,7 @@ export async function createDogWalkingBookings(
   for (const date of dates) {
     const result = await resolveBookingCreation(
       session.user.id,
-      { ...input, serviceSlug: "dog-walking", walkType, date },
+      { ...input, serviceSlug: WALK_TYPE_SERVICE_SLUG[walkType], walkType, date },
       { batchId, otherDaycareDates: dates.filter((d) => d !== date) }
     )
     if (result.status === "error") {

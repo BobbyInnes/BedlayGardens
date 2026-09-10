@@ -13,7 +13,12 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url)
   const serviceSlug = searchParams.get("serviceSlug")
-  if (serviceSlug !== "daycare" && serviceSlug !== "meet-greet" && serviceSlug !== "dog-walking") {
+  if (
+    serviceSlug !== "daycare" &&
+    serviceSlug !== "meet-greet" &&
+    serviceSlug !== "dog-walking" &&
+    serviceSlug !== "walksolo"
+  ) {
     return NextResponse.json({ error: "Unknown service" }, { status: 400 })
   }
 
@@ -22,7 +27,8 @@ export async function GET(request: Request) {
   const rangeEnd = new Date(year, monthIndex + 1, 0)
 
   const walkTypeParam = searchParams.get("walkType") as WalkType | null
-  const walkType = walkTypeParam && WALK_TYPES.includes(walkTypeParam) ? walkTypeParam : DEFAULT_WALK_TYPE
+  const defaultWalkType = serviceSlug === "walksolo" ? "SOLO_WALK" : DEFAULT_WALK_TYPE
+  const walkType = walkTypeParam && WALK_TYPES.includes(walkTypeParam) ? walkTypeParam : defaultWalkType
 
   const available = await listAvailableDays(serviceSlug, rangeStart, rangeEnd, walkType)
   return NextResponse.json({ available })

@@ -77,5 +77,12 @@ export async function GET(request: Request) {
     return NextResponse.json(result)
   }
 
+  if (serviceSlug === "walksolo") {
+    const date = searchParams.get("date")
+    if (!date) return NextResponse.json({ error: "Missing date" }, { status: 400 })
+    const result = await isDogWalkingAvailable(new Date(date), "SOLO_WALK")
+    return NextResponse.json(result)
+  }
+
   return NextResponse.json({ error: "Unknown service" }, { status: 400 })
 }

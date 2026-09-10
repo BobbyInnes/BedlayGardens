@@ -10,7 +10,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { formatPence } from "@/lib/format"
 import { isWeekend, isPastDaycareHalfDayAmCutoff } from "@/lib/dates"
 import { cn } from "@/lib/utils"
-import type { WalkType } from "@/generated/prisma/client"
 import {
   createBooking,
   createDaycareBookings,
@@ -19,7 +18,6 @@ import {
 } from "@/app/(marketing)/book/actions"
 import { joinWaitlist } from "@/app/portal/waitlist/actions"
 import { AvailabilityDatePicker } from "@/components/marketing/availability-date-picker"
-import { WALK_TYPES, WALK_TYPE_LABELS, WALK_TYPE_PRICE_PENCE, DEFAULT_WALK_TYPE } from "@/lib/walk-types"
 
 type PricingModel = "PER_NIGHT" | "PER_DAY" | "PER_SESSION"
 type PaymentTiming = "FULL_UPFRONT" | "DEPOSIT_THEN_BALANCE" | "INVOICE_AFTER"
@@ -81,7 +79,13 @@ export function BookingWizard({
   const isDaycare = service.slug === "daycare"
   const isMeetGreet = service.slug === "meet-greet"
   const isForestWalk = service.slug === "secure-forest-walks"
-  const isDogWalking = service.slug === "dog-walking"
+  // Group Walk ("dog-walking") and Solo Walk ("walksolo") are separate
+  // bookable services with their own price and capacity, but otherwise use
+  // the exact same booking flow below — dates, pickup address, postcode —
+  // so they share this one flag throughout the rest of the wizard.
+  const isDogWalkingSolo = service.slug === "walksolo"
+  const isDogWalking = service.slug === "dog-walking" || isDogWalkingSolo
+  const dogWalkingType = isDogWalkingSolo ? "SOLO_WALK" : "GROUP_WALK"
   const isDateBased = isDaycare || isMeetGreet
 
   const steps = isBoarding
@@ -100,7 +104,6 @@ export function BookingWizard({
   const [walkSlots, setWalkSlots] = React.useState<WalkSlotOption[]>([])
   const [selectedSlotId, setSelectedSlotId] = React.useState("")
   const [dogWalkingDates, setDogWalkingDates] = React.useState<string[]>([])
-  const [walkType, setWalkType] = React.useState<WalkType>(DEFAULT_WALK_TYPE)
   const [pickupAddress, setPickupAddress] = React.useState("")
   const [postcode, setPostcode] = React.useState("")
   const [accessNotes, setAccessNotes] = React.useState("")
@@ -211,7 +214,7 @@ export function BookingWizard({
       } else if (isDogWalking) {
         const results = await Promise.all(
           dogWalkingDates.map(async (d) => {
-            const params = new URLSearchParams({ serviceSlug: service.slug, date: d, walkType })
+            const params = new URLSearchParams({ serviceSlug: service.slug, date: d })
             const res = await fetch(`/api/book/availability?${params}`)
             const data = await res.json()
             return { date: d, available: !!data.available }
@@ -387,9 +390,8 @@ export function BookingWizard({
       : isDogWalking
         ? Math.max(1, dogWalkingDates.length)
         : 1
-  const unitPricePence = isDogWalking
-    ? WALK_TYPE_PRICE_PENCE[walkType]
-    : isDaycare && effectiveDaycareDuration === "HALF_DAY" && service.halfDayPricePence != null
+  const unitPricePence =
+    isDaycare && effectiveDaycareDuration === "HALF_DAY" && service.halfDayPricePence != null
       ? service.halfDayPricePence
       : service.basePricePence
   let basePreviewPence: number
@@ -428,7 +430,7 @@ export function BookingWizard({
             proceedWithoutValidVaccines,
           })
         : isDogWalking
-          ? await createDogWalkingBookings(dogWalkingDates, walkType, {
+          ? await createDogWalkingBookings(dogWalkingDates, dogWalkingType, {
               dogIds: selectedDogIds,
               addons: [],
               pickupAddress,
@@ -615,29 +617,10 @@ export function BookingWizard({
           {isDogWalking && (
             <div className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="walkType">Walk type</Label>
-                <select
-                  id="walkType"
-                  value={walkType}
-                  onChange={(e) => {
-                    setWalkType(e.target.value as WalkType)
-                    setAvailabilityChecked(false)
-                  }}
-                  className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-                >
-                  {WALK_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {WALK_TYPE_LABELS[type]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="dogWalkingDates">Dates</Label>
                 <AvailabilityDatePicker
                   mode="multiple"
-                  serviceSlug="dog-walking"
-                  walkType={walkType}
+                  serviceSlug={isDogWalkingSolo ? "walksolo" : "dog-walking"}
                   value={dogWalkingDates}
                   onChange={(value) => {
                     setDogWalkingDates(value)
@@ -655,7 +638,6 @@ export function BookingWizard({
                   id="pickupAddress"
                   value={pickupAddress}
                   onChange={(e) => setPickupAddress(e.target.value)}
-                  placeholder="123 Example Street, Chryston"
                 />
               </div>
               <div className="space-y-2">
@@ -664,7 +646,6 @@ export function BookingWizard({
                   id="postcode"
                   value={postcode}
                   onChange={(e) => setPostcode(e.target.value)}
-                  placeholder="G69 0AA"
                 />
               </div>
               <div className="space-y-2">
@@ -975,7 +956,7 @@ export function BookingWizard({
           <div className="space-y-2 rounded-lg border border-border p-4 text-sm">
             <div className="flex justify-between">
               <span>
-                {isDogWalking ? WALK_TYPE_LABELS[walkType] : service.name}
+                {service.name}
                 {isDaycare
                   ? effectiveDaycareDuration === "HALF_DAY"
                     ? ` (Half Day${effectiveHalfDaySlot ? ` – ${effectiveHalfDaySlot}` : ""})`

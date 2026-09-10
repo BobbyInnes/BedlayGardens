@@ -3,7 +3,7 @@ import type { DogSize, WalkType } from "@/generated/prisma/client"
 import { addDays, isWeekend, nightsBetween, startOfDay, toDateInputValue } from "@/lib/dates"
 import { DOG_SIZE_ORDER } from "@/lib/dog-size-colors"
 import { kennelSizeRank } from "@/lib/kennel-size"
-import { WALK_TYPE_MAX_PER_DAY } from "@/lib/walk-types"
+import { WALK_TYPE_MAX_PER_DAY, WALK_TYPE_SERVICE_SLUG } from "@/lib/walk-types"
 
 async function isSiteWideBlocked(dates: Date[]): Promise<boolean> {
   const count = await prisma.blockedDate.count({
@@ -149,7 +149,7 @@ export async function isDogWalkingAvailable(
       where: {
         booking: {
           startDate: day,
-          service: { slug: "dog-walking" },
+          service: { slug: WALK_TYPE_SERVICE_SLUG[walkType] },
           walkType,
           status: { notIn: ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] },
         },
@@ -171,7 +171,7 @@ export async function isDogWalkingAvailable(
  * highlight every available weekday in a month at once.
  */
 export async function listAvailableDays(
-  serviceSlug: "daycare" | "meet-greet" | "dog-walking",
+  serviceSlug: "daycare" | "meet-greet" | "dog-walking" | "walksolo",
   rangeStart: Date,
   rangeEnd: Date,
   walkType?: WalkType
@@ -204,12 +204,12 @@ export async function listAvailableDays(
       .filter((d) => !blockedSet.has(d) && !bookedSet.has(d))
   }
 
-  if (serviceSlug === "dog-walking") {
-    const resolvedWalkType = walkType ?? "GROUP_WALK"
+  if (serviceSlug === "dog-walking" || serviceSlug === "walksolo") {
+    const resolvedWalkType = walkType ?? (serviceSlug === "walksolo" ? "SOLO_WALK" : "GROUP_WALK")
     const bookingDogs = await prisma.bookingDog.findMany({
       where: {
         booking: {
-          service: { slug: "dog-walking" },
+          service: { slug: serviceSlug },
           walkType: resolvedWalkType,
           startDate: { in: candidates },
           status: { notIn: ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] },

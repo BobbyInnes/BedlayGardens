@@ -24,7 +24,7 @@ function toLocalDateInputValue(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
-type BaseProps = { serviceSlug: "daycare" | "meet-greet" | "dog-walking"; walkType?: WalkType }
+type BaseProps = { serviceSlug: "daycare" | "meet-greet" | "dog-walking" | "walksolo"; walkType?: WalkType }
 type SingleProps = BaseProps & { mode?: "single"; value: string; onChange: (value: string) => void }
 type MultipleProps = BaseProps & { mode: "multiple"; value: string[]; onChange: (value: string[]) => void }
 

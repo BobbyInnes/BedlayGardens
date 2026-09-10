@@ -136,7 +136,15 @@ export default async function AdminCalendarPage({
                       />
                     )
                   }
-                  const dateKey = toDateInputValue(new Date(year, monthIndex, day))
+                  // Every Date elsewhere in the app is a UTC-midnight instant
+                  // (see the note on toDateInputValue in lib/dates.ts) — this
+                  // grid cell must be built the same way (Date.UTC, not the
+                  // local-midnight `new Date(y, m, d)`), or on a server whose
+                  // local timezone isn't UTC (e.g. BST) every cell's key
+                  // lands on the wrong day and bookings show a day off. Bug
+                  // reported 2026-09: dates booked for the 21st/22nd showed
+                  // up under the 22nd/23rd.
+                  const dateKey = toDateInputValue(new Date(Date.UTC(year, monthIndex, day)))
                   const dayEntries = entriesByDate.get(dateKey)
                   const isToday = dateKey === today
 
