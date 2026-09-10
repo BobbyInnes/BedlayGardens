@@ -168,6 +168,7 @@ export default async function DogsPage({
           {dogs.map((dog) => {
             const isSelected = selectedDog?.id === dog.id
             const summary = vaccineSummary(dog.vaccinationRecords)
+            const evaluationOutstanding = !dog.bypassMeetGreetChecks && !dog.trialVisits[0]?.outcome
             return (
               <Link
                 key={dog.id}
@@ -184,11 +185,17 @@ export default async function DogsPage({
                 <p className="text-muted-foreground">{dog.breed}</p>
                 <p className={`mt-2 flex items-center gap-1 text-xs ${TONE_TEXT_CLASSES[summary.tone]}`}>
                   {summary.tone === "ok" && <Check className="size-3" />}
-                  {(summary.tone === "warn" || summary.tone === "bad") && (
+                  {(summary.tone === "warn" || summary.tone === "bad" || summary.tone === "none") && (
                     <TriangleAlert className="size-3" />
                   )}
                   {summary.text}
                 </p>
+                {evaluationOutstanding && (
+                  <p className={`mt-1 flex items-center gap-1 text-xs ${TONE_TEXT_CLASSES.none}`}>
+                    <TriangleAlert className="size-3" />
+                    Evaluation outstanding
+                  </p>
+                )}
               </Link>
             )
           })}
