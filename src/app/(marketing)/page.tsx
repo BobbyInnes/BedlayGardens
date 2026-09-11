@@ -1,7 +1,6 @@
 import Image from "next/image"
 import Link from "next/link"
 import {
-  BadgeCheck,
   CalendarCheck,
   Check,
   LayoutDashboard,
@@ -156,13 +155,6 @@ export default async function HomePage() {
           {/* Faint scrim, just enough for the text below to stay readable —
               the photo itself should read as bright, not tinted dark. */}
           <div className="absolute inset-0 bg-gradient-to-r from-navy/35 via-navy/10 to-transparent" />
-        </div>
-
-        <div className="relative mx-auto flex max-w-6xl flex-col items-start gap-6 px-4 py-24 sm:px-6 sm:py-32">
-          <p className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-1.5 text-sm font-medium text-white ring-1 ring-white/25 [text-shadow:0_1px_4px_rgb(0_0_0_/_45%)]">
-            <BadgeCheck className="size-4" aria-hidden="true" />
-            Licensed &amp; Council Approved
-          </p>
         </div>
       </section>
 
