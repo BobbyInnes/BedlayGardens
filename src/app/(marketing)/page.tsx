@@ -142,12 +142,11 @@ export default async function HomePage() {
                 alt={hero.altText ?? businessName}
                 fill
                 priority
-                // object-contain (not cover) so the whole photo stays visible
-                // instead of being cropped to fill the banner shape; scaled up
-                // 30% to close most of the letterboxed gap on the sides — the
-                // section has overflow-hidden, so any excess top/bottom is
-                // trimmed cleanly rather than distorting the image.
-                className="object-contain scale-[1.3]"
+                // object-cover so the photo fills the full width of the
+                // banner edge-to-edge; the section has overflow-hidden, so
+                // any excess top/bottom is cropped cleanly rather than
+                // leaving letterboxed gaps on the sides.
+                className="object-cover"
               />
             )
           )}
