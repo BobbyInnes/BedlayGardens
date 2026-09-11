@@ -160,26 +160,6 @@ export default async function HomePage() {
             <BadgeCheck className="size-4" aria-hidden="true" />
             Licensed &amp; Council Approved
           </p>
-          <h1 className="max-w-2xl font-heading text-4xl font-extrabold tracking-tight text-white [text-shadow:0_2px_10px_rgb(0_0_0_/_55%)] sm:text-5xl lg:text-6xl">
-            Professional Dog Boarding You Can Trust
-          </h1>
-          <p className="max-w-xl text-lg text-white/90 [text-shadow:0_1px_6px_rgb(0_0_0_/_50%)]">
-            Safe, caring, and fully managed stays for your dog — with online
-            booking, vaccination tracking, and real-time updates.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Button size="lg" asChild>
-              <Link href="/book">Book a Stay</Link>
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white"
-              asChild
-            >
-              <Link href="/login">Dog Owner Login</Link>
-            </Button>
-          </div>
         </div>
       </section>
 
