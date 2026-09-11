@@ -99,7 +99,10 @@ export function BookingWizard({
   const [endDate, setEndDate] = React.useState("")
   const [date, setDate] = React.useState("")
   const [daycareDates, setDaycareDates] = React.useState<string[]>([])
-  const [daycareDuration, setDaycareDuration] = React.useState<"FULL_DAY" | "HALF_DAY">("FULL_DAY")
+  // No UI to change this anymore (Duration buttons removed — Day Care is
+  // shown as Full Day by default) — still read below because the same-day
+  // cutoff can still force a booking to Half Day regardless.
+  const [daycareDuration] = React.useState<"FULL_DAY" | "HALF_DAY">("FULL_DAY")
   const [daycareHalfDaySlot, setDaycareHalfDaySlot] = React.useState<"AM" | "PM" | "">("")
   const [walkSlots, setWalkSlots] = React.useState<WalkSlotOption[]>([])
   const [selectedSlotId, setSelectedSlotId] = React.useState("")
@@ -541,31 +544,11 @@ export function BookingWizard({
 
           {isDaycare && (
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Duration</Label>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={effectiveDaycareDuration === "FULL_DAY" ? "default" : "outline"}
-                    onClick={() => setDaycareDuration("FULL_DAY")}
-                    disabled={todayPastHalfDayCutoff}
-                  >
-                    Full Day
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={effectiveDaycareDuration === "HALF_DAY" ? "default" : "outline"}
-                    onClick={() => setDaycareDuration("HALF_DAY")}
-                  >
-                    Half Day
-                  </Button>
-                </div>
-                {todayPastHalfDayCutoff && (
-                  <p className="text-xs text-muted-foreground">
-                    It&rsquo;s the afternoon, so today&rsquo;s Day Care is Half Day (PM) only.
-                  </p>
-                )}
-              </div>
+              {todayPastHalfDayCutoff && (
+                <p className="text-xs text-muted-foreground">
+                  It&rsquo;s the afternoon, so today&rsquo;s Day Care is Half Day (PM) only.
+                </p>
+              )}
 
               {effectiveDaycareDuration === "HALF_DAY" && (
                 <div className="space-y-2">
