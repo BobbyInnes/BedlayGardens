@@ -131,7 +131,10 @@ export default async function HomePage() {
   return (
     <div>
       {/* 1. Hero */}
-      <section className="relative overflow-hidden bg-navy">
+      {/* min-h keeps the banner at its original size now that the
+          heading/paragraph/buttons (which used to set this height via
+          their own content) have been removed from the hero. */}
+      <section className="relative min-h-[420px] overflow-hidden bg-navy sm:min-h-[520px] lg:min-h-[620px]">
         <div className="absolute inset-0">
           {hero && hero.type === "VIDEO" ? (
             <HeroVideo src={hero.url} poster={hero.thumbnailUrl} />
