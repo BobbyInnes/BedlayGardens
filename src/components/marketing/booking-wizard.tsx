@@ -939,12 +939,7 @@ export function BookingWizard({
           <div className="space-y-2 rounded-lg border border-border p-4 text-sm">
             <div className="flex justify-between">
               <span>
-                {service.name}
-                {isDaycare
-                  ? effectiveDaycareDuration === "HALF_DAY"
-                    ? ` (Half Day${effectiveHalfDaySlot ? ` – ${effectiveHalfDaySlot}` : ""})`
-                    : " (Full Day)"
-                  : ""}{" "}
+                {service.name}{" "}
                 × {dogCount} dog{dogCount > 1 ? "s" : ""}
                 {isBoarding ? ` × ${nights} night${nights === 1 ? "" : "s"}` : ""}
                 {isDaycare ? ` × ${daycareDates.length} date${daycareDates.length === 1 ? "" : "s"}` : ""}
