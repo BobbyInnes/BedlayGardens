@@ -36,24 +36,8 @@ export function MediaForm({ categories }: { categories: GalleryCategory[] }) {
     }
   }
 
-  // Leaving an optional text field (caption/alt text/category) blank still
-  // sends it as a present-but-empty part in the multipart body — observed
-  // to make uploads fail in production (works every time once any of these
-  // is filled in) while never reproducing locally, which points at Vercel's
-  // edge network mishandling a zero-length multipart part rather than
-  // anything in our own server code. Stripping empty optional fields here
-  // means the request this form actually sends never contains one.
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const data = new FormData(e.currentTarget)
-    for (const key of ["caption", "altText", "category"]) {
-      if (data.get(key) === "") data.delete(key)
-    }
-    formAction(data)
-  }
-
   return (
-    <form action={formAction} onSubmit={handleSubmit} className="max-w-xl space-y-4">
+    <form action={formAction} className="max-w-xl space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="type">Type</Label>
