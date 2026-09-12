@@ -52,7 +52,7 @@ export default async function AdminMediaPage() {
         <GalleryCategoryCreateForm nextSortOrder={galleryCategories.length} />
       </section>
 
-      <section className="space-y-4">
+      <section className="space-y-4 rounded-lg border border-border bg-gray-100 p-4 dark:bg-gray-800">
         <h2 className="text-lg font-semibold">Add media</h2>
         <MediaForm categories={galleryCategories} />
       </section>
