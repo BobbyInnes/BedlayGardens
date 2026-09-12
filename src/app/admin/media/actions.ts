@@ -67,39 +67,51 @@ export async function createMedia(
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
   }
 
-  let url: string
+  let urls: string[]
   if (parsed.data.type === "EMBED") {
     if (!parsed.data.embedUrl) {
       return { status: "error", message: "Enter an embed URL." }
     }
-    url = parsed.data.embedUrl
+    urls = [parsed.data.embedUrl]
   } else {
-    const file = formData.get("file")
-    if (!(file instanceof File) || file.size === 0) {
+    // The file input allows selecting several files at once (bulk gallery
+    // uploads). Uploaded and saved one at a time, in a plain loop — not a
+    // batch call — so this works the same way every other single-row write
+    // in this app already does, regardless of Prisma/driver-adapter version
+    // quirks around newer batch APIs.
+    const files = formData.getAll("file").filter((f): f is File => f instanceof File && f.size > 0)
+    if (files.length === 0) {
       return { status: "error", message: "Choose a file to upload." }
     }
-    const buffer = Buffer.from(await file.arrayBuffer())
-    url = await savePublicUpload("media", file.name, buffer)
+    urls = []
+    for (const file of files) {
+      const buffer = Buffer.from(await file.arrayBuffer())
+      urls.push(await savePublicUpload("media", file.name, buffer))
+    }
   }
 
-  const media = await prisma.mediaItem.create({
-    data: {
-      type: parsed.data.type,
-      usage: parsed.data.usage,
-      url,
-      caption: parsed.data.caption || null,
-      altText: parsed.data.altText || null,
-      category: parsed.data.category || null,
-      galleryCategoryId: normalizeGalleryCategoryId(parsed.data.galleryCategoryId),
-      sortOrder: parsed.data.sortOrder,
-    },
-  })
+  const createdIds: string[] = []
+  for (const url of urls) {
+    const media = await prisma.mediaItem.create({
+      data: {
+        type: parsed.data.type,
+        usage: parsed.data.usage,
+        url,
+        caption: parsed.data.caption || null,
+        altText: parsed.data.altText || null,
+        category: parsed.data.category || null,
+        galleryCategoryId: normalizeGalleryCategoryId(parsed.data.galleryCategoryId),
+        sortOrder: parsed.data.sortOrder,
+      },
+    })
+    createdIds.push(media.id)
+  }
   await logAudit({
     actorId: session.user.id,
     action: "UPLOAD_MEDIA",
     entity: "MediaItem",
-    entityId: media.id,
-    meta: `${parsed.data.type} for ${parsed.data.usage}${parsed.data.caption ? ` — ${parsed.data.caption}` : ""}`,
+    entityId: createdIds[0],
+    meta: `${createdIds.length > 1 ? `${createdIds.length} × ` : ""}${parsed.data.type} for ${parsed.data.usage}${parsed.data.caption ? ` — ${parsed.data.caption}` : ""}`,
   })
 
   revalidatePublicPaths()
