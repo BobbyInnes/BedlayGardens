@@ -13,6 +13,13 @@ export const metadata: Metadata = {
   title: "Media | Admin",
 }
 
+// Uploading several files in one submit (see createMedia) means the Server
+// Action does several sequential storage writes + DB inserts before it can
+// respond — comfortably past Vercel's 10s default function timeout with
+// more than one or two files. Hobby plan's ceiling is 60s; this route asks
+// for the max available rather than the default.
+export const maxDuration = 60
+
 export default async function AdminMediaPage() {
   const [items, galleryCategories] = await Promise.all([
     prisma.mediaItem.findMany({
