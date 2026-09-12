@@ -67,31 +67,23 @@ export async function createMedia(
     return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid input" }
   }
 
-  let urls: string[]
+  let url: string
   if (parsed.data.type === "EMBED") {
     if (!parsed.data.embedUrl) {
       return { status: "error", message: "Enter an embed URL." }
     }
-    urls = [parsed.data.embedUrl]
+    url = parsed.data.embedUrl
   } else {
-    // The file input allows selecting several files at once (bulk gallery
-    // uploads) — every entry named "file" in the FormData becomes its own
-    // MediaItem below, all sharing the caption/category/alt text/sort order
-    // from the rest of the form.
-    const files = formData.getAll("file").filter((f): f is File => f instanceof File && f.size > 0)
-    if (files.length === 0) {
+    const file = formData.get("file")
+    if (!(file instanceof File) || file.size === 0) {
       return { status: "error", message: "Choose a file to upload." }
     }
-    urls = await Promise.all(
-      files.map(async (file) => {
-        const buffer = Buffer.from(await file.arrayBuffer())
-        return savePublicUpload("media", file.name, buffer)
-      })
-    )
+    const buffer = Buffer.from(await file.arrayBuffer())
+    url = await savePublicUpload("media", file.name, buffer)
   }
 
-  const created = await prisma.mediaItem.createManyAndReturn({
-    data: urls.map((url) => ({
+  const media = await prisma.mediaItem.create({
+    data: {
       type: parsed.data.type,
       usage: parsed.data.usage,
       url,
@@ -100,14 +92,14 @@ export async function createMedia(
       category: parsed.data.category || null,
       galleryCategoryId: normalizeGalleryCategoryId(parsed.data.galleryCategoryId),
       sortOrder: parsed.data.sortOrder,
-    })),
+    },
   })
   await logAudit({
     actorId: session.user.id,
     action: "UPLOAD_MEDIA",
     entity: "MediaItem",
-    entityId: created[0].id,
-    meta: `${created.length > 1 ? `${created.length} × ` : ""}${parsed.data.type} for ${parsed.data.usage}${parsed.data.caption ? ` — ${parsed.data.caption}` : ""}`,
+    entityId: media.id,
+    meta: `${parsed.data.type} for ${parsed.data.usage}${parsed.data.caption ? ` — ${parsed.data.caption}` : ""}`,
   })
 
   revalidatePublicPaths()
