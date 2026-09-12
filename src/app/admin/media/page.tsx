@@ -32,7 +32,7 @@ export default async function AdminMediaPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Media</h1>
       </div>
 
-      <section className="space-y-4">
+      <section className="space-y-4 rounded-lg border border-border bg-gray-100 p-4 dark:bg-gray-800">
         <h2 className="text-lg font-semibold">Gallery categories</h2>
         <p className="text-sm text-muted-foreground">
           Filter buttons shown on the public gallery page. Renaming updates everywhere the
