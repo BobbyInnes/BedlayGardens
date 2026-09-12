@@ -25,7 +25,8 @@ export function MediaForm({ categories }: { categories: GalleryCategory[] }) {
   // picking a video file while it's still on Image silently saves the file
   // tagged as an image — it uploads fine, but nowhere that renders it knows
   // to use a <video> player. Auto-correct from the actual file's MIME type
-  // the moment one is chosen, so the mismatch can't happen.
+  // the moment one is chosen, so the mismatch can't happen. Multiple files
+  // can be selected at once, but they all share one Type — go by the first.
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -84,9 +85,14 @@ export function MediaForm({ categories }: { categories: GalleryCategory[] }) {
             id="file"
             name="file"
             type="file"
+            multiple
             accept={type === "IMAGE" ? "image/*" : "video/*"}
             onChange={handleFileChange}
           />
+          <p className="text-xs text-muted-foreground">
+            Select multiple files to upload them all at once — the caption, category, alt
+            text, and sort order below are applied to every one.
+          </p>
         </div>
       )}
 
