@@ -101,12 +101,18 @@ export function BookingActions({
             <PayButton
               bookingId={booking.id}
               type="DEPOSIT"
-              label={booking.service.paymentTiming === "FULL_UPFRONT" ? "Pay now" : "Pay deposit"}
+              label={
+                booking.service.paymentTiming === "FULL_UPFRONT"
+                  ? "Pay now"
+                  : balancePence <= 0
+                    ? "Amount to pay"
+                    : "Pay deposit"
+              }
               size="sm"
               fullWidth={false}
             />
           )}
-          {stripe && booking.service.paymentTiming === "DEPOSIT_THEN_BALANCE" && (
+          {stripe && booking.service.paymentTiming === "DEPOSIT_THEN_BALANCE" && balancePence > 0 && (
             <PayButton
               bookingId={booking.id}
               type="FULL"

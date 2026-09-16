@@ -36,6 +36,10 @@ export function BatchBookingCard({
   const canPayTogether = Boolean(stripe) && pendingBookings.length >= 2
   const depositTotalPence = pendingBookings.reduce((sum, b) => sum + b.depositPence, 0)
   const remainingTotalPence = pendingBookings.reduce((sum, b) => sum + b.totalPence, 0)
+  // A "deposit" that already covers the whole total (e.g. Day Care) isn't
+  // really a partial deposit — say what it is rather than implying a
+  // balance/second payment that doesn't exist.
+  const noBalanceInBatch = depositTotalPence >= remainingTotalPence
 
   const uniformStatus = bookings.every((b) => b.status === first.status) ? first.status : null
 
@@ -66,12 +70,14 @@ export function BatchBookingCard({
             label={
               first.service.paymentTiming === "FULL_UPFRONT"
                 ? `Pay for all ${pendingBookings.length} dates — ${formatPence(depositTotalPence)}`
-                : `Pay deposit for all ${pendingBookings.length} dates — ${formatPence(depositTotalPence)}`
+                : noBalanceInBatch
+                  ? `Amount to pay for all ${pendingBookings.length} dates — ${formatPence(depositTotalPence)}`
+                  : `Pay deposit for all ${pendingBookings.length} dates — ${formatPence(depositTotalPence)}`
             }
             size="sm"
             fullWidth={false}
           />
-          {first.service.paymentTiming === "DEPOSIT_THEN_BALANCE" && (
+          {first.service.paymentTiming === "DEPOSIT_THEN_BALANCE" && !noBalanceInBatch && (
             <BatchPayButton
               bookingIds={pendingBookings.map((b) => b.id)}
               type="FULL"

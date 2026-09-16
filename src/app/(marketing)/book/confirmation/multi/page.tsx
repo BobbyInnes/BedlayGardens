@@ -69,6 +69,10 @@ export default async function MultiBookingConfirmationPage({
   const canPayTogether = stripe && pendingBookings.length >= 2
   const depositTotalPence = pendingBookings.reduce((sum, b) => sum + b.depositPence, 0)
   const remainingTotalPence = pendingBookings.reduce((sum, b) => sum + b.totalPence, 0)
+  // A "deposit" that already covers the whole total (e.g. Day Care) isn't
+  // really a partial deposit — say what it is rather than implying a
+  // balance/second payment that doesn't exist.
+  const noBalanceInBatch = depositTotalPence >= remainingTotalPence
 
   return (
     <div className="mx-auto max-w-xl px-4 py-16 sm:px-6">
@@ -154,10 +158,12 @@ export default async function MultiBookingConfirmationPage({
             label={
               pendingBookings[0].service.paymentTiming === "FULL_UPFRONT"
                 ? `Pay for all ${pendingBookings.length} dates — ${formatPence(depositTotalPence)}`
-                : `Pay deposit for all ${pendingBookings.length} dates — ${formatPence(depositTotalPence)}`
+                : noBalanceInBatch
+                  ? `Amount to pay for all ${pendingBookings.length} dates — ${formatPence(depositTotalPence)}`
+                  : `Pay deposit for all ${pendingBookings.length} dates — ${formatPence(depositTotalPence)}`
             }
           />
-          {pendingBookings[0].service.paymentTiming === "DEPOSIT_THEN_BALANCE" && (
+          {pendingBookings[0].service.paymentTiming === "DEPOSIT_THEN_BALANCE" && !noBalanceInBatch && (
             <BatchPayButton
               bookingIds={pendingBookings.map((b) => b.id)}
               type="FULL"
@@ -172,7 +178,13 @@ export default async function MultiBookingConfirmationPage({
           <PayButton
             bookingId={pendingBookings[0].id}
             type="DEPOSIT"
-            label={`Pay deposit — ${formatPence(pendingBookings[0].depositPence)}`}
+            label={
+              pendingBookings[0].service.paymentTiming === "FULL_UPFRONT"
+                ? `Pay now — ${formatPence(pendingBookings[0].depositPence)}`
+                : pendingBookings[0].depositPence >= pendingBookings[0].totalPence
+                  ? `Amount to pay — ${formatPence(pendingBookings[0].depositPence)}`
+                  : `Pay deposit — ${formatPence(pendingBookings[0].depositPence)}`
+            }
           />
         </div>
       )}

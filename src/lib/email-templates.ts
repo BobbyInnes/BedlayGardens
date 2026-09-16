@@ -921,7 +921,14 @@ function buildDepositInvoiceVars(
     bookingMetaBlock,
     otherDaycareDatesBlock: otherDaycareDatesLine(booking.otherDaycareDates),
     lineItemsTable: invoiceLineItemsTable(booking, vat),
-    payLinkBlock: `<p style="margin: 16px 0;">You can securely pay your deposit online via credit or debit card using our Stripe payment link below:</p>
+    // A "deposit" that already covers the whole total (e.g. Day Care) isn't
+    // really a partial deposit — say what it is rather than implying a
+    // balance/second payment that doesn't exist.
+    payLinkBlock:
+      balancePence <= 0
+        ? `<p style="margin: 16px 0;">You can securely pay online via credit or debit card using our Stripe payment link below:</p>
+         <p style="margin: 16px 0;"><a href="${depositPayUrl}" style="color: #3f5a3a; font-weight: bold;">Pay now →</a></p>`
+        : `<p style="margin: 16px 0;">You can securely pay your deposit online via credit or debit card using our Stripe payment link below:</p>
          <p style="margin: 16px 0;"><a href="${depositPayUrl}" style="color: #3f5a3a; font-weight: bold;">Pay deposit now →</a></p>`,
     legalFooterBlock: buildLegalFooterBlock(),
   }

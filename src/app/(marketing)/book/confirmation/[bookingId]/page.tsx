@@ -144,7 +144,7 @@ export default async function BookingConfirmationPage({
       {booking.status === "PENDING_PAYMENT" && stripe ? (
         <div className="mt-6 space-y-3">
           <p className="text-sm text-muted-foreground">
-            {booking.service.paymentTiming === "FULL_UPFRONT"
+            {booking.service.paymentTiming === "FULL_UPFRONT" || balancePence <= 0
               ? "Pay now to confirm this booking."
               : "Pay your deposit now to confirm this booking, or pay the full amount now if you'd rather not come back for the balance. Your card is saved securely with Stripe so we can collect anything still due automatically before check-in."}
           </p>
@@ -154,7 +154,12 @@ export default async function BookingConfirmationPage({
             label={
               booking.service.paymentTiming === "FULL_UPFRONT"
                 ? `Pay now — ${formatPence(booking.depositPence)}`
-                : `Pay deposit — ${formatPence(booking.depositPence)}`
+                // A "deposit" that already covers the whole total (e.g. Day
+                // Care) isn't really a partial deposit — say what it is
+                // rather than implying a balance that doesn't exist.
+                : balancePence <= 0
+                  ? `Amount to pay — ${formatPence(booking.depositPence)}`
+                  : `Pay deposit — ${formatPence(booking.depositPence)}`
             }
           />
           {booking.service.paymentTiming === "DEPOSIT_THEN_BALANCE" && (
