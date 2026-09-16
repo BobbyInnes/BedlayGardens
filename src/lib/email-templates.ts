@@ -596,6 +596,27 @@ type ContactDetailsUser = {
   addressPostcode: string | null
 }
 
+type AccountDetailsUser = ContactDetailsUser & {
+  emergencyContactSalutation: string | null
+  emergencyContactForename: string | null
+  emergencyContactSurname: string | null
+  emergencyContactHomePhone: string | null
+  emergencyContactPhone: string | null
+  emergencyContactWorkPhone: string | null
+  emergencyContactAddressLine1: string | null
+  emergencyContactAddressLine2: string | null
+  emergencyContactCity: string | null
+  emergencyContactPostcode: string | null
+  vetName: string | null
+  vetPhone: string | null
+  vetPracticeName: string | null
+  vetAddressLine1: string | null
+  vetAddressLine2: string | null
+  vetCity: string | null
+  vetPostcode: string | null
+  vetEmail: string | null
+}
+
 function contactDetailRows(user: ContactDetailsUser): [string, string][] {
   return [
     ["Name", [user.salutation, user.forename, user.surname].filter(Boolean).join(" ")],
@@ -609,20 +630,80 @@ function contactDetailRows(user: ContactDetailsUser): [string, string][] {
   ]
 }
 
+function emergencyContactDetailRows(user: AccountDetailsUser): [string, string][] {
+  const name = [user.emergencyContactSalutation, user.emergencyContactForename, user.emergencyContactSurname]
+    .filter(Boolean)
+    .join(" ")
+  return [
+    ...(name ? ([["Name", name]] as [string, string][]) : []),
+    ...(user.emergencyContactHomePhone
+      ? ([["Home Tel-No", user.emergencyContactHomePhone]] as [string, string][])
+      : []),
+    ...(user.emergencyContactPhone
+      ? ([["Mobile Tel-No", user.emergencyContactPhone]] as [string, string][])
+      : []),
+    ...(user.emergencyContactWorkPhone
+      ? ([["Works Tel-No", user.emergencyContactWorkPhone]] as [string, string][])
+      : []),
+    ...(user.emergencyContactAddressLine1
+      ? ([["Address line 1", user.emergencyContactAddressLine1]] as [string, string][])
+      : []),
+    ...(user.emergencyContactAddressLine2
+      ? ([["Address line 2", user.emergencyContactAddressLine2]] as [string, string][])
+      : []),
+    ...(user.emergencyContactCity ? ([["Town / city", user.emergencyContactCity]] as [string, string][]) : []),
+    ...(user.emergencyContactPostcode
+      ? ([["Postcode", user.emergencyContactPostcode]] as [string, string][])
+      : []),
+  ]
+}
+
+function vetPracticeDetailRows(user: AccountDetailsUser): [string, string][] {
+  return [
+    ...(user.vetPracticeName ? ([["Practice name", user.vetPracticeName]] as [string, string][]) : []),
+    ...(user.vetEmail ? ([["Practice email", user.vetEmail]] as [string, string][]) : []),
+    ...(user.vetName ? ([["Consultant's name", user.vetName]] as [string, string][]) : []),
+    ...(user.vetPhone ? ([["Phone", user.vetPhone]] as [string, string][]) : []),
+    ...(user.vetAddressLine1 ? ([["Address line 1", user.vetAddressLine1]] as [string, string][]) : []),
+    ...(user.vetAddressLine2 ? ([["Address line 2", user.vetAddressLine2]] as [string, string][]) : []),
+    ...(user.vetCity ? ([["Town / city", user.vetCity]] as [string, string][]) : []),
+    ...(user.vetPostcode ? ([["Postcode", user.vetPostcode]] as [string, string][]) : []),
+  ]
+}
+
+function accountSectionHeading(title: string): string {
+  return `<h3 style="font-size: 15px; margin: 24px 0 4px; color: #3f5a3a;">${title}</h3>`
+}
+
+const NOT_PROVIDED = `<p style="color: #666; font-size: 13px; margin: 4px 0 0;">Not provided.</p>`
+
 // Sent on demand (the "Email contact details" button on the account page)
-// rather than after a change — a plain copy of what's currently on file.
+// rather than after a change — a plain copy of every account-level section
+// currently on file (contact details, emergency contact, vet practice), not
+// just the Contact details card despite the button's name.
 export function contactDetailsEmail(
   branding: EmailBranding,
-  user: ContactDetailsUser
+  user: AccountDetailsUser
 ): { subject: string; html: string } {
+  const emergencyRows = emergencyContactDetailRows(user)
+  const vetRows = vetPracticeDetailRows(user)
   return {
-    subject: "Your contact details",
+    subject: "Your account details",
     html: layout(
       branding,
-      "Your contact details",
+      "Your account details",
       `
-        <p>Here's a copy of the contact details currently on your account:</p>
+        <p>Here's a copy of the details currently on your account.</p>
+
+        ${accountSectionHeading("Contact details")}
         ${detailsTable(contactDetailRows(user))}
+
+        ${accountSectionHeading("Emergency contact")}
+        ${emergencyRows.length > 0 ? detailsTable(emergencyRows) : NOT_PROVIDED}
+
+        ${accountSectionHeading("Vet practice")}
+        ${vetRows.length > 0 ? detailsTable(vetRows) : NOT_PROVIDED}
+
         <p>If any of this looks wrong, you can update it any time from your account.</p>
       `
     ),
