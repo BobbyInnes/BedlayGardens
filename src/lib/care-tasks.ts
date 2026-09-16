@@ -1,14 +1,13 @@
 import { prisma } from "@/lib/prisma"
 import { startOfDay } from "@/lib/dates"
-
-const ON_SITE_SERVICE_SLUGS = ["overnight-boarding", "daycare"]
+import { ON_SITE_SERVICE_SLUGS } from "@/lib/service-slugs"
 
 /** Idempotently ensures today's feed/medication/walk checklist exists for every in-house dog. */
 export async function ensureCareTasksForToday(): Promise<void> {
   const date = startOfDay(new Date())
 
   const bookings = await prisma.booking.findMany({
-    where: { status: "CHECKED_IN", service: { slug: { in: ON_SITE_SERVICE_SLUGS } } },
+    where: { status: "CHECKED_IN", service: { slug: { in: [...ON_SITE_SERVICE_SLUGS] } } },
     include: { bookingDogs: { include: { dog: true } } },
   })
 

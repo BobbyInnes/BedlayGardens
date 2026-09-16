@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button"
 // service includes its own description right underneath the title (see
 // DOG_WALKING_DESCRIPTION below), so this shortens it there only.
 function bookingPageTitle(service: { slug: string; name: string }): string {
-  return service.slug === "dog-walking" ? "Dog Walking" : service.name
+  return service.slug === "walkgroup" ? "Dog Walking" : service.name
 }
 
 const DOG_WALKING_DESCRIPTION =
@@ -112,12 +112,12 @@ export default async function BookServicePage({
     <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
       <h1
         className={`text-2xl font-semibold tracking-tight sm:text-3xl ${
-          service.slug === "dog-walking" ? "" : "mb-8"
+          service.slug === "walkgroup" ? "" : "mb-8"
         }`}
       >
         Book {bookingPageTitle(service)}
       </h1>
-      {service.slug === "dog-walking" && (
+      {service.slug === "walkgroup" && (
         <p className="mt-2 mb-8 text-muted-foreground">{DOG_WALKING_DESCRIPTION}</p>
       )}
       <BookingWizard

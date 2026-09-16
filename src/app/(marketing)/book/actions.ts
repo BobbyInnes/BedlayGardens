@@ -4,13 +4,14 @@ import { randomUUID } from "node:crypto"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { Prisma, type PaymentTiming, type WalkType } from "@/generated/prisma/client"
+import { Prisma, type PaymentTiming, type WalkType, type DaycareDuration } from "@/generated/prisma/client"
 import { isDriverAdapterError } from "@prisma/driver-adapter-utils"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { nightsBetween, startOfDay, isWeekend, isPastDaycareHalfDayAmCutoff } from "@/lib/dates"
 import { findAvailableKennelUnit, isDaycareAvailable, isMeetGreetAvailable } from "@/lib/availability"
 import { WALK_TYPE_MAX_PER_DAY, WALK_TYPE_SERVICE_SLUG, DEFAULT_WALK_TYPE } from "@/lib/walk-types"
+import { DAYCARE_SLUGS, isDaycareSlug, isDogWalkingSlug, type DaycareSlug } from "@/lib/service-slugs"
 import { checkVaccinationGate } from "@/lib/vaccination-gate"
 import { computeBookingPrice } from "@/lib/booking-pricing"
 import { paymentFieldsForGate } from "@/lib/payment-timing"
@@ -229,7 +230,7 @@ export async function resolveBookingCreation(
     // Play Time are 1-on-1 with staff, exactly what those flags exist to
     // require, so a flagged dog can (and should) book one of those instead.
     const groupWalkCompatibilityApplies =
-      service.slug === "secure-forest-walks" || (service.slug === "dog-walking" && walkType === "GROUP_WALK")
+      service.slug === "secure-forest-walks" || (service.slug === "walkgroup" && walkType === "GROUP_WALK")
     if (groupWalkCompatibilityApplies) {
       const flaggedDog = dogs.find((dog) =>
         dog.flags.some((f) => GROUP_BLOCKING_FLAGS.includes(f.type))
@@ -389,10 +390,14 @@ export async function resolveBookingCreation(
     if (!bookingId) {
       return { status: "error", message: "Those dates just became fully booked. Please try again." }
     }
-  } else if (service.slug === "daycare") {
+  } else if (isDaycareSlug(service.slug)) {
     if (!data.date) return { status: "error", message: "Select a date." }
     const date = startOfDay(new Date(data.date))
-    const daycareDuration = data.daycareDuration ?? "FULL_DAY"
+    // Duration is now which of the two Day Care services was booked, not a
+    // runtime choice — dayfull is always Full Day, dayhalf always Half Day.
+    // Derived from the trusted server-side service row rather than the
+    // client-submitted daycareDuration field, which no longer drives this.
+    const daycareDuration: DaycareDuration = service.slug === "dayhalf" ? "HALF_DAY" : "FULL_DAY"
     if (daycareDuration === "HALF_DAY" && !data.daycareHalfDaySlot) {
       return { status: "error", message: "Select AM or PM for a half day booking." }
     }
@@ -402,7 +407,7 @@ export async function resolveBookingCreation(
       if (daycareDuration === "FULL_DAY") {
         return {
           status: "error",
-          message: "It's the afternoon, so today's Day Care is Half Day (PM) only.",
+          message: "It's the afternoon, so today's Day Care is Half Day (PM) only — please book Day Care (Half Day) instead.",
         }
       }
       if (data.daycareHalfDaySlot === "AM") {
@@ -435,15 +440,10 @@ export async function resolveBookingCreation(
       return { status: "error", message: availability.reason ?? "Not enough daycare capacity on that date." }
     }
 
-    const unitPricePence =
-      daycareDuration === "HALF_DAY" && service.halfDayPricePence != null
-        ? service.halfDayPricePence
-        : service.basePricePence
-
     const pricing = await computeBookingPrice({
       serviceId: service.id,
       pricingModel: service.pricingModel,
-      basePricePence: unitPricePence,
+      basePricePence: service.basePricePence,
       dates: [date],
       dogCount: dogs.length,
       addons: [],
@@ -452,11 +452,12 @@ export async function resolveBookingCreation(
     const balanceDueDate = await balanceDueDateFor(service.paymentTiming, date)
 
     const booking = await runCapacityCheckedTransaction(async (tx) => {
+      // Full Day and Half Day share one daily capacity pool — see DAYCARE_SLUGS.
       const recheckCount = await tx.bookingDog.count({
         where: {
           booking: {
             startDate: date,
-            service: { slug: "daycare" },
+            service: { slug: { in: [...DAYCARE_SLUGS] } },
             status: { notIn: ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] },
           },
         },
@@ -567,7 +568,7 @@ export async function resolveBookingCreation(
       return { status: "error", message: "That slot just filled up. Please choose another." }
     }
     bookingId = booking.id
-  } else if (service.slug === "dog-walking" || service.slug === "walksolo") {
+  } else if (isDogWalkingSlug(service.slug)) {
     if (!data.date || !data.pickupAddress) {
       return { status: "error", message: "Select a date and enter a pickup address." }
     }
@@ -898,10 +899,14 @@ export type MultiBookingActionState = BookingActionState & { failedDates?: strin
  * Day care only, for booking several dates in one pass. Each date becomes
  * its own booking — same creation path as a single-date booking, just
  * looped — so one date failing (no capacity, missing vaccinations, etc.)
- * doesn't stop the others from going through.
+ * doesn't stop the others from going through. `daycareSlug` is which of the
+ * two Day Care services (dayfull/dayhalf) the customer is actually booking —
+ * passed in by the caller rather than assumed, since duration is now which
+ * service was picked (see DAYCARE_SLUGS).
  */
 export async function createDaycareBookings(
   dates: string[],
+  daycareSlug: DaycareSlug,
   input: Omit<z.infer<typeof baseSchema>, "date" | "serviceSlug">
 ): Promise<MultiBookingActionState> {
   const session = await auth()
@@ -916,7 +921,7 @@ export async function createDaycareBookings(
   for (const date of dates) {
     const result = await resolveBookingCreation(
       session.user.id,
-      { ...input, serviceSlug: "daycare", date },
+      { ...input, serviceSlug: daycareSlug, date },
       { batchId, otherDaycareDates: dates.filter((d) => d !== date) }
     )
     if (result.status === "error") {

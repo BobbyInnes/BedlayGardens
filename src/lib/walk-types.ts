@@ -20,12 +20,14 @@ export const WALK_TYPE_LABELS: Record<WalkType, string> = {
 // Which Service each walk type is booked and priced under. Solo was split
 // out into its own "Dog Walking (Solo)" service (slug "walksolo") on
 // 2026-09-10 so it can be priced and capacity-tracked independently of
-// Group; Puppy still rides along under "Dog Walking (Van Collection)" since
-// there's no dedicated customer-facing service for it yet.
+// Group; Puppy still rides along under "Dog Walking (Group)" (slug
+// "walkgroup" — the renamed/reslugged former "dog-walking"/"Dog Walking (Van
+// Collection)" service) since there's no dedicated customer-facing service
+// for it yet.
 export const WALK_TYPE_SERVICE_SLUG: Record<WalkType, string> = {
-  GROUP_WALK: "dog-walking",
+  GROUP_WALK: "walkgroup",
   SOLO_WALK: "walksolo",
-  PUPPY_WALK_AND_PLAY: "dog-walking",
+  PUPPY_WALK_AND_PLAY: "walkgroup",
 }
 
 // Max dogs per day, per type — Solo/Puppy are 1-on-1 staff time, so only one

@@ -16,7 +16,13 @@ export const LOCAL_AREAS: LocalArea[] = [
 
 // Only services that make sense as a "near me" local search — not meet-greet,
 // which nobody searches for by location.
-export const LOCAL_SEO_SERVICE_SLUGS = ["overnight-boarding", "daycare", "secure-forest-walks", "dog-walking"]
+export const LOCAL_SEO_SERVICE_SLUGS = [
+  "overnight-boarding",
+  "dayfull",
+  "dayhalf",
+  "secure-forest-walks",
+  "walkgroup",
+]
 
 export function findLocalArea(slug: string): LocalArea | undefined {
   return LOCAL_AREAS.find((a) => a.slug === slug)

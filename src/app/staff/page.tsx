@@ -8,6 +8,7 @@ import { today, tomorrow } from "@/lib/staff-dates"
 import { DogFlagBadges } from "@/components/staff/dog-flag-badges"
 import type { DogFlagType } from "@/generated/prisma/client"
 import { fullName } from "@/lib/format"
+import { ON_SITE_SERVICE_SLUGS as SHARED_ON_SITE_SERVICE_SLUGS } from "@/lib/service-slugs"
 
 function allFlags(bookingDogs: { dog: { flags: { type: DogFlagType; notes: string | null }[] } }[]) {
   return bookingDogs.flatMap((bd) => bd.dog.flags)
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
   title: "Today | Staff",
 }
 
-const ON_SITE_SERVICE_SLUGS = ["overnight-boarding", "daycare"]
+const ON_SITE_SERVICE_SLUGS = [...SHARED_ON_SITE_SERVICE_SLUGS]
 
 export default async function StaffTodayPage() {
   const start = today()

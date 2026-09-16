@@ -14,9 +14,10 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const serviceSlug = searchParams.get("serviceSlug")
   if (
-    serviceSlug !== "daycare" &&
+    serviceSlug !== "dayfull" &&
+    serviceSlug !== "dayhalf" &&
     serviceSlug !== "meet-greet" &&
-    serviceSlug !== "dog-walking" &&
+    serviceSlug !== "walkgroup" &&
     serviceSlug !== "walksolo"
   ) {
     return NextResponse.json({ error: "Unknown service" }, { status: 400 })

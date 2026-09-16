@@ -33,6 +33,7 @@ import { findAtRiskBookings, findPendingVaccinationBookings } from "@/lib/bookin
 import { ToDoList } from "@/components/admin/todo-list"
 import { CareTaskRecordButton } from "@/components/admin/care-task-record-button"
 import { DailyDatePicker } from "@/components/admin/daily-date-picker"
+import { DAYCARE_SLUGS, DOG_WALKING_SLUGS, isDaycareSlug, isDogWalkingSlug } from "@/lib/service-slugs"
 
 // How far ahead the dashboard looks for bookings whose vaccinations won't
 // cover the stay — tighter than the cron's own lookahead (see
@@ -45,7 +46,7 @@ export const metadata: Metadata = {
 }
 
 const ON_SITE_ACTIVE_STATUSES: BookingStatus[] = ["PENDING_PAYMENT", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT"]
-const SCHEDULED_SERVICE_SLUGS = ["meet-greet", "secure-forest-walks", "dog-walking"] as const
+const SCHEDULED_SERVICE_SLUGS = ["meet-greet", "secure-forest-walks", ...DOG_WALKING_SLUGS] as const
 
 const bookingListInclude = {
   customer: true,
@@ -91,7 +92,7 @@ function stayLabel(booking: BookingListItem): string {
     const nights = Math.round((booking.endDate.getTime() - booking.startDate.getTime()) / 86_400_000)
     return `${nights} night${nights === 1 ? "" : "s"}`
   }
-  if (booking.service.slug === "daycare") {
+  if (isDaycareSlug(booking.service.slug)) {
     if (booking.daycareDuration === "HALF_DAY") {
       return `Half day${booking.daycareHalfDaySlot ? ` (${booking.daycareHalfDaySlot})` : ""}`
     }
@@ -302,7 +303,7 @@ function BookingTable({
           {bookings.map((booking) => (
             <tr key={`${direction}-${booking.id}`} className={TABLE_ROW}>
               <td className={TABLE_CELL}>
-                <Badge variant="secondary">{booking.service.slug === "daycare" ? "Daycare" : "Home Boarding"}</Badge>
+                <Badge variant="secondary">{isDaycareSlug(booking.service.slug) ? "Daycare" : "Home Boarding"}</Badge>
               </td>
               <td className={TABLE_CELL}>
                 <Link href={`/admin/customers/${booking.customerId}`} className="font-medium hover:underline">
@@ -312,7 +313,7 @@ function BookingTable({
               <td className={TABLE_CELL}>{dogsCell(booking.bookingDogs)}</td>
               <td className={TABLE_CELL}>{stayLabel(booking)}</td>
               <td className={TABLE_CELL}>
-                {booking.kennelUnit?.name ?? (booking.service.slug === "daycare" ? "Daycare" : "—")}
+                {booking.kennelUnit?.name ?? (isDaycareSlug(booking.service.slug) ? "Daycare" : "—")}
               </td>
               <td className={TABLE_CELL}>{statusCell(booking, direction)}</td>
               <td className={TABLE_CELL}>{paymentCell(booking)}</td>
@@ -357,7 +358,7 @@ export default async function AdminOverviewPage({
     daycareCapacitySetting,
   ] = await Promise.all([
     prisma.service.findMany({
-      where: { slug: { in: ["overnight-boarding", "daycare", ...SCHEDULED_SERVICE_SLUGS] } },
+      where: { slug: { in: ["overnight-boarding", ...DAYCARE_SLUGS, ...SCHEDULED_SERVICE_SLUGS] } },
     }),
     prisma.kennelUnit.count({ where: { active: true } }),
     prisma.kennelOccupancy.count({ where: { date } }),
@@ -391,7 +392,7 @@ export default async function AdminOverviewPage({
     }),
     prisma.booking.findMany({
       where: {
-        service: { slug: "daycare" },
+        service: { slug: { in: [...DAYCARE_SLUGS] } },
         startDate: date,
         status: { in: ON_SITE_ACTIVE_STATUSES },
       },
@@ -474,7 +475,7 @@ export default async function AdminOverviewPage({
   const halfDayCount = daycareToday.filter((b) => b.daycareDuration === "HALF_DAY").length
   const daycareCapacity = Number(daycareCapacitySetting || 0)
 
-  const dogWalkingBookings = scheduledServiceBookings.filter((b) => b.service.slug === "dog-walking")
+  const dogWalkingBookings = scheduledServiceBookings.filter((b) => isDogWalkingSlug(b.service.slug))
   const meetGreetBookings = scheduledServiceBookings.filter((b) => b.service.slug === "meet-greet")
   const forestWalkBookings = scheduledServiceBookings.filter((b) => b.service.slug === "secure-forest-walks")
   const dogWalkingDogIds = new Set<string>()

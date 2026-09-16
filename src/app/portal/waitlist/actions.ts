@@ -10,10 +10,11 @@ import { notifyCustomer } from "@/lib/notify"
 import { getSettings } from "@/lib/settings"
 import { waitlistJoinedEmail } from "@/lib/email-templates"
 import { resolveBookingCreation } from "@/app/(marketing)/book/actions"
+import { DAYCARE_SLUGS } from "@/lib/service-slugs"
 
 export type WaitlistActionState = { status: "idle" | "error"; message?: string }
 
-const WAITLISTABLE_SLUGS = ["daycare", "meet-greet", "overnight-boarding"]
+const WAITLISTABLE_SLUGS = [...DAYCARE_SLUGS, "meet-greet", "overnight-boarding"]
 
 export async function joinWaitlist(
   serviceSlug: string,

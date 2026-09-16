@@ -2,12 +2,13 @@ import type { Metadata } from "next"
 import { prisma } from "@/lib/prisma"
 import { PupdateForm } from "@/components/staff/pupdate-form"
 import { fullName } from "@/lib/format"
+import { ON_SITE_SERVICE_SLUGS as SHARED_ON_SITE_SERVICE_SLUGS } from "@/lib/service-slugs"
 
 export const metadata: Metadata = {
   title: "Pupdates | Staff",
 }
 
-const ON_SITE_SERVICE_SLUGS = ["overnight-boarding", "daycare"]
+const ON_SITE_SERVICE_SLUGS = [...SHARED_ON_SITE_SERVICE_SLUGS]
 
 export default async function StaffPupdatesPage() {
   const [inHouseBookings, recentPupdates] = await Promise.all([

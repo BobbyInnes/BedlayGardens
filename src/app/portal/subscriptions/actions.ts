@@ -8,13 +8,14 @@ import { prisma } from "@/lib/prisma"
 import { stripe, getSiteUrl } from "@/lib/stripe"
 import { pauseSubscription as pauseSubscriptionLib, parseWeekdays } from "@/lib/subscriptions"
 import { fullName } from "@/lib/format"
+import { DAYCARE_SLUGS } from "@/lib/service-slugs"
 
 export type SubscriptionActionState = { status: "idle" | "error"; message?: string }
 
-const SUBSCRIBABLE_SLUGS = ["daycare", "dog-walking"]
+const SUBSCRIBABLE_SLUGS = [...DAYCARE_SLUGS, "walkgroup"]
 
 const createSchema = z.object({
-  serviceSlug: z.enum(["daycare", "dog-walking"]),
+  serviceSlug: z.enum(["dayfull", "dayhalf", "walkgroup"]),
   dogId: z.string().min(1),
   weekdays: z.array(z.number().int().min(0).max(6)).min(1, "Choose at least one day"),
   slot: z.string().trim().min(1, "Choose a time"),

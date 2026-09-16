@@ -10,6 +10,7 @@ import {
 } from "@/lib/availability"
 import { largestDogSize } from "@/lib/dog-size-colors"
 import { WALK_TYPES, DEFAULT_WALK_TYPE } from "@/lib/walk-types"
+import { isDaycareSlug } from "@/lib/service-slugs"
 import type { WalkType } from "@/generated/prisma/client"
 
 export async function GET(request: Request) {
@@ -41,7 +42,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ available: !!unit })
   }
 
-  if (serviceSlug === "daycare") {
+  if (serviceSlug && isDaycareSlug(serviceSlug)) {
     const date = searchParams.get("date")
     if (!date) return NextResponse.json({ error: "Missing date" }, { status: 400 })
     const result = await isDaycareAvailable(new Date(date))
@@ -68,7 +69,7 @@ export async function GET(request: Request) {
     })
   }
 
-  if (serviceSlug === "dog-walking") {
+  if (serviceSlug === "walkgroup") {
     const date = searchParams.get("date")
     if (!date) return NextResponse.json({ error: "Missing date" }, { status: 400 })
     const walkTypeParam = searchParams.get("walkType") as WalkType | null

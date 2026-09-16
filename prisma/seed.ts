@@ -131,10 +131,16 @@ async function main() {
   // SERVICES
   // ---------------------------------------------------------------------
   const meetGreet = await prisma.service.create({ data: { name: 'Meet & Greet', slug: 'meet-greet', description: 'First step before booking — a chance to make sure the fit is right', pricingModel: 'PER_SESSION', basePricePence: 1500, active: true, sortOrder: 1 } });
-  const daycare = await prisma.service.create({ data: { name: 'Day Care', slug: 'daycare', description: 'Full day, or half day AM/PM', pricingModel: 'PER_DAY', basePricePence: 2600, active: true, sortOrder: 2 } });
+  // Day Care split into two separate bookable services 2026-09 (was one
+  // "daycare" service with a Full/Half Day toggle) — see lib/service-slugs.ts.
+  const daycare = await prisma.service.create({ data: { name: 'Day Care (Full Day)', slug: 'dayfull', description: 'Full day', pricingModel: 'PER_DAY', basePricePence: 2600, active: true, sortOrder: 2 } });
+  await prisma.service.create({ data: { name: 'Day Care (Half Day)', slug: 'dayhalf', description: 'Half day AM/PM', pricingModel: 'PER_SESSION', basePricePence: 2000, active: true, sortOrder: 2 } });
   const forestWalk = await prisma.service.create({ data: { name: 'Secure Forest Walks', slug: 'secure-forest-walks', description: 'Private-hire securely enclosed woodland for off-lead exercise', pricingModel: 'PER_SESSION', basePricePence: 1500, active: true, sortOrder: 3 } });
   const boarding = await prisma.service.create({ data: { name: 'Home Boarding', slug: 'overnight-boarding', description: 'Overnight stay', pricingModel: 'PER_NIGHT', basePricePence: 5000, active: true, sortOrder: 4 } });
-  const dogWalking = await prisma.service.create({ data: { name: 'Dog Walking (Van Collection)', slug: 'dog-walking', description: 'Picked up from home, walked, and returned', pricingModel: 'PER_SESSION', basePricePence: 1200, active: true, sortOrder: 5 } });
+  // Renamed/reslugged from "dog-walking"/"Dog Walking (Van Collection)" to
+  // sit alongside the already-split "Dog Walking (Solo)" — same service.
+  const dogWalking = await prisma.service.create({ data: { name: 'Dog Walking (Group)', slug: 'walkgroup', description: 'Picked up from home, walked, and returned', pricingModel: 'PER_SESSION', basePricePence: 1200, active: true, sortOrder: 5 } });
+  await prisma.service.create({ data: { name: 'Dog Walking (Solo)', slug: 'walksolo', description: 'One-on-one walk, picked up from home and returned', pricingModel: 'PER_SESSION', basePricePence: 1800, active: true, sortOrder: 5 } });
   await prisma.service.create({ data: { name: 'Weekend Grooming (retired)', slug: 'weekend-grooming', description: 'No longer offered', pricingModel: 'PER_SESSION', basePricePence: 3000, active: false, sortOrder: 99 } }); // soft-deleted service test
 
   const extraPlaytime = await prisma.addon.create({ data: { name: 'Extra Playtime', description: '15 extra minutes of one-to-one play', pricePence: 500, serviceId: boarding.id, active: true } });

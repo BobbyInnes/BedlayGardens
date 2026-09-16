@@ -14,6 +14,7 @@ import {
   largestDogSize,
   colorForDogSize,
 } from "@/lib/dog-size-colors"
+import { DAYCARE_SLUGS } from "@/lib/service-slugs"
 
 export const metadata: Metadata = {
   title: "Occupancy | Admin",
@@ -50,7 +51,7 @@ export default async function AdminOccupancyPage({
     prisma.blockedDate.findMany({ where: { date: { gte: monthStart, lt: monthEnd } } }),
     prisma.booking.findMany({
       where: {
-        service: { slug: "daycare" },
+        service: { slug: { in: [...DAYCARE_SLUGS] } },
         status: { notIn: [...EXCLUDED_STATUSES] },
         startDate: { gte: monthStart, lt: monthEnd },
       },

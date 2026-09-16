@@ -4,6 +4,7 @@ import { addDays, isWeekend, nightsBetween, startOfDay, toDateInputValue } from 
 import { DOG_SIZE_ORDER } from "@/lib/dog-size-colors"
 import { kennelSizeRank } from "@/lib/kennel-size"
 import { WALK_TYPE_MAX_PER_DAY, WALK_TYPE_SERVICE_SLUG } from "@/lib/walk-types"
+import { DAYCARE_SLUGS } from "@/lib/service-slugs"
 
 async function isSiteWideBlocked(dates: Date[]): Promise<boolean> {
   const count = await prisma.blockedDate.count({
@@ -55,7 +56,7 @@ export async function findAvailableKennelUnit(
 
 async function isSlottedServiceAvailable(
   date: Date,
-  serviceSlug: string,
+  serviceSlug: string | string[],
   capacitySettingKey: string
 ): Promise<{ available: boolean; remaining: number; reason?: string }> {
   const day = startOfDay(date)
@@ -65,6 +66,8 @@ async function isSlottedServiceAvailable(
     return { available: false, remaining: 0, reason: "This service isn't available on Saturdays or Sundays." }
   }
 
+  const slugFilter = Array.isArray(serviceSlug) ? { in: serviceSlug } : serviceSlug
+
   const [capacitySetting, blocked, existingDogCount] = await Promise.all([
     prisma.setting.findUnique({ where: { key: capacitySettingKey } }),
     prisma.blockedDate.count({ where: { kennelUnitId: null, date: day } }),
@@ -72,7 +75,7 @@ async function isSlottedServiceAvailable(
       where: {
         booking: {
           startDate: day,
-          service: { slug: serviceSlug },
+          service: { slug: slugFilter },
           status: { notIn: ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] },
         },
       },
@@ -86,10 +89,13 @@ async function isSlottedServiceAvailable(
   return { available: remaining > 0, remaining }
 }
 
+// Day Care (Full Day) and Day Care (Half Day) are separate services that
+// share one daily capacity pool — a Full Day and a Half Day booking compete
+// for the same "daycare_max_capacity" slots, same as before the split.
 export async function isDaycareAvailable(
   date: Date
 ): Promise<{ available: boolean; remaining: number; reason?: string }> {
-  return isSlottedServiceAvailable(date, "daycare", "daycare_max_capacity")
+  return isSlottedServiceAvailable(date, [...DAYCARE_SLUGS], "daycare_max_capacity")
 }
 
 /**
@@ -171,7 +177,7 @@ export async function isDogWalkingAvailable(
  * highlight every available weekday in a month at once.
  */
 export async function listAvailableDays(
-  serviceSlug: "daycare" | "meet-greet" | "dog-walking" | "walksolo",
+  serviceSlug: "dayfull" | "dayhalf" | "meet-greet" | "walkgroup" | "walksolo",
   rangeStart: Date,
   rangeEnd: Date,
   walkType?: WalkType
@@ -204,7 +210,7 @@ export async function listAvailableDays(
       .filter((d) => !blockedSet.has(d) && !bookedSet.has(d))
   }
 
-  if (serviceSlug === "dog-walking" || serviceSlug === "walksolo") {
+  if (serviceSlug === "walkgroup" || serviceSlug === "walksolo") {
     const resolvedWalkType = walkType ?? (serviceSlug === "walksolo" ? "SOLO_WALK" : "GROUP_WALK")
     const bookingDogs = await prisma.bookingDog.findMany({
       where: {
@@ -233,7 +239,7 @@ export async function listAvailableDays(
     prisma.bookingDog.findMany({
       where: {
         booking: {
-          service: { slug: "daycare" },
+          service: { slug: { in: [...DAYCARE_SLUGS] } },
           startDate: { in: candidates },
           status: { notIn: ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] },
         },

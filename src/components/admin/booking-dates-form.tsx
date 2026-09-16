@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { modifyBookingDates, type ModifyDatesState } from "@/app/admin/bookings/actions"
+import { isDaycareSlug } from "@/lib/service-slugs"
 
 const initialState: ModifyDatesState = { status: "idle" }
 
@@ -47,7 +48,7 @@ export function BookingDatesForm({
     )
   }
 
-  if (serviceSlug === "daycare") {
+  if (isDaycareSlug(serviceSlug)) {
     return (
       <form action={formAction} className="flex flex-wrap items-end gap-3">
         <div className="space-y-2">

@@ -23,6 +23,7 @@ import {
   pendingVaccinationEmail,
 } from "@/lib/email-templates"
 import { logAudit, logEntityChange, describeBooking } from "@/lib/audit"
+import { isDaycareSlug } from "@/lib/service-slugs"
 import { formatPence, fullName } from "@/lib/format"
 import { resolveBookingCreation, type BookingCreationResult } from "@/app/(marketing)/book/actions"
 import { createBookingInvoice } from "@/lib/invoicing"
@@ -421,7 +422,7 @@ export async function modifyBookingDates(
       return { status: "error", message: "Those dates just became fully booked. Please try again." }
     }
     afterDates = { startDate, endDate }
-  } else if (booking.service.slug === "daycare") {
+  } else if (isDaycareSlug(booking.service.slug)) {
     const dateRaw = formData.get("date") as string | null
     if (!dateRaw) return { status: "error", message: "Select a date." }
     const date = startOfDay(new Date(dateRaw))

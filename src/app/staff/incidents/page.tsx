@@ -3,12 +3,13 @@ import { prisma } from "@/lib/prisma"
 import { Badge } from "@/components/ui/badge"
 import { IncidentForm } from "@/components/staff/incident-form"
 import { fullName } from "@/lib/format"
+import { ON_SITE_SERVICE_SLUGS as SHARED_ON_SITE_SERVICE_SLUGS } from "@/lib/service-slugs"
 
 export const metadata: Metadata = {
   title: "Incidents | Staff",
 }
 
-const ON_SITE_SERVICE_SLUGS = ["overnight-boarding", "daycare"]
+const ON_SITE_SERVICE_SLUGS = [...SHARED_ON_SITE_SERVICE_SLUGS]
 
 export default async function StaffIncidentsPage() {
   const [inHouseBookings, incidents] = await Promise.all([

@@ -16,6 +16,7 @@ import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
 import { formatCustomerNumber, formatDogNumber } from "@/lib/customer-dog-numbers"
 import { deleteBookingAdmin } from "@/app/admin/bookings/actions"
+import { isDogWalkingSlug } from "@/lib/service-slugs"
 
 export const metadata: Metadata = {
   title: "Booking | Admin",
@@ -77,7 +78,7 @@ export default async function AdminBookingDetailPage({
   // Dog Walking already gets its time/staff from the assigned VanRun instead
   // (see the admin Van Runs pages) — a second, disconnected field here would
   // just be confusing, so the generic schedule form is for everything else.
-  const showSchedule = booking.service.slug !== "dog-walking"
+  const showSchedule = !isDogWalkingSlug(booking.service.slug)
   const staffOptions = showSchedule
     ? (
         await prisma.user.findMany({

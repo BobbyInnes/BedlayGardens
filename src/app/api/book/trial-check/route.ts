@@ -33,7 +33,7 @@ export async function GET(request: Request) {
   // the wizard which of the two this is. serviceRequiresTrial (not the raw
   // field) also keeps meet-greet itself exempt regardless of that setting —
   // see its doc comment.
-  if (!serviceRequiresTrial(service) && service.slug !== "dog-walking") {
+  if (!serviceRequiresTrial(service) && service.slug !== "walkgroup") {
     return NextResponse.json({ missing: [], requiresTrial: false })
   }
 

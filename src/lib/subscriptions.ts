@@ -5,6 +5,7 @@ import { notifyCustomer } from "@/lib/notify"
 import { sendEmail } from "@/lib/email"
 import { getSettings, getSetting } from "@/lib/settings"
 import { fullName } from "@/lib/format"
+import { DAYCARE_SLUGS } from "@/lib/service-slugs"
 
 export const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const
 
@@ -29,7 +30,7 @@ export async function generateBookingsForActiveSubscriptions(forDate: Date): Pro
   const weekday = day.getDay()
 
   const subscriptions = await prisma.subscription.findMany({
-    where: { status: "ACTIVE", service: { slug: "daycare" } },
+    where: { status: "ACTIVE", service: { slug: { in: [...DAYCARE_SLUGS] } } },
     include: { service: true },
   })
 

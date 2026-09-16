@@ -7,6 +7,7 @@ import { VanRunAddStopForm } from "@/components/admin/van-run-add-stop-form"
 import { updateVanRun } from "@/app/admin/van-runs/actions"
 import { fullName } from "@/lib/format"
 import { WALK_TYPE_LABELS } from "@/lib/walk-types"
+import { DOG_WALKING_SLUGS } from "@/lib/service-slugs"
 
 export const metadata: Metadata = {
   title: "Edit Van Run | Admin",
@@ -38,7 +39,7 @@ export default async function EditVanRunPage({
   // to an actual run, offered here via VanRunAddStopForm.
   const unassignedBookings = await prisma.booking.findMany({
     where: {
-      service: { slug: "dog-walking" },
+      service: { slug: { in: [...DOG_WALKING_SLUGS] } },
       startDate: vanRun.date,
       status: { notIn: ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] },
       vanRunStops: { none: {} },

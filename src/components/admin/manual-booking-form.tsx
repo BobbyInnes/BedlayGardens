@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { isPastDaycareHalfDayAmCutoff } from "@/lib/dates"
 import type { WalkType } from "@/generated/prisma/client"
 import { WALK_TYPES, WALK_TYPE_LABELS, DEFAULT_WALK_TYPE } from "@/lib/walk-types"
+import { isDaycareSlug, isDogWalkingSlug } from "@/lib/service-slugs"
 import {
   Select,
   SelectContent,
@@ -65,7 +66,6 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
   const [startDate, setStartDate] = React.useState(todayISO())
   const [endDate, setEndDate] = React.useState("")
   const [date, setDate] = React.useState(todayISO())
-  const [daycareDuration, setDaycareDuration] = React.useState<"FULL_DAY" | "HALF_DAY">("FULL_DAY")
   const [daycareHalfDaySlot, setDaycareHalfDaySlot] = React.useState<"AM" | "PM" | "">("")
   const [walkSlots, setWalkSlots] = React.useState<WalkSlotOption[]>([])
   const [selectedSlotId, setSelectedSlotId] = React.useState("")
@@ -85,21 +85,25 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
   const [signingAgreement, setSigningAgreement] = React.useState(false)
 
   const isBoarding = serviceSlug === "overnight-boarding"
-  const isDaycare = serviceSlug === "daycare"
+  const isDayFull = serviceSlug === "dayfull"
+  const isDayHalf = serviceSlug === "dayhalf"
+  const isDaycare = isDaycareSlug(serviceSlug)
   const isMeetGreet = serviceSlug === "meet-greet"
   const isDateBased = isDaycare || isMeetGreet
   const isForestWalk = serviceSlug === "secure-forest-walks"
-  const isDogWalking = serviceSlug === "dog-walking"
+  const isDogWalking = isDogWalkingSlug(serviceSlug)
 
   // Matches the booking wizard's lock and the server-side check in
   // resolveBookingCreation — past the AM cutoff for a date that's today,
   // neither Full Day nor AM describe a real remaining window: Full Day is
-  // locked out entirely (forcing Half Day) and the half-day slot is locked
-  // to PM. Derived rather than synced into state via an effect, so it can't
-  // ever be one render stale for validation/submission.
-  const todayPastHalfDayCutoff = isDaycare && isPastDaycareHalfDayAmCutoff(new Date(`${date}T00:00:00`))
-  const effectiveDaycareDuration = todayPastHalfDayCutoff ? "HALF_DAY" : daycareDuration
-  const halfDayAmLocked = todayPastHalfDayCutoff
+  // blocked outright and the half-day slot is locked to PM. Needs a
+  // UTC-midnight Date (T00:00:00Z) for `date` — isPastDaycareHalfDayAmCutoff
+  // compares via UTC components, so a local-midnight Date (no Z) can read
+  // back as today in any timezone ahead of UTC, wrongly applying the cutoff
+  // to a future date.
+  const todayPastHalfDayCutoff = isDaycare && isPastDaycareHalfDayAmCutoff(new Date(`${date}T00:00:00Z`))
+  const todayPastFullDayCutoff = isDayFull && todayPastHalfDayCutoff
+  const halfDayAmLocked = isDayHalf && todayPastHalfDayCutoff
   const effectiveHalfDaySlot = halfDayAmLocked ? "PM" : daycareHalfDaySlot
 
   async function runSearch(value: string) {
@@ -192,9 +196,7 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
         startDate: isBoarding ? startDate : undefined,
         endDate: isBoarding ? endDate : undefined,
         date: isDateBased || isDogWalking ? date : undefined,
-        daycareDuration: isDaycare ? effectiveDaycareDuration : undefined,
-        daycareHalfDaySlot:
-          isDaycare && effectiveDaycareDuration === "HALF_DAY" && effectiveHalfDaySlot ? effectiveHalfDaySlot : undefined,
+        daycareHalfDaySlot: isDayHalf && effectiveHalfDaySlot ? effectiveHalfDaySlot : undefined,
         walkSlotId: isForestWalk ? selectedSlotId : undefined,
         walkType: isDogWalking ? walkType : undefined,
         pickupAddress: isDogWalking ? pickupAddress : undefined,
@@ -237,7 +239,8 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
     (isBoarding
       ? !!startDate && !!endDate
       : isDateBased
-        ? !!date && (!isDaycare || effectiveDaycareDuration === "FULL_DAY" || !!effectiveHalfDaySlot)
+        ? !!date &&
+          (!isDaycare || (isDayFull && !todayPastFullDayCutoff) || (isDayHalf && !!effectiveHalfDaySlot))
         : isForestWalk
           ? !!selectedSlotId
           : isDogWalking
@@ -508,50 +511,35 @@ export function ManualBookingForm({ services }: { services: ServiceInfo[] }) {
             </div>
           )}
 
-          {isDaycare && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Duration</Label>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={effectiveDaycareDuration === "FULL_DAY" ? "default" : "outline"}
-                    onClick={() => setDaycareDuration("FULL_DAY")}
-                    disabled={todayPastHalfDayCutoff}
-                  >
-                    Full Day
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={effectiveDaycareDuration === "HALF_DAY" ? "default" : "outline"}
-                    onClick={() => setDaycareDuration("HALF_DAY")}
-                  >
-                    Half Day
-                  </Button>
-                </div>
-                {todayPastHalfDayCutoff && (
-                  <p className="text-xs text-muted-foreground">
-                    It&rsquo;s the afternoon, so today&rsquo;s Day Care is Half Day (PM) only.
-                  </p>
-                )}
-              </div>
+          {isDayFull && todayPastFullDayCutoff && (
+            <p className="text-sm text-destructive">
+              It&rsquo;s the afternoon, so today&rsquo;s Full Day isn&rsquo;t available — choose another date,
+              or pick Day Care (Half Day) as the service instead.
+            </p>
+          )}
 
-              {effectiveDaycareDuration === "HALF_DAY" && (
-                <div className="space-y-2">
-                  <Label htmlFor="halfDaySlot">Half day session</Label>
-                  <select
-                    id="halfDaySlot"
-                    value={effectiveHalfDaySlot}
-                    onChange={(e) => setDaycareHalfDaySlot(e.target.value as "AM" | "PM")}
-                    disabled={halfDayAmLocked}
-                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm disabled:opacity-70"
-                  >
-                    <option value="">Select AM or PM</option>
-                    <option value="AM">AM</option>
-                    <option value="PM">PM</option>
-                  </select>
-                </div>
+          {isDayHalf && (
+            <div className="space-y-4">
+              {halfDayAmLocked && (
+                <p className="text-xs text-muted-foreground">
+                  It&rsquo;s the afternoon, so today&rsquo;s Half Day is PM only.
+                </p>
               )}
+
+              <div className="space-y-2">
+                <Label htmlFor="halfDaySlot">Half day session</Label>
+                <select
+                  id="halfDaySlot"
+                  value={effectiveHalfDaySlot}
+                  onChange={(e) => setDaycareHalfDaySlot(e.target.value as "AM" | "PM")}
+                  disabled={halfDayAmLocked}
+                  className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm disabled:opacity-70"
+                >
+                  <option value="">Select AM or PM</option>
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                </select>
+              </div>
             </div>
           )}
 

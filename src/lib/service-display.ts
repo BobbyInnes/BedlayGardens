@@ -6,9 +6,11 @@ import type { PricingModel } from "@/generated/prisma/client"
 // base rate per service and has no structured duration field of its own.
 const SERVICE_DURATIONS: Record<string, string> = {
   "meet-greet": "1 hour",
-  daycare: "Full day, or half day AM/PM",
+  dayfull: "Full day",
+  dayhalf: "Half day AM/PM",
   "secure-forest-walks": "1 hour",
-  "dog-walking": "Per session",
+  walkgroup: "Per session",
+  walksolo: "Per session",
   "overnight-boarding": "Overnight",
 }
 

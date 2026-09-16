@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { createSubscription } from "@/app/portal/subscriptions/actions"
+import { isDaycareSlug } from "@/lib/service-slugs"
 
 const WEEKDAYS = [
   { value: 1, label: "Mon" },
@@ -24,7 +25,7 @@ const WEEKDAYS = [
 ]
 
 export function SubscriptionForm({ dogs }: { dogs: { id: string; name: string }[] }) {
-  const [serviceSlug, setServiceSlug] = React.useState<"daycare" | "dog-walking">("daycare")
+  const [serviceSlug, setServiceSlug] = React.useState<"dayfull" | "dayhalf" | "walkgroup">("dayfull")
   const [dogId, setDogId] = React.useState(dogs[0]?.id ?? "")
   const [weekdays, setWeekdays] = React.useState<number[]>([])
   const [slot, setSlot] = React.useState("09:00")
@@ -56,8 +57,9 @@ export function SubscriptionForm({ dogs }: { dogs: { id: string; name: string }[
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="daycare">Daycare</SelectItem>
-              <SelectItem value="dog-walking">Dog Walking</SelectItem>
+              <SelectItem value="dayfull">Day Care (Full Day)</SelectItem>
+              <SelectItem value="dayhalf">Day Care (Half Day)</SelectItem>
+              <SelectItem value="walkgroup">Dog Walking (Group)</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -102,7 +104,7 @@ export function SubscriptionForm({ dogs }: { dogs: { id: string; name: string }[
       </div>
 
       <p className="text-xs text-muted-foreground">
-        {serviceSlug === "daycare"
+        {isDaycareSlug(serviceSlug)
           ? "We'll automatically create your daycare booking each week, a week ahead of time."
           : "We'll be in touch to confirm van run availability for your chosen days."}
       </p>

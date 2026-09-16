@@ -76,15 +76,21 @@ export function BookingWizard({
   secondDogDiscountPercent: number
 }) {
   const isBoarding = service.slug === "overnight-boarding"
-  const isDaycare = service.slug === "daycare"
+  // Day Care (Full Day) and Day Care (Half Day) are separate bookable
+  // services — duration is which one this is, not a runtime choice — but
+  // otherwise use the exact same booking flow, so they share this one flag
+  // throughout the rest of the wizard.
+  const isDayFull = service.slug === "dayfull"
+  const isDayHalf = service.slug === "dayhalf"
+  const isDaycare = isDayFull || isDayHalf
   const isMeetGreet = service.slug === "meet-greet"
   const isForestWalk = service.slug === "secure-forest-walks"
-  // Group Walk ("dog-walking") and Solo Walk ("walksolo") are separate
+  // Group Walk ("walkgroup") and Solo Walk ("walksolo") are separate
   // bookable services with their own price and capacity, but otherwise use
   // the exact same booking flow below — dates, pickup address, postcode —
   // so they share this one flag throughout the rest of the wizard.
   const isDogWalkingSolo = service.slug === "walksolo"
-  const isDogWalking = service.slug === "dog-walking" || isDogWalkingSolo
+  const isDogWalking = service.slug === "walkgroup" || isDogWalkingSolo
   const dogWalkingType = isDogWalkingSolo ? "SOLO_WALK" : "GROUP_WALK"
   const isDateBased = isDaycare || isMeetGreet
 
@@ -99,10 +105,6 @@ export function BookingWizard({
   const [endDate, setEndDate] = React.useState("")
   const [date, setDate] = React.useState("")
   const [daycareDates, setDaycareDates] = React.useState<string[]>([])
-  // No UI to change this anymore (Duration buttons removed — Day Care is
-  // shown as Full Day by default) — still read below because the same-day
-  // cutoff can still force a booking to Half Day regardless.
-  const [daycareDuration] = React.useState<"FULL_DAY" | "HALF_DAY">("FULL_DAY")
   const [daycareHalfDaySlot, setDaycareHalfDaySlot] = React.useState<"AM" | "PM" | "">("")
   const [walkSlots, setWalkSlots] = React.useState<WalkSlotOption[]>([])
   const [selectedSlotId, setSelectedSlotId] = React.useState("")
@@ -114,18 +116,28 @@ export function BookingWizard({
 
   const dateError = isMeetGreet ? dateBasedDateError(date) : null
 
+  // Duration is now which Day Care service this is (dayfull vs dayhalf), not
+  // a runtime toggle.
+  const daycareDuration: "FULL_DAY" | "HALF_DAY" = isDayHalf ? "HALF_DAY" : "FULL_DAY"
+
   // Past the AM cutoff for a Day Care date that's today, neither "Full Day"
-  // nor "AM" describe a real remaining window — Full Day is locked out
-  // entirely (forcing Half Day) and the half-day slot is locked to PM. One
-  // shared duration/slot applies to every date in a batch, so this locks for
-  // the whole batch if today is among the selected dates (matches the
-  // server-side check in resolveBookingCreation). Derived rather than synced
-  // into state via an effect, so the lock can't ever be one render stale for
-  // the gating checks below or for submission.
+  // nor "AM" describe a real remaining window. Full Day can't silently
+  // switch services, so it's blocked outright for that date; the Half Day
+  // half-day slot is locked to PM instead. One shared lock applies to every
+  // date in a batch, so this locks for the whole batch if today is among the
+  // selected dates (matches the server-side check in resolveBookingCreation).
+  // Derived rather than synced into state via an effect, so the lock can't
+  // ever be one render stale for the gating checks below or for submission.
+  // isPastDaycareHalfDayAmCutoff compares via isSameDay, which reads UTC
+  // components (see toDateInputValue) — so this needs a UTC-midnight Date
+  // for `d`, not the local-midnight one `T00:00:00` (no Z) would parse to.
+  // Getting this wrong makes a local-midnight tomorrow read back as today's
+  // UTC date in any timezone ahead of UTC (e.g. BST), which wrongly applies
+  // today's cutoff to a future date.
   const todayPastHalfDayCutoff =
-    isDaycare && daycareDates.some((d) => isPastDaycareHalfDayAmCutoff(new Date(`${d}T00:00:00`)))
-  const effectiveDaycareDuration = todayPastHalfDayCutoff ? "HALF_DAY" : daycareDuration
-  const halfDayAmLocked = todayPastHalfDayCutoff
+    isDaycare && daycareDates.some((d) => isPastDaycareHalfDayAmCutoff(new Date(`${d}T00:00:00Z`)))
+  const todayPastFullDayCutoff = isDayFull && todayPastHalfDayCutoff
+  const halfDayAmLocked = isDayHalf && todayPastHalfDayCutoff
   const effectiveHalfDaySlot = halfDayAmLocked ? "PM" : daycareHalfDaySlot
 
   const [availabilityChecked, setAvailabilityChecked] = React.useState(false)
@@ -393,10 +405,9 @@ export function BookingWizard({
       : isDogWalking
         ? Math.max(1, dogWalkingDates.length)
         : 1
-  const unitPricePence =
-    isDaycare && effectiveDaycareDuration === "HALF_DAY" && service.halfDayPricePence != null
-      ? service.halfDayPricePence
-      : service.basePricePence
+  // dayfull/dayhalf are now separate services, each with its own
+  // basePricePence — no more halfDayPricePence special-casing needed.
+  const unitPricePence = service.basePricePence
   let basePreviewPence: number
   if (isBoarding && dogCount >= 2) {
     const firstDog = unitPricePence * units
@@ -424,12 +435,11 @@ export function BookingWizard({
     setDuplicateServiceWarning(null)
     try {
       const result: BookingActionState = isDaycare
-        ? await createDaycareBookings(daycareDates, {
+        ? await createDaycareBookings(daycareDates, isDayHalf ? "dayhalf" : "dayfull", {
             dogIds: selectedDogIds,
             addons: selectedAddonIds.map((addonId) => ({ addonId, quantity: 1 })),
-            daycareDuration: effectiveDaycareDuration,
             daycareHalfDaySlot:
-              effectiveDaycareDuration === "HALF_DAY" && effectiveHalfDaySlot ? effectiveHalfDaySlot : undefined,
+              daycareDuration === "HALF_DAY" && effectiveHalfDaySlot ? effectiveHalfDaySlot : undefined,
             proceedWithoutValidVaccines,
           })
         : isDogWalking
@@ -514,7 +524,7 @@ export function BookingWizard({
               <Label htmlFor="date">Dates</Label>
               <AvailabilityDatePicker
                 mode="multiple"
-                serviceSlug="daycare"
+                serviceSlug={isDayHalf ? "dayhalf" : "dayfull"}
                 value={daycareDates}
                 onChange={(value) => {
                   setDaycareDates(value)
@@ -542,30 +552,35 @@ export function BookingWizard({
             </div>
           )}
 
-          {isDaycare && (
+          {isDayFull && todayPastFullDayCutoff && (
+            <p className="text-sm text-destructive">
+              It&rsquo;s the afternoon, so today&rsquo;s Full Day isn&rsquo;t available — choose another date,
+              or book Day Care (Half Day) instead.
+            </p>
+          )}
+
+          {isDayHalf && (
             <div className="space-y-4">
-              {todayPastHalfDayCutoff && (
+              {halfDayAmLocked && (
                 <p className="text-xs text-muted-foreground">
-                  It&rsquo;s the afternoon, so today&rsquo;s Day Care is Half Day (PM) only.
+                  It&rsquo;s the afternoon, so today&rsquo;s Half Day is PM only.
                 </p>
               )}
 
-              {effectiveDaycareDuration === "HALF_DAY" && (
-                <div className="space-y-2">
-                  <Label htmlFor="halfDaySlot">Half day session</Label>
-                  <select
-                    id="halfDaySlot"
-                    value={effectiveHalfDaySlot}
-                    onChange={(e) => setDaycareHalfDaySlot(e.target.value as "AM" | "PM")}
-                    disabled={halfDayAmLocked}
-                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm disabled:opacity-70"
-                  >
-                    <option value="">Select AM or PM</option>
-                    <option value="AM">AM</option>
-                    <option value="PM">PM</option>
-                  </select>
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="halfDaySlot">Half day session</Label>
+                <select
+                  id="halfDaySlot"
+                  value={effectiveHalfDaySlot}
+                  onChange={(e) => setDaycareHalfDaySlot(e.target.value as "AM" | "PM")}
+                  disabled={halfDayAmLocked}
+                  className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm disabled:opacity-70"
+                >
+                  <option value="">Select AM or PM</option>
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                </select>
+              </div>
             </div>
           )}
 
@@ -603,7 +618,7 @@ export function BookingWizard({
                 <Label htmlFor="dogWalkingDates">Dates</Label>
                 <AvailabilityDatePicker
                   mode="multiple"
-                  serviceSlug={isDogWalkingSolo ? "walksolo" : "dog-walking"}
+                  serviceSlug={isDogWalkingSolo ? "walksolo" : "walkgroup"}
                   value={dogWalkingDates}
                   onChange={(value) => {
                     setDogWalkingDates(value)
@@ -652,6 +667,7 @@ export function BookingWizard({
                   checkingAvailability ||
                   (isBoarding && (!startDate || !endDate)) ||
                   (isDaycare && daycareDates.length === 0) ||
+                  (isDayFull && todayPastFullDayCutoff) ||
                   (isMeetGreet && (!date || !!dateError)) ||
                   (isDogWalking && (dogWalkingDates.length === 0 || !pickupAddress || !postcode))
                 }
@@ -716,9 +732,10 @@ export function BookingWizard({
             disabled={
               (isBoarding && !available) ||
               (isDateBased && !available) ||
+              (isDayFull && todayPastFullDayCutoff) ||
               (isForestWalk && !selectedSlotId) ||
               (isDogWalking && (!available || !pickupAddress || !postcode)) ||
-              (isDaycare && effectiveDaycareDuration === "HALF_DAY" && !effectiveHalfDaySlot)
+              (isDayHalf && !effectiveHalfDaySlot)
             }
           >
             Continue
