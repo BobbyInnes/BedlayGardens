@@ -11,7 +11,7 @@ export function EmailContactDetailsButton() {
 
   return (
     <form action={formAction} className="space-y-2">
-      <Button type="submit" variant="outline" disabled={pending}>
+      <Button type="submit" disabled={pending}>
         {pending ? "Sending…" : "Email contact details"}
       </Button>
       {state.message && (
