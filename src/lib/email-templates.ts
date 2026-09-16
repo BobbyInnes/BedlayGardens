@@ -34,6 +34,14 @@ const DEFAULT_DIRECTORS = "Mrs Diane Kiernan & Miss Kelsey Kiernan"
 const DEFAULT_PHONE = "07958 670328"
 const DEFAULT_EMAIL = "bobbyinnes1@gmail.com"
 
+// Standing fallback for the footer address line (see layout below), used
+// whenever Settings (business_address_line1/2/business_postcode) haven't
+// been set to something else — same reasoning as DEFAULT_PHONE/DEFAULT_EMAIL
+// above: guarantees the address shows rather than silently vanishing.
+const DEFAULT_ADDRESS_LINE1 = "Bedlay Gardens, Cumbernauld Road, Chryston"
+const DEFAULT_ADDRESS_LINE2 = "Glasgow"
+const DEFAULT_ADDRESS_POSTCODE = "G69 9HP"
+
 // Every email closes with the same sign-off and company-law disclosure —
 // added here once rather than per-template, so it's guaranteed on every
 // email type. Restored per Bobby's 2026-08-25 follow-up request, at the
@@ -57,9 +65,9 @@ function layout(branding: EmailBranding, title: string, bodyHtml: string): strin
   const phone = branding.business_phone || DEFAULT_PHONE
   const email = branding.business_email || DEFAULT_EMAIL
   const addressLine = [
-    branding.business_address_line1,
-    branding.business_address_line2,
-    branding.business_postcode,
+    branding.business_address_line1 || DEFAULT_ADDRESS_LINE1,
+    branding.business_address_line2 || DEFAULT_ADDRESS_LINE2,
+    branding.business_postcode || DEFAULT_ADDRESS_POSTCODE,
   ]
     .filter(Boolean)
     .join(", ")
@@ -68,7 +76,7 @@ function layout(branding: EmailBranding, title: string, bodyHtml: string): strin
     <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto; color: #2b2b25;">
       <div style="padding: 24px 0; border-bottom: 2px solid #3f5a3a;">
         <img src="cid:logo" alt="${businessName}" style="height: 40px; margin-bottom: 8px;" />
-        <h1 style="margin: 0; font-size: 20px; color: #3f5a3a;">${businessName}</h1>
+        <h1 style="margin: 0; font-size: 20px; color: #3f5a3a; text-decoration: underline;">${businessName}</h1>
         <p style="margin: 4px 0 0; font-size: 13px; color: #666;">
           Tel-No: ${phone} · Email: ${email}
         </p>
@@ -459,6 +467,13 @@ function dogDetailRows(dog: NewDogDetails): [string, string][] {
   ]
 }
 
+// Label column gets a fixed width rather than auto-sizing to content — each
+// call renders its own independent <table>, so when a details email has
+// several of these in a row (see contactDetailsEmail), auto-sizing lets each
+// table's label column land at a different width depending on its own
+// longest label, throwing the value columns out of alignment with each
+// other. A shared fixed width keeps every section's values starting at the
+// same x position, however short or long that section's own labels are.
 function detailsTable(rows: [string, string][]): string {
   return `
     <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
@@ -466,7 +481,7 @@ function detailsTable(rows: [string, string][]): string {
         .map(
           ([label, value]) => `
         <tr>
-          <td style="padding: 6px 12px 6px 0; color: #666; vertical-align: top; white-space: nowrap;">${label}</td>
+          <td width="170" style="width: 170px; padding: 6px 12px 6px 0; color: #666; vertical-align: top; white-space: nowrap;">${label}</td>
           <td style="padding: 6px 0;">${value}</td>
         </tr>
       `
@@ -584,6 +599,7 @@ export function vetPracticeUpdatedEmail(
 }
 
 type ContactDetailsUser = {
+  customerNumber: number
   salutation: string | null
   forename: string
   surname: string
@@ -619,6 +635,7 @@ type AccountDetailsUser = ContactDetailsUser & {
 
 function contactDetailRows(user: ContactDetailsUser): [string, string][] {
   return [
+    ["Customer reference", formatCustomerNumber(user.customerNumber)],
     ["Name", [user.salutation, user.forename, user.surname].filter(Boolean).join(" ")],
     ...(user.homePhone ? ([["Home Tel-No", user.homePhone]] as [string, string][]) : []),
     ...(user.phone ? ([["Mobile Tel-No", user.phone]] as [string, string][]) : []),
@@ -672,7 +689,7 @@ function vetPracticeDetailRows(user: AccountDetailsUser): [string, string][] {
 }
 
 function accountSectionHeading(title: string): string {
-  return `<h3 style="font-size: 15px; margin: 24px 0 4px; color: #3f5a3a;">${title}</h3>`
+  return `<h3 style="font-size: 15px; margin: 24px 0 4px; color: #3f5a3a; text-decoration: underline;">${title}</h3>`
 }
 
 const NOT_PROVIDED = `<p style="color: #666; font-size: 13px; margin: 4px 0 0;">Not provided.</p>`
