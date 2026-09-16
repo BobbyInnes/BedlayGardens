@@ -8,6 +8,7 @@ import { PasswordForm } from "@/components/portal/password-form"
 import { DeleteAccountDialog } from "@/components/portal/delete-account-dialog"
 import { BillingPortalButton } from "@/components/portal/billing-portal-button"
 import { NotificationSettingsForm } from "@/components/portal/notification-settings-form"
+import { EmailContactDetailsButton } from "@/components/portal/email-contact-details-button"
 import { formatCustomerNumber } from "@/lib/customer-dog-numbers"
 import { getPetCareUpdatesPreference, isOptedOut } from "@/lib/notification-preferences"
 
@@ -34,6 +35,12 @@ export default async function AccountPage() {
       </div>
 
       <div className="max-w-2xl space-y-6">
+        <p className="font-bold text-blue-600">
+          Make all necessary changes and then click Save to update your details.
+        </p>
+
+        <EmailContactDetailsButton />
+
         <section className="space-y-4 rounded-lg border border-gray-200 bg-gray-100 p-4">
           <h2 className="text-lg font-semibold">Contact details</h2>
           <ProfileForm

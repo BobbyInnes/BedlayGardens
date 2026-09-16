@@ -58,18 +58,20 @@ function formatFieldValue(value: unknown): string {
   return String(value)
 }
 
+export type FieldChangeRow = { label: string; before: string; after: string }
+
 /**
- * Compares `before` against `after` field-by-field and returns a
- * "label: old → new" summary of only the fields that actually changed.
- * `""`/`null`/`undefined` are treated as equivalent "empty" so clearing an
- * optional field to `""` isn't reported as a no-op change against `null`.
+ * Compares `before` against `after` field-by-field and returns a row per
+ * field that actually changed. `""`/`null`/`undefined` are treated as
+ * equivalent "empty" so clearing an optional field to `""` isn't reported as
+ * a no-op change against `null`.
  */
-export function diffFields<T extends Record<string, unknown>>(
+export function diffFieldRows<T extends Record<string, unknown>>(
   before: T,
   after: Partial<T>,
   labels?: Partial<Record<keyof T, string>>
-): string {
-  const lines: string[] = []
+): FieldChangeRow[] {
+  const rows: FieldChangeRow[] = []
   for (const key of Object.keys(after) as (keyof T)[]) {
     const beforeVal = before[key] ?? null
     const afterVal = after[key] ?? null
@@ -78,9 +80,23 @@ export function diffFields<T extends Record<string, unknown>>(
     if (beforeCompare === afterCompare) continue
     if ((beforeVal === "" || beforeVal === null) && (afterVal === "" || afterVal === null)) continue
     const label = labels?.[key] ?? String(key)
-    lines.push(`${label}: ${formatFieldValue(beforeVal)} → ${formatFieldValue(afterVal)}`)
+    rows.push({ label, before: formatFieldValue(beforeVal), after: formatFieldValue(afterVal) })
   }
-  return lines.join("; ")
+  return rows
+}
+
+/**
+ * Compares `before` against `after` field-by-field and returns a
+ * "label: old → new" summary of only the fields that actually changed.
+ */
+export function diffFields<T extends Record<string, unknown>>(
+  before: T,
+  after: Partial<T>,
+  labels?: Partial<Record<keyof T, string>>
+): string {
+  return diffFieldRows(before, after, labels)
+    .map((row) => `${row.label}: ${row.before} → ${row.after}`)
+    .join("; ")
 }
 
 /**

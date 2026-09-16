@@ -2,6 +2,7 @@ import { formatPence, fullName } from "@/lib/format"
 import { formatCustomerNumber, formatDogNumber, formatBookingNumber } from "@/lib/customer-dog-numbers"
 import { splitGrossForVat } from "@/lib/vat"
 import { resolveEmailTemplate, renderMergeFields, EMAIL_TEMPLATE_DEFS } from "@/lib/email-template-store"
+import type { FieldChangeRow } from "@/lib/audit"
 
 export type EmailBranding = {
   business_name?: string
@@ -505,6 +506,123 @@ export function dogUpdatedEmail(
       `
         <p>Here's a summary of ${dog.name}'s current details on your account:</p>
         ${detailsTable(dogDetailRows(dog))}
+        <p>If any of this looks wrong, you can update it any time from your account.</p>
+      `
+    ),
+  }
+}
+
+function changeSummaryTable(rows: FieldChangeRow[]): string {
+  return `
+    <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+      <tr>
+        <td style="padding: 6px 12px 6px 0; font-weight: bold; border-bottom: 1px solid #ddd;">Field</td>
+        <td style="padding: 6px 12px 6px 0; font-weight: bold; border-bottom: 1px solid #ddd;">Previous</td>
+        <td style="padding: 6px 0; font-weight: bold; border-bottom: 1px solid #ddd;">New</td>
+      </tr>
+      ${rows
+        .map(
+          (row) => `
+        <tr>
+          <td style="padding: 6px 12px 6px 0; color: #666; vertical-align: top;">${row.label}</td>
+          <td style="padding: 6px 12px 6px 0; vertical-align: top;">${row.before}</td>
+          <td style="padding: 6px 0; vertical-align: top;">${row.after}</td>
+        </tr>
+      `
+        )
+        .join("")}
+    </table>
+  `
+}
+
+function formatChangedAt(changedAt: Date): string {
+  return changedAt.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
+export function emergencyContactUpdatedEmail(
+  branding: EmailBranding,
+  changedAt: Date,
+  rows: FieldChangeRow[]
+): { subject: string; html: string } {
+  return {
+    subject: "Your emergency contact details have been updated",
+    html: layout(
+      branding,
+      "Emergency contact details updated",
+      `
+        <p>Your emergency contact details were updated on your Bedlay Gardens account on ${formatChangedAt(changedAt)}.</p>
+        ${changeSummaryTable(rows)}
+        <p>If you didn't make this change, please contact us immediately.</p>
+      `
+    ),
+  }
+}
+
+export function vetPracticeUpdatedEmail(
+  branding: EmailBranding,
+  changedAt: Date,
+  rows: FieldChangeRow[]
+): { subject: string; html: string } {
+  return {
+    subject: "Your vet practice details have been updated",
+    html: layout(
+      branding,
+      "Vet practice details updated",
+      `
+        <p>Your vet practice details were updated on your Bedlay Gardens account on ${formatChangedAt(changedAt)}.</p>
+        ${changeSummaryTable(rows)}
+        <p>If you didn't make this change, please contact us immediately.</p>
+      `
+    ),
+  }
+}
+
+type ContactDetailsUser = {
+  salutation: string | null
+  forename: string
+  surname: string
+  homePhone: string | null
+  phone: string | null
+  workPhone: string | null
+  addressLine1: string | null
+  addressLine2: string | null
+  addressCity: string | null
+  addressPostcode: string | null
+}
+
+function contactDetailRows(user: ContactDetailsUser): [string, string][] {
+  return [
+    ["Name", [user.salutation, user.forename, user.surname].filter(Boolean).join(" ")],
+    ...(user.homePhone ? ([["Home Tel-No", user.homePhone]] as [string, string][]) : []),
+    ...(user.phone ? ([["Mobile Tel-No", user.phone]] as [string, string][]) : []),
+    ...(user.workPhone ? ([["Works Tel-No", user.workPhone]] as [string, string][]) : []),
+    ...(user.addressLine1 ? ([["Address line 1", user.addressLine1]] as [string, string][]) : []),
+    ...(user.addressLine2 ? ([["Address line 2", user.addressLine2]] as [string, string][]) : []),
+    ...(user.addressCity ? ([["Town / city", user.addressCity]] as [string, string][]) : []),
+    ...(user.addressPostcode ? ([["Postcode", user.addressPostcode]] as [string, string][]) : []),
+  ]
+}
+
+// Sent on demand (the "Email contact details" button on the account page)
+// rather than after a change — a plain copy of what's currently on file.
+export function contactDetailsEmail(
+  branding: EmailBranding,
+  user: ContactDetailsUser
+): { subject: string; html: string } {
+  return {
+    subject: "Your contact details",
+    html: layout(
+      branding,
+      "Your contact details",
+      `
+        <p>Here's a copy of the contact details currently on your account:</p>
+        ${detailsTable(contactDetailRows(user))}
         <p>If any of this looks wrong, you can update it any time from your account.</p>
       `
     ),

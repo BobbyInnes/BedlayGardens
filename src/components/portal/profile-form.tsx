@@ -1,12 +1,13 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { Label } from "@/components/ui/label"
 import { updateProfile, type ActionState } from "@/app/portal/account/actions"
 import { SALUTATIONS } from "@/lib/salutations"
+import { useFormDirty } from "@/hooks/use-form-dirty"
 
 const initialState: ActionState = { status: "idle" }
 
@@ -34,9 +35,14 @@ export function ProfileForm({
   addressPostcode: string
 }) {
   const [state, formAction, pending] = useActionState(updateProfile, initialState)
+  const { formRef, dirty, handleChange, markClean } = useFormDirty()
+
+  useEffect(() => {
+    if (state.status === "success") markClean()
+  }, [state.status, markClean])
 
   return (
-    <form action={formAction} className="max-w-md space-y-4">
+    <form ref={formRef} action={formAction} onChange={handleChange} className="max-w-md space-y-4">
       <div className="grid gap-4 grid-cols-[100px_1fr_1fr]">
         <div className="space-y-2">
           <Label htmlFor="salutation">Title</Label>
@@ -98,7 +104,7 @@ export function ProfileForm({
         </div>
       </div>
 
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending || !dirty}>
         {pending ? "Saving…" : "Save changes"}
       </Button>
       {state.message && (

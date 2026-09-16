@@ -10,9 +10,12 @@ import { auth, signOut } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { stripe, getSiteUrl } from "@/lib/stripe"
 import { setOptOut, setPetCareUpdatesPreference } from "@/lib/notification-preferences"
-import { logEntityChange } from "@/lib/audit"
+import { logEntityChange, diffFieldRows } from "@/lib/audit"
 import { fullName } from "@/lib/format"
 import { SALUTATIONS } from "@/lib/salutations"
+import { getSettings } from "@/lib/settings"
+import { sendEmail } from "@/lib/email"
+import { emergencyContactUpdatedEmail, vetPracticeUpdatedEmail, contactDetailsEmail } from "@/lib/email-templates"
 
 export type ActionState = { status: "idle" | "success" | "error"; message?: string }
 
@@ -99,6 +102,30 @@ export async function updateProfile(
   return { status: "success", message: "Details updated." }
 }
 
+// On-demand "Email contact details" button on the account page — sends the
+// customer a copy of what's currently on file, distinct from the
+// change-notification emails above which only fire when something is edited.
+export async function emailContactDetails(
+  _prevState: ActionState,
+  _formData: FormData
+): Promise<ActionState> {
+  const session = await auth()
+  if (!session?.user) return { status: "error", message: "Unauthorized" }
+
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: session.user.id } })
+
+  try {
+    const settings = await getSettings()
+    const email = contactDetailsEmail(settings, user)
+    await sendEmail({ to: user.email, subject: email.subject, html: email.html })
+  } catch (error) {
+    console.error("[account] failed to send contact-details email", error)
+    return { status: "error", message: "Couldn't send the email — please try again." }
+  }
+
+  return { status: "success", message: `Emailed to ${user.email}.` }
+}
+
 const emergencyContactSchema = z.object({
   emergencyContactSalutation: z.enum(SALUTATIONS).optional().or(z.literal("")),
   emergencyContactForename: z.string().trim().max(100).optional().or(z.literal("")),
@@ -151,6 +178,19 @@ export async function updateEmergencyContact(
 
   await prisma.user.update({ where: { id: session.user.id }, data: after })
 
+  const emergencyContactLabels = {
+    emergencyContactSalutation: "Emergency contact title",
+    emergencyContactForename: "Emergency contact forename",
+    emergencyContactSurname: "Emergency contact surname",
+    emergencyContactHomePhone: "Emergency contact home phone",
+    emergencyContactPhone: "Emergency contact mobile phone",
+    emergencyContactWorkPhone: "Emergency contact works phone",
+    emergencyContactAddressLine1: "Emergency contact address line 1",
+    emergencyContactAddressLine2: "Emergency contact address line 2",
+    emergencyContactCity: "Emergency contact town/city",
+    emergencyContactPostcode: "Emergency contact postcode",
+  }
+
   await logEntityChange({
     actorId: session.user.id,
     action: "UPDATE_EMERGENCY_CONTACT",
@@ -159,19 +199,19 @@ export async function updateEmergencyContact(
     context: `customer ${fullName(before)} <${before.email}> (self-service)`,
     before,
     after,
-    labels: {
-      emergencyContactSalutation: "Emergency contact title",
-      emergencyContactForename: "Emergency contact forename",
-      emergencyContactSurname: "Emergency contact surname",
-      emergencyContactHomePhone: "Emergency contact home phone",
-      emergencyContactPhone: "Emergency contact mobile phone",
-      emergencyContactWorkPhone: "Emergency contact works phone",
-      emergencyContactAddressLine1: "Emergency contact address line 1",
-      emergencyContactAddressLine2: "Emergency contact address line 2",
-      emergencyContactCity: "Emergency contact town/city",
-      emergencyContactPostcode: "Emergency contact postcode",
-    },
+    labels: emergencyContactLabels,
   })
+
+  const changeRows = diffFieldRows(before, after, emergencyContactLabels)
+  if (changeRows.length > 0) {
+    try {
+      const settings = await getSettings()
+      const email = emergencyContactUpdatedEmail(settings, new Date(), changeRows)
+      await sendEmail({ to: before.email, subject: email.subject, html: email.html })
+    } catch (error) {
+      console.error("[account] failed to send emergency-contact-updated email", error)
+    }
+  }
 
   revalidatePath("/portal/account")
   return { status: "success", message: "Emergency contact updated." }
@@ -223,6 +263,17 @@ export async function updateVetPractice(
 
   await prisma.user.update({ where: { id: session.user.id }, data: after })
 
+  const vetPracticeLabels = {
+    vetName: "Consultant's name",
+    vetPhone: "Phone",
+    vetPracticeName: "Practice name",
+    vetAddressLine1: "Vet address line 1",
+    vetAddressLine2: "Vet address line 2",
+    vetCity: "Vet town/city",
+    vetPostcode: "Vet postcode",
+    vetEmail: "Practice email",
+  }
+
   await logEntityChange({
     actorId: session.user.id,
     action: "UPDATE_VET_PRACTICE",
@@ -231,17 +282,19 @@ export async function updateVetPractice(
     context: `customer ${fullName(before)} <${before.email}> (self-service)`,
     before,
     after,
-    labels: {
-      vetName: "Consultant's name",
-      vetPhone: "Phone",
-      vetPracticeName: "Practice name",
-      vetAddressLine1: "Vet address line 1",
-      vetAddressLine2: "Vet address line 2",
-      vetCity: "Vet town/city",
-      vetPostcode: "Vet postcode",
-      vetEmail: "Practice email",
-    },
+    labels: vetPracticeLabels,
   })
+
+  const changeRows = diffFieldRows(before, after, vetPracticeLabels)
+  if (changeRows.length > 0) {
+    try {
+      const settings = await getSettings()
+      const email = vetPracticeUpdatedEmail(settings, new Date(), changeRows)
+      await sendEmail({ to: before.email, subject: email.subject, html: email.html })
+    } catch (error) {
+      console.error("[account] failed to send vet-practice-updated email", error)
+    }
+  }
 
   revalidatePath("/portal/account")
   return { status: "success", message: "Vet practice updated." }
