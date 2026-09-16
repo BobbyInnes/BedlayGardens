@@ -2,11 +2,40 @@ import { prisma } from "@/lib/prisma"
 import { stripe } from "@/lib/stripe"
 import { ensureStripeCustomer } from "@/lib/stripe-customer"
 import { getSetting } from "@/lib/settings"
+import { getVatSettings, type VatSettings } from "@/lib/vat"
 import { formatCustomerNumber } from "@/lib/customer-dog-numbers"
 
 export type CreateInvoiceResult =
   | { status: "created"; hostedInvoiceUrl: string | null }
   | { status: "skipped"; reason: "stripe-not-configured" | "already-invoiced" | "nothing-due" }
+
+const VAT_TAX_RATE_MANAGED_BY = "bedlay-gardens"
+
+// Prices are VAT-inclusive, so line items are always billed at the same
+// gross amount — this only attaches an inclusive Stripe Tax Rate so Stripe's
+// own invoice (PDF/hosted page) shows the net/VAT/gross breakdown, matching
+// what the invoice emails already display via splitGrossForVat. Reuses an
+// existing tax rate for the current percentage rather than creating a new
+// Stripe object on every invoice; a later rate change just adds another one
+// (old invoices keep the rate they were issued with, which is correct).
+async function resolveVatTaxRateId(vat: VatSettings): Promise<string | null> {
+  if (!vat.enabled || vat.ratePercent <= 0) return null
+
+  const existing = await stripe!.taxRates.list({ active: true, limit: 100 })
+  const match = existing.data.find(
+    (rate) => rate.metadata?.managedBy === VAT_TAX_RATE_MANAGED_BY && rate.percentage === vat.ratePercent
+  )
+  if (match) return match.id
+
+  const created = await stripe!.taxRates.create({
+    display_name: "VAT",
+    percentage: vat.ratePercent,
+    inclusive: true,
+    country: "GB",
+    metadata: { managedBy: VAT_TAX_RATE_MANAGED_BY },
+  })
+  return created.id
+}
 
 /**
  * Creates and issues a Stripe invoice for a booking's outstanding balance.
@@ -42,6 +71,8 @@ export async function createBookingInvoice(bookingId: string): Promise<CreateInv
   const paymentMethods = await stripe.customers.listPaymentMethods(customerId, { limit: 1 })
   const savedPaymentMethod = paymentMethods.data[0]
   const daysUntilDue = Number(await getSetting("invoice_due_days", "7"))
+  const vat = await getVatSettings()
+  const vatTaxRateId = await resolveVatTaxRateId(vat)
 
   const dateRange =
     booking.startDate.toLocaleDateString("en-GB") +
@@ -63,6 +94,7 @@ export async function createBookingInvoice(bookingId: string): Promise<CreateInv
     amount: outstandingPence,
     currency: "gbp",
     description: `${booking.service.name} (${dateRange}) — ${formatCustomerNumber(booking.customer.customerNumber)}`,
+    ...(vatTaxRateId ? { tax_rates: [vatTaxRateId] } : {}),
   })
   invoice = await stripe.invoices.finalizeInvoice(invoice.id!)
   if (invoice.collection_method === "send_invoice" && invoice.status === "open") {
