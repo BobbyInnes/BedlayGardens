@@ -2,6 +2,9 @@ import { Resend } from "resend"
 import { readFileSync } from "node:fs"
 import path from "node:path"
 import { prisma } from "@/lib/prisma"
+import { getSetting } from "@/lib/settings"
+import { isTestModeActive } from "@/lib/test-mode"
+import { DEFAULT_EMAIL } from "@/lib/email-templates"
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
@@ -25,6 +28,20 @@ try {
 }
 
 export async function sendEmail(options: { to: string; subject: string; html: string }) {
+  // Test mode redirects every send to the business address, regardless of
+  // who it was actually for — see src/lib/test-mode.ts for the env-var
+  // backstop that keeps this from ever running against production. The
+  // original recipient is kept in the subject so it's still visible on the
+  // admin Sent Emails page.
+  if (await isTestModeActive()) {
+    const businessEmail = await getSetting("business_email", DEFAULT_EMAIL)
+    options = {
+      ...options,
+      subject: `[TEST — was: ${options.to}] ${options.subject}`,
+      to: businessEmail,
+    }
+  }
+
   if (!resend) {
     console.warn(`[email] RESEND_API_KEY not set — skipping email "${options.subject}" to ${options.to}`)
     await logSentEmail(options, "SKIPPED")

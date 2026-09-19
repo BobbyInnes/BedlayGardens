@@ -74,6 +74,8 @@ const adminRoutes = present([
   "/admin/media",
   ids.mediaId ? `/admin/media/${ids.mediaId}` : null,
   "/admin/occupancy",
+  "/admin/occupancy/home-boarding",
+  "/admin/occupancy/day-care",
   "/admin/pricing",
   ids.kennelUnitId ? `/admin/pricing/kennel-units/${ids.kennelUnitId}` : null,
   "/admin/reports",

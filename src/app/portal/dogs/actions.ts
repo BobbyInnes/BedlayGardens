@@ -10,6 +10,7 @@ import { logAudit, logEntityChange } from "@/lib/audit"
 import { saveUpload, deleteUpload } from "@/lib/storage"
 import { sendEmail } from "@/lib/email"
 import { getSettings } from "@/lib/settings"
+import { isTestModeActive } from "@/lib/test-mode"
 import { dogAddedEmail, dogUpdatedEmail } from "@/lib/email-templates"
 
 const MAX_DOG_AGE_YEARS = 15
@@ -198,6 +199,7 @@ export async function createDog(
   const data = parsed.data
   const medicationRows = extractMedicationRows(formData)
   const feedingRows = extractFeedingRows(formData)
+  const testMode = await isTestModeActive()
   const dog = await prisma.dog.create({
     data: {
       ownerId: session.user.id,
@@ -217,6 +219,8 @@ export async function createDog(
       color: data.color || null,
       medications: medicationRows.length > 0 ? { create: medicationRows } : undefined,
       feedingItems: feedingRows.length > 0 ? { create: feedingRows } : undefined,
+      bypassVaccinationChecks: testMode,
+      bypassMeetGreetChecks: testMode,
     },
     include: { medications: true, feedingItems: true },
   })

@@ -32,7 +32,9 @@ const DEFAULT_DIRECTORS = "Mrs Diane Kiernan & Miss Kelsey Kiernan"
 // per Bobby's 2026-08-25 request, rather than the line silently vanishing
 // when those Settings are blank.
 const DEFAULT_PHONE = "07958 670328"
-const DEFAULT_EMAIL = "bobbyinnes1@gmail.com"
+// Exported for src/lib/email.ts's test-mode redirect — same fallback address
+// used here whenever Settings.business_email hasn't been set.
+export const DEFAULT_EMAIL = "bobbyinnes1@gmail.com"
 
 // Standing fallback for the footer address line (see layout below), used
 // whenever Settings (business_address_line1/2/business_postcode) haven't

@@ -25,6 +25,7 @@ import {
   Mail,
   LayoutTemplate,
   FileSignature,
+  FlaskConical,
   ChevronRight,
   type LucideIcon,
 } from "lucide-react"
@@ -43,7 +44,14 @@ const navItems: NavEntry[] = [
   { href: "/admin/customers", label: "Customers", icon: UserCircle },
   { href: "/admin/dogs", label: "Dogs", icon: Dog },
   { href: "/admin/calendar", label: "Calendar", icon: CalendarRange },
-  { href: "/admin/occupancy", label: "Occupancy", icon: CalendarDays },
+  {
+    label: "Occupancy",
+    icon: CalendarDays,
+    children: [
+      { href: "/admin/occupancy/home-boarding", label: "Home Boarding", icon: Home },
+      { href: "/admin/occupancy/day-care", label: "Day Care", icon: Dog },
+    ],
+  },
   { href: "/admin/bookings", label: "Bookings", icon: BookOpen },
   { href: "/admin/waitlist", label: "Waitlist", icon: ListOrdered },
   {
@@ -64,6 +72,7 @@ const navItems: NavEntry[] = [
   { href: "/admin/emails", label: "Sent Emails", icon: Mail },
   { href: "/admin/email-templates", label: "Email Templates", icon: LayoutTemplate },
   { href: "/admin/audit-log", label: "Audit Log", icon: ShieldCheck },
+  { href: "/admin/test-mode", label: "Test Mode", icon: FlaskConical },
 ]
 
 const linkClasses =

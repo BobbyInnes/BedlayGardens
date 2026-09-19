@@ -14,6 +14,7 @@ import { computeBookingPrice } from "@/lib/booking-pricing"
 import { paymentFieldsFor } from "@/lib/payment-timing"
 import { checkVaccinationGate } from "@/lib/vaccination-gate"
 import { getSetting, getSettings } from "@/lib/settings"
+import { isTestModeActive } from "@/lib/test-mode"
 import { getVatSettings } from "@/lib/vat"
 import { sendEmail } from "@/lib/email"
 import {
@@ -217,8 +218,15 @@ export async function createQuickDog(input: {
     return { status: "error", message: "Customer not found." }
   }
 
+  const testMode = await isTestModeActive()
   const dog = await prisma.dog.create({
-    data: { ownerId: parsed.data.ownerId, name: parsed.data.name, breed: parsed.data.breed },
+    data: {
+      ownerId: parsed.data.ownerId,
+      name: parsed.data.name,
+      breed: parsed.data.breed,
+      bypassVaccinationChecks: testMode,
+      bypassMeetGreetChecks: testMode,
+    },
     select: { id: true, name: true, breed: true },
   })
 
@@ -527,7 +535,7 @@ export async function reassignKennel(
 
   revalidatePath(`/admin/bookings/${bookingId}`)
   revalidatePath("/admin/bookings")
-  revalidatePath("/admin/occupancy")
+  revalidatePath("/admin/occupancy/home-boarding")
   return { status: "idle", message: `Moved to ${newKennel.name}.` }
 }
 
