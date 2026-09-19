@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bedlay Gardens — Create Account &amp; Log In Guide</title>
+<style>
+  :root{
+    --bg:#faf9f7; --fg:#2b2825; --muted:#6b6560; --accent:#6a7f5e; --accent-dark:#4f6247;
+    --card:#ffffff; --border:#e4e0da; --code-bg:#f1efe9; --warn-bg:#fdf3e3; --warn-border:#e8c780;
+    --step-bg:#f4f6f2;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#1c1b19; --fg:#e9e6e0; --muted:#a8a29a; --accent:#9db98c; --accent-dark:#b7d1a6;
+      --card:#252420; --border:#3a3733; --code-bg:#2a2823; --warn-bg:#332c1a; --warn-border:#6b5a2a;
+      --step-bg:#20241f; }
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.65;
+  }
+  .wrap{max-width:960px; margin:0 auto; padding:3rem 1.5rem 6rem;}
+  header.page-header{margin-bottom:2.5rem;}
+  header.page-header h1{font-size:2rem; margin:0 0 .35rem; color:var(--accent-dark); letter-spacing:-.01em;}
+  header.page-header p.subtitle{margin:0; color:var(--muted); font-size:1.05rem;}
+  .source-note{
+    background:var(--card); border:1px solid var(--border); border-left:4px solid var(--accent);
+    border-radius:6px; padding:.9rem 1.1rem; margin:1.5rem 0 0; font-size:.92rem; color:var(--muted);
+  }
+  .source-note strong{color:var(--fg);}
+  .source-note code{background:var(--code-bg); padding:.1em .4em; border-radius:4px; font-size:.92em;}
+  nav.toc{
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    padding:1.25rem 1.5rem; margin:2rem 0 3rem;
+  }
+  nav.toc h2{font-size:.85rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 .75rem;}
+  nav.toc ol{margin:0; padding-left:1.25rem; columns:2; column-gap:2rem;}
+  nav.toc li{margin-bottom:.4rem; break-inside:avoid;}
+  nav.toc a{color:var(--accent-dark); text-decoration:none;}
+  nav.toc a:hover{text-decoration:underline;}
+  section.journey{margin-bottom:3.5rem;}
+  h2{
+    font-size:1.4rem; color:var(--accent-dark); border-bottom:2px solid var(--border);
+    padding-bottom:.4rem; margin:0 0 .5rem; scroll-margin-top:1.5rem;
+  }
+  section.journey > p.intro{margin:0 0 1.5rem; color:var(--muted);}
+  .steps{display:flex; flex-direction:column; gap:1.5rem;}
+  .step{
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    overflow:hidden; page-break-inside:avoid; break-inside:avoid;
+  }
+  .step-header{
+    display:flex; align-items:baseline; gap:.6rem; padding:.9rem 1.2rem;
+    background:var(--step-bg); border-bottom:1px solid var(--border);
+  }
+  .step-number{
+    display:inline-flex; align-items:center; justify-content:center; min-width:1.6rem; height:1.6rem;
+    border-radius:999px; background:var(--accent); color:#fff; font-size:.8rem; font-weight:700;
+    flex-shrink:0;
+  }
+  .step-header h3{margin:0; font-size:1rem;}
+  .step.is-error .step-number{background:#b0574b;}
+  .step-caption{margin:0; padding:.9rem 1.2rem; font-size:.92rem; color:var(--muted);}
+  .step img{display:block; width:100%; height:auto; border-top:1px solid var(--border); border-bottom:1px solid var(--border);}
+  hr{border:none; border-top:1px solid var(--border); margin:2.5rem 0;}
+  footer{
+    margin-top:3rem; padding-top:1.5rem; border-top:1px solid var(--border);
+    color:var(--muted); font-size:.85rem; font-style:italic;
+  }
+  a{color:var(--accent-dark);}
+  code{background:var(--code-bg); padding:.1em .4em; border-radius:4px; font-size:.9em;}
+  .back-to-top{display:inline-block; margin-top:.5rem; font-size:.85rem; color:var(--muted); text-decoration:none;}
+  .back-to-top:hover{color:var(--accent-dark);}
+  @media print{
+    body{background:#fff;}
+    .wrap{max-width:none; padding:0 1cm;}
+    nav.toc{break-after:page;}
+    .step{break-inside:avoid;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page-header">
+    <h1>Create Account &amp; Log In Guide</h1>
+    <p class="subtitle">Step-by-step screenshots of a customer creating an account and logging in, and an admin creating a customer over the phone.</p>
+    <div class="source-note">
+      <strong>Source note:</strong> Every screenshot on this page is captured directly from the running application by
+      <code>scripts/screenshots/customer-journey.spec.ts</code> and <code>scripts/screenshots/admin-create-customer.spec.ts</code>
+      against the isolated test database — run <code>npm run screenshots</code> to regenerate them, then
+      <code>npm run guide:pdf</code> to re-export this page as <code>docs/customer-guide.pdf</code>.
+    </div>
+  </header>
+
+  <nav class="toc" aria-label="Table of contents">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#customer-journey">Create Account &amp; Log In (Customer)</a></li>
+      <li><a href="#admin-journey">Creating a Customer (Admin)</a></li>
+    </ol>
+  </nav>
+
+  <section class="journey" id="customer-journey">
+    <h2>Create Account &amp; Log In (Customer)</h2>
+    <p class="intro">A new customer registering for the first time, logging back in, and the error states they might see along the way.</p>
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">1</span><h3>Home page</h3></div>
+        <img src="screenshots/customer/01-home-page.png" alt="Bedlay Gardens home page">
+        <p class="step-caption">The home page — the starting point for a new customer, with &ldquo;Log in&rdquo; and &ldquo;Book Now&rdquo; in the top navigation.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">2</span><h3>Registration form — empty</h3></div>
+        <img src="screenshots/customer/02-register-form-empty.png" alt="Empty registration form">
+        <p class="step-caption">The registration form at <code>/register</code>, before anything has been filled in.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">3</span><h3>Registration form — filled</h3></div>
+        <img src="screenshots/customer/03-register-form-filled.png" alt="Registration form filled with test data">
+        <p class="step-caption">The same form filled in with test data, ready to submit.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">4</span><h3>Confirmation after submitting</h3></div>
+        <img src="screenshots/customer/04-register-confirmation.png" alt="Dashboard shown immediately after registering">
+        <p class="step-caption">Submitting creates the account and signs the customer in automatically — there is no separate &ldquo;thank you&rdquo; page, they land straight on their dashboard.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">5</span><h3>Login page</h3></div>
+        <img src="screenshots/customer/05-login-page.png" alt="Login page">
+        <p class="step-caption">The login page at <code>/login</code>, with the &ldquo;Password&rdquo; tab selected by default (an &ldquo;Email link&rdquo; option is also available).</p>
+      </div>
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">6</span><h3>Login form — filled</h3></div>
+        <img src="screenshots/customer/06-login-form-filled.png" alt="Login form filled with email and password">
+        <p class="step-caption">The login form filled in with the account&rsquo;s email and password.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">7</span><h3>Dashboard after login</h3></div>
+        <img src="screenshots/customer/07-dashboard-after-login.png" alt="Customer dashboard after logging in">
+        <p class="step-caption">The customer dashboard after a successful login.</p>
+      </div>
+
+      <div class="step is-error">
+        <div class="step-header"><span class="step-number">8</span><h3>Error — wrong password</h3></div>
+        <img src="screenshots/customer/08-error-wrong-password.png" alt="Wrong password error message">
+        <p class="step-caption">Logging in with the correct email but an incorrect password shows &ldquo;Invalid email or password.&rdquo; — the same message either way, so a wrong guess never reveals whether an email is registered.</p>
+      </div>
+
+      <div class="step is-error">
+        <div class="step-header"><span class="step-number">9</span><h3>Error — email already registered</h3></div>
+        <img src="screenshots/customer/09-error-email-already-registered.png" alt="Duplicate email error message">
+        <p class="step-caption">Trying to register again with an email that already has an account shows &ldquo;An account with this email already exists.&rdquo;</p>
+      </div>
+
+      <div class="step is-error">
+        <div class="step-header"><span class="step-number">10</span><h3>Error — empty required fields</h3></div>
+        <img src="screenshots/customer/10-error-empty-required-fields.png" alt="Empty required field error messages">
+        <p class="step-caption">Submitting the registration form with the required fields left blank shows a message under each one that needs attention.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <hr>
+
+  <section class="journey" id="admin-journey">
+    <h2>Creating a Customer (Admin)</h2>
+    <p class="intro">How an admin adds a new customer while taking a booking over the phone, from <code>/admin/bookings/new</code>.</p>
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">1</span><h3>New booking — customer search</h3></div>
+        <img src="screenshots/admin/01-new-booking-search.png" alt="Admin new booking screen, customer search step">
+        <p class="step-caption">The &ldquo;Create manual booking&rdquo; screen starts on the customer search step, for finding an existing customer by name or email.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">2</span><h3>New customer form — empty</h3></div>
+        <img src="screenshots/admin/02-new-customer-form-empty.png" alt="Empty new phone customer form">
+        <p class="step-caption">Clicking &ldquo;New phone customer&rdquo; reveals the new-customer form for someone who isn&rsquo;t in the system yet.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">3</span><h3>New customer form — filled</h3></div>
+        <img src="screenshots/admin/03-new-customer-form-filled.png" alt="New phone customer form filled with valid data">
+        <p class="step-caption">The form filled in with valid data, ready to submit.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">4</span><h3>Customer created</h3></div>
+        <img src="screenshots/admin/04-customer-created.png" alt="Customer created, Dogs step now shown">
+        <p class="step-caption">Submitting creates the customer — the panel collapses to a summary and the &ldquo;2. Dogs&rdquo; step appears below it, ready to continue building the booking.</p>
+      </div>
+
+      <div class="step is-error">
+        <div class="step-header"><span class="step-number">5</span><h3>Error — email already registered</h3></div>
+        <img src="screenshots/admin/05-error-duplicate-email.png" alt="Duplicate email error on the admin new customer form">
+        <p class="step-caption">Starting a second, separate customer with the email just used above shows &ldquo;A customer with that email already exists — search for them instead.&rdquo;</p>
+      </div>
+
+      <div class="step is-error">
+        <div class="step-header"><span class="step-number">6</span><h3>Error — missing email</h3></div>
+        <img src="screenshots/admin/06-error-missing-email.png" alt="Missing email error on the admin new customer form">
+        <p class="step-caption">Email isn&rsquo;t part of the form&rsquo;s client-side required-field check, so an empty email only surfaces &ldquo;Enter a valid email address&rdquo; once submitted.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    Generated from <code>scripts/screenshots/</code> against Bedlay Gardens&rsquo; isolated test database. Screenshots reflect the application at the time they were last captured, not necessarily the current live site.
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bedlay Gardens — Admin Control Panel Guide</title>
+<style>
+  :root{
+    --bg:#faf9f7; --fg:#2b2825; --muted:#6b6560; --accent:#6a7f5e; --accent-dark:#4f6247;
+    --card:#ffffff; --border:#e4e0da; --code-bg:#f1efe9; --warn-bg:#fdf3e3; --warn-border:#e8c780;
+    --step-bg:#f4f6f2;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#1c1b19; --fg:#e9e6e0; --muted:#a8a29a; --accent:#9db98c; --accent-dark:#b7d1a6;
+      --card:#252420; --border:#3a3733; --code-bg:#2a2823; --warn-bg:#332c1a; --warn-border:#6b5a2a;
+      --step-bg:#20241f; }
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.65;
+  }
+  .wrap{max-width:960px; margin:0 auto; padding:3rem 1.5rem 6rem;}
+  header.page-header{margin-bottom:2.5rem;}
+  header.page-header h1{font-size:2rem; margin:0 0 .35rem; color:var(--accent-dark); letter-spacing:-.01em;}
+  header.page-header p.subtitle{margin:0; color:var(--muted); font-size:1.05rem;}
+  .source-note{
+    background:var(--card); border:1px solid var(--border); border-left:4px solid var(--accent);
+    border-radius:6px; padding:.9rem 1.1rem; margin:1.5rem 0 0; font-size:.92rem; color:var(--muted);
+  }
+  .source-note strong{color:var(--fg);}
+  .source-note code{background:var(--code-bg); padding:.1em .4em; border-radius:4px; font-size:.92em;}
+  .callout{
+    background:var(--warn-bg); border:1px solid var(--warn-border); border-radius:8px;
+    padding:1rem 1.2rem; margin:1.5rem 0 0; font-size:.92rem;
+  }
+  .callout p:last-child{margin-bottom:0;}
+  nav.toc{
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    padding:1.25rem 1.5rem; margin:2rem 0 3rem;
+  }
+  nav.toc h2{font-size:.85rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 0 .75rem;}
+  nav.toc ol{margin:0; padding-left:1.25rem; columns:2; column-gap:2rem;}
+  nav.toc li{margin-bottom:.4rem; break-inside:avoid;}
+  nav.toc a{color:var(--accent-dark); text-decoration:none;}
+  nav.toc a:hover{text-decoration:underline;}
+  section.journey{margin-bottom:3.5rem;}
+  h2{
+    font-size:1.4rem; color:var(--accent-dark); border-bottom:2px solid var(--border);
+    padding-bottom:.4rem; margin:0 0 .5rem; scroll-margin-top:1.5rem;
+  }
+  section.journey > p.intro{margin:0 0 1.5rem; color:var(--muted);}
+  .steps{display:flex; flex-direction:column; gap:1.5rem;}
+  .step{
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    overflow:hidden; page-break-inside:avoid; break-inside:avoid;
+  }
+  .step-header{
+    display:flex; align-items:baseline; gap:.6rem; padding:.9rem 1.2rem;
+    background:var(--step-bg); border-bottom:1px solid var(--border);
+  }
+  .step-number{
+    display:inline-flex; align-items:center; justify-content:center; min-width:1.6rem; height:1.6rem;
+    border-radius:999px; background:var(--accent); color:#fff; font-size:.8rem; font-weight:700;
+    flex-shrink:0;
+  }
+  .step-header h3{margin:0; font-size:1rem;}
+  .step.is-warn .step-number{background:#b0574b;}
+  .step-caption{margin:0; padding:.9rem 1.2rem; font-size:.92rem; color:var(--muted);}
+  .step-caption strong{color:var(--fg);}
+  .step img{display:block; width:100%; height:auto; border-top:1px solid var(--border); border-bottom:1px solid var(--border);}
+  hr{border:none; border-top:1px solid var(--border); margin:2.5rem 0;}
+  footer{
+    margin-top:3rem; padding-top:1.5rem; border-top:1px solid var(--border);
+    color:var(--muted); font-size:.85rem; font-style:italic;
+  }
+  a{color:var(--accent-dark);}
+  code{background:var(--code-bg); padding:.1em .4em; border-radius:4px; font-size:.9em;}
+  @media print{
+    body{background:#fff;}
+    .wrap{max-width:none; padding:0 1cm;}
+    nav.toc{break-after:page;}
+    .step{break-inside:avoid;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page-header">
+    <h1>Admin Control Panel Guide</h1>
+    <p class="subtitle">What every menu item under the Admin Control Panel is for, with a screenshot of each — and, for Website Management, how to create or amend the site content it controls.</p>
+    <div class="source-note">
+      <strong>Source note:</strong> Every screenshot and every factual claim on this page is drawn from the application's actual code, captured directly from the running app by
+      <code>scripts/screenshots/admin-menu-tour.spec.ts</code> against the isolated test database — run <code>npm run screenshots:admin-menu</code> to regenerate them, then
+      <code>npm run guide:admin-menu-pdf</code> to re-export this page as <code>admin-control-panel-guide.pdf</code>.
+    </div>
+    <div class="callout">
+      <p><strong>Logged in as:</strong> these screenshots use an ordinary admin account, not a super admin. Three controls are hidden for a plain admin and are called out where relevant: the <strong>Business email</strong> field on Content Control, the <strong>Delete all</strong> button on Audit Log, and the on/off toggle on Test Mode.</p>
+    </div>
+  </header>
+
+  <nav class="toc" aria-label="Table of contents">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#dashboard">Admin Control Panel (Dashboard)</a></li>
+      <li><a href="#customers-dogs">Customers &amp; Dogs</a></li>
+      <li><a href="#calendar-occupancy">Calendar &amp; Occupancy</a></li>
+      <li><a href="#bookings-waitlist">Bookings &amp; Waitlist</a></li>
+      <li><a href="#website-management">Website Management</a></li>
+      <li><a href="#pricing-capacity">Pricing &amp; Capacity</a></li>
+      <li><a href="#van-runs">Van Runs</a></li>
+      <li><a href="#reviews">Reviews</a></li>
+      <li><a href="#reports-accounting">Reports &amp; Accounting</a></li>
+      <li><a href="#emails">Sent Emails &amp; Email Templates</a></li>
+      <li><a href="#audit-log">Audit Log</a></li>
+      <li><a href="#test-mode">Test Mode</a></li>
+    </ol>
+  </nav>
+
+  <section class="journey" id="dashboard">
+    <h2>Admin Control Panel (Dashboard)</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-header"><span class="step-number">1</span><h3>Daily Overview</h3></div>
+        <img src="menu-01-admin-dashboard.png" alt="Admin dashboard — Daily Overview">
+        <p class="step-caption">The landing page after logging in as an admin — a &ldquo;Daily Overview&rdquo; for a selected date (change it with the date picker at the top). Shows new online bookings awaiting confirmation, bookings at risk because a dog&rsquo;s vaccinations are lapsing, three occupancy summary cards (Home Boarding, Day Care, and other service types), and a to-do list filterable by staff assignee. Everything here links through to the relevant screen — nothing is created or edited on this page itself.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="journey" id="customers-dogs">
+    <h2>Customers &amp; Dogs</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-header"><span class="step-number">2</span><h3>Customers</h3></div>
+        <img src="menu-02-customers.png" alt="Admin Customers list">
+        <p class="step-caption">Search customers by name or email and open any result to see their full detail page. New customer records aren&rsquo;t created from this list — they come from a customer registering themselves at <code>/register</code>, or an admin adding one over the phone from the Bookings screen (see the separate <em>Create Account &amp; Log In</em> guide for both of those journeys).</p>
+      </div>
+      <div class="step">
+        <div class="step-header"><span class="step-number">3</span><h3>Dogs</h3></div>
+        <img src="menu-03-dogs.png" alt="Admin Dogs list">
+        <p class="step-caption">Every dog on file, searchable, with a link through to that dog&rsquo;s bookings and its owner&rsquo;s customer record, and a delete option. Dogs are added from the customer portal or the admin&rsquo;s phone-booking screen, not from this list.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="journey" id="calendar-occupancy">
+    <h2>Calendar &amp; Occupancy</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-header"><span class="step-number">4</span><h3>Calendar</h3></div>
+        <img src="menu-04-calendar.png" alt="Admin Calendar month view">
+        <p class="step-caption">A month grid of everything scheduled — bookings and van runs — click any day to see its entries, or click through to a specific booking or run. Use Prev/Next to move between months. Nothing is created here directly.</p>
+      </div>
+      <div class="step">
+        <div class="step-header"><span class="step-number">5</span><h3>Occupancy &rsaquo; Home Boarding</h3></div>
+        <img src="menu-05-occupancy-home-boarding.png" alt="Home Boarding occupancy grid">
+        <p class="step-caption">Every kennel/accommodation unit against each day of the selected month, with the month&rsquo;s overall occupancy percentage in the header — a quick way to see which nights are full and which units are free. Capacity itself (how many units exist) is managed on Pricing &amp; Capacity, not here.</p>
+      </div>
+      <div class="step">
+        <div class="step-header"><span class="step-number">6</span><h3>Occupancy &rsaquo; Day Care</h3></div>
+        <img src="menu-06-occupancy-day-care.png" alt="Day Care occupancy grid">
+        <p class="step-caption">The same day-by-day occupancy view as Home Boarding, scoped to Day Care bookings instead of kennel units.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="journey" id="bookings-waitlist">
+    <h2>Bookings &amp; Waitlist</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-header"><span class="step-number">7</span><h3>Bookings</h3></div>
+        <img src="menu-07-bookings.png" alt="Admin Bookings list">
+        <p class="step-caption">Every booking, filterable, with a &ldquo;Create manual booking&rdquo; button for taking a booking over the phone. That flow — including adding a new customer partway through it — is covered step by step in the separate <em>Create Account &amp; Log In</em> guide, since it&rsquo;s as much a customer-creation journey as a booking one.</p>
+      </div>
+      <div class="step">
+        <div class="step-header"><span class="step-number">8</span><h3>Waitlist</h3></div>
+        <img src="menu-08-waitlist.png" alt="Admin Waitlist page">
+        <p class="step-caption">Two things live here: bookings needing attention because a dog&rsquo;s vaccination has lapsed, and waitlist groups (by service and date) with an &ldquo;Offer to next in line&rdquo; button to notify whoever&rsquo;s waiting next. Customers join the waitlist themselves — there&rsquo;s no admin-authored &ldquo;add to waitlist&rdquo; form.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="journey" id="website-management">
+    <h2>Website Management</h2>
+    <p class="intro">Everything under here edits what the public website shows, or what customers are asked to agree to — the one part of the Admin Control Panel covered in extra depth below, since &ldquo;how do I change X on the site&rdquo; is the most common admin question.</p>
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">9</span><h3>Services We Offer — list</h3></div>
+        <img src="menu-09-services-list.png" alt="Services We Offer list">
+        <p class="step-caption">Every bookable service — name, whether it&rsquo;s active, how it&rsquo;s paid for, its price, and its URL slug. This is also where a service is switched active/inactive or deleted.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">10</span><h3>Add service — empty form</h3></div>
+        <img src="menu-10-services-create-empty.png" alt="Add service form, empty">
+        <p class="step-caption"><strong>To create a service:</strong> click &ldquo;Add service&rdquo; on the list above. This opens a blank form.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">11</span><h3>Add service — filled in</h3></div>
+        <img src="menu-11-services-create-filled.png" alt="Add service form, filled with example data">
+        <p class="step-caption">The form filled in with an example service, ready to submit via &ldquo;Create service&rdquo;. <strong>Pricing model</strong> controls how the price is interpreted (per night, per day, or per session); <strong>Payment timing</strong> controls whether the customer pays a deposit now and the balance later, the whole amount upfront, or is invoiced afterwards. <strong>To amend an existing service</strong>, click &ldquo;Edit&rdquo; next to its row on the list instead — it&rsquo;s the same form, pre-filled with the current values, with a &ldquo;Save changes&rdquo; button in place of &ldquo;Create service&rdquo;.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">12</span><h3>Media Control</h3></div>
+        <img src="menu-12-media-overview.png" alt="Media Control page">
+        <p class="step-caption">One page with everything media-related: gallery categories, an &ldquo;Add media&rdquo; form, and the full media library below it. Existing items can be edited (via a separate small form) or deleted directly from the library grid.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">13</span><h3>Add media — filled in</h3></div>
+        <img src="menu-13-media-add-media-filled.png" alt="Add media form, filled with a file, caption, and alt text">
+        <p class="step-caption"><strong>To add media:</strong> choose a file, fill in a caption and alt text, and submit via &ldquo;Add media&rdquo;, as shown here. <strong>Type</strong> (Image/Video/Embed) auto-corrects to match whatever file is chosen, and <strong>Used on</strong> decides whether it appears in the public gallery, as a hero image, on a specific service&rsquo;s page, or on the About page.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">14</span><h3>Content Control — overview</h3></div>
+        <img src="menu-14-content-overview.png" alt="Content Control page, top section">
+        <p class="step-caption">A long settings page — around fifteen independent sections, each with its own Save button — covering everything from the business&rsquo;s contact details to opening hours, FAQs, testimonials, and VAT settings. Only the top of the page is shown here (a full-page capture of all fifteen sections would be one unreadably long image); the next screenshot drills into one section as a worked example.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">15</span><h3>Content Control — Business details</h3></div>
+        <img src="menu-15-content-business-details.png" alt="Business details section on Content Control">
+        <p class="step-caption"><strong>To amend any section on this page:</strong> edit its fields and click that section&rsquo;s own Save button, as shown here for &ldquo;Business details&rdquo; — which feeds the site header/footer, the contact page, and the footer of every outgoing email. Every section works the same way. One exception: the <strong>Business email</strong> section further down is hidden from a plain admin and only editable by a super admin.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">16</span><h3>Terms and Conditions — overview</h3></div>
+        <img src="menu-16-agreement-overview.png" alt="Terms and Conditions page">
+        <p class="step-caption">The legally-binding agreement customers must sign before booking — distinct from the plain-text &ldquo;Terms &amp; Conditions&rdquo; copy on the public <code>/legal/terms</code> page, which is edited from Content Control instead. This page shows the currently active version and a full version history.</p>
+      </div>
+
+      <div class="step">
+        <div class="step-header"><span class="step-number">17</span><h3>Publish a new version — file selected</h3></div>
+        <img src="menu-17-agreement-file-selected.png" alt="A PDF file chosen, enabling the Publish button">
+        <p class="step-caption"><strong>To publish a new version:</strong> choose a PDF under &ldquo;Publish a new version&rdquo; — this enables the &ldquo;Publish version N&rdquo; button.</p>
+      </div>
+
+      <div class="step is-warn">
+        <div class="step-header"><span class="step-number">18</span><h3>Publish confirmation — read before clicking</h3></div>
+        <img src="menu-18-agreement-publish-dialog.png" alt="Publish confirmation dialog with warning text">
+        <p class="step-caption">Clicking &ldquo;Publish version N&rdquo; opens this confirmation before anything happens. <strong>Publishing is irreversible:</strong> every customer — including anyone who already signed an earlier version — is immediately asked to sign the new one before their next booking, and the old version can never be restored or edited, only superseded by publishing another.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="journey" id="pricing-capacity">
+    <h2>Pricing &amp; Capacity</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-header"><span class="step-number">19</span><h3>Pricing &amp; Capacity</h3></div>
+        <img src="menu-19-pricing-capacity.png" alt="Pricing and Capacity page">
+        <p class="step-caption">Deposit/balance settings and capacity limits, the list of accommodation units (kennels), and blocked dates — all editable inline on this one page, except an existing accommodation unit&rsquo;s own details, which open on a separate small page via its &ldquo;Edit&rdquo; link.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="journey" id="van-runs">
+    <h2>Van Runs</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-header"><span class="step-number">20</span><h3>Van Runs</h3></div>
+        <img src="menu-20-van-runs.png" alt="Van Runs page">
+        <p class="step-caption">Upcoming delivery/collection runs, a &ldquo;Create van run&rdquo; button, and a &ldquo;Service area&rdquo; form controlling which postcodes van runs are offered to. A run can only be deleted while it has no stops on it yet.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="journey" id="reviews">
+    <h2>Reviews</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-header"><span class="step-number">21</span><h3>Reviews</h3></div>
+        <img src="menu-21-reviews.png" alt="Reviews moderation page">
+        <p class="step-caption">Customer-submitted reviews awaiting a decision, with Approve/Reject buttons, plus a log of recent decisions below. Reviews are never admin-authored — only moderated.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="journey" id="reports-accounting">
+    <h2>Reports &amp; Accounting</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-header"><span class="step-number">22</span><h3>Reports</h3></div>
+        <img src="menu-22-reports.png" alt="Reports page">
+        <p class="step-caption">Read-only figures: revenue so far this month, a CSV export, a breakdown of revenue by service, and a forecast for the coming week.</p>
+      </div>
+      <div class="step">
+        <div class="step-header"><span class="step-number">23</span><h3>Accounting</h3></div>
+        <img src="menu-23-accounting.png" alt="Accounting page">
+        <p class="step-caption">The full payment ledger for a VAT period (Prev/Next to move between periods), with Net/VAT/Gross totals and filters by customer, booking number, payment status, and service. Read-only other than the filters.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="journey" id="emails">
+    <h2>Sent Emails &amp; Email Templates</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-header"><span class="step-number">24</span><h3>Sent Emails</h3></div>
+        <img src="menu-24-sent-emails.png" alt="Sent Emails log">
+        <p class="step-caption">A log of every email the application has sent, for checking whether a particular customer notification actually went out (and why, if it failed) — a link to the Resend dashboard is provided for deeper delivery details. Nothing is created here.</p>
+      </div>
+      <div class="step">
+        <div class="step-header"><span class="step-number">25</span><h3>Email Templates</h3></div>
+        <img src="menu-25-email-templates.png" alt="Email Templates editor">
+        <p class="step-caption">The handful of emails with editable subject/body text (payment receipts and booking-confirmation invoices), edited in place with merge-field hints shown alongside each editor.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="journey" id="audit-log">
+    <h2>Audit Log</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-header"><span class="step-number">26</span><h3>Audit Log</h3></div>
+        <img src="menu-26-audit-log.png" alt="Audit Log page">
+        <p class="step-caption">A filterable record of who did what — admin actions and significant customer self-service actions alike. A super admin additionally has a &ldquo;Delete all&rdquo; button here, which a plain admin (as shown) doesn&rsquo;t see.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="journey" id="test-mode">
+    <h2>Test Mode</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-header"><span class="step-number">27</span><h3>Test Mode</h3></div>
+        <img src="menu-27-test-mode.png" alt="Test Mode page, read-only view for a plain admin">
+        <p class="step-caption">A safety switch for creating test data without accidentally emailing real customers — while on, every new dog&rsquo;s vaccination/Meet &amp; Greet checks are bypassed and outgoing email is redirected to the business address. The toggle itself is super-admin-only; a plain admin sees the description but not the control, as shown here.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Generated from <code>scripts/screenshots/admin-menu-tour.spec.ts</code> against Bedlay Gardens&rsquo; isolated test database, logged in as a plain admin (not a super admin). Screenshots reflect the application at the time they were last captured, not necessarily the current live site.
+  </footer>
+
+</div>
+</body>
+</html>
