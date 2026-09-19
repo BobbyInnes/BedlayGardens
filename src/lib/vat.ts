@@ -55,15 +55,27 @@ export function splitGrossForVat(
 
 export type VatPeriod = { start: Date; end: Date }
 
-/** The VAT period (inclusive start, exclusive end) containing `date`, anchored on `startMonth`/`length`. */
+/**
+ * The VAT period (inclusive start, exclusive end) containing `date`, anchored
+ * on `startMonth`/`length`. Built entirely from UTC components — like every
+ * other calendar-day Date in this app (see the note atop lib/dates.ts) —
+ * because `vatPeriodParam`/`toDateInputValue` read `start` back via its UTC
+ * components too. Using the local Date constructor here used to work on
+ * Vercel (Node there always runs with TZ=UTC) but broke on any machine in a
+ * timezone ahead of UTC (e.g. BST): `start` would land on local midnight,
+ * one UTC calendar day earlier, so `vatPeriodParam(period)` round-tripped
+ * through a "Next period"/"Prev period" link or the filter form's hidden
+ * `period` field would land back in the *previous* period, making "Next"
+ * appear to do nothing (it kept re-deriving the same wrong period).
+ */
 export function vatPeriodContaining(date: Date, startMonth: number, length: VatPeriodLength): VatPeriod {
   const monthsPerPeriod = PERIOD_MONTHS[length]
   const anchor = startMonth - 1 // 0-based
-  const absoluteMonth = date.getFullYear() * 12 + date.getMonth()
+  const absoluteMonth = date.getUTCFullYear() * 12 + date.getUTCMonth()
   const offset = ((absoluteMonth - anchor) % monthsPerPeriod + monthsPerPeriod) % monthsPerPeriod
   const periodStartAbsolute = absoluteMonth - offset
-  const start = new Date(Math.floor(periodStartAbsolute / 12), periodStartAbsolute % 12, 1)
-  const end = new Date(start.getFullYear(), start.getMonth() + monthsPerPeriod, 1)
+  const start = new Date(Date.UTC(Math.floor(periodStartAbsolute / 12), periodStartAbsolute % 12, 1))
+  const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + monthsPerPeriod, 1))
   return { start, end }
 }
 
@@ -75,14 +87,14 @@ export function adjacentVatPeriod(
 ): VatPeriod {
   const monthsPerPeriod = PERIOD_MONTHS[length]
   const reference = new Date(period.start)
-  reference.setMonth(reference.getMonth() + (direction === "next" ? monthsPerPeriod : -monthsPerPeriod))
+  reference.setUTCMonth(reference.getUTCMonth() + (direction === "next" ? monthsPerPeriod : -monthsPerPeriod))
   return vatPeriodContaining(reference, startMonth, length)
 }
 
 export function formatVatPeriod(period: VatPeriod): string {
   const end = new Date(period.end)
-  end.setDate(end.getDate() - 1) // display as inclusive end date
-  const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" }
+  end.setUTCDate(end.getUTCDate() - 1) // display as inclusive end date
+  const opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }
   return `${period.start.toLocaleDateString("en-GB", opts)} – ${end.toLocaleDateString("en-GB", opts)}`
 }
 

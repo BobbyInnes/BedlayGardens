@@ -46,17 +46,27 @@ function isSortColumn(value: string): value is SortColumn {
 export default async function AdminAccountingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string; status?: string; q?: string; booking?: string; sort?: string; dir?: string }>
+  searchParams: Promise<{
+    period?: string
+    status?: string
+    q?: string
+    booking?: string
+    service?: string
+    sort?: string
+    dir?: string
+  }>
 }) {
   const {
     period: periodParam,
     status: statusParam = "",
     q = "",
     booking: bookingNumber = "",
+    service: serviceParam = "",
     sort: sortParam = "",
     dir: dirParam = "",
   } = await searchParams
   const status = statusParam === "ALL" ? "" : statusParam
+  const serviceId = serviceParam === "ALL" ? "" : serviceParam
   // No explicit sort means "Raised, newest first" — the table's original
   // default — so that's the implicit starting state rather than a separate
   // "unsorted" state, and clicking "Raised" from a fresh page toggles to
@@ -75,6 +85,11 @@ export default async function AdminAccountingPage({
   const prevPeriod = adjacentVatPeriod(period, "prev", vat.periodStartMonth, vat.periodLength)
   const nextPeriod = adjacentVatPeriod(period, "next", vat.periodStartMonth, vat.periodLength)
 
+  const services = await prisma.service.findMany({
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, name: true },
+  })
+
   const payments = await prisma.payment.findMany({
     where: {
       OR: [
@@ -82,20 +97,28 @@ export default async function AdminAccountingPage({
         { succeededAt: { gte: period.start, lt: period.end } },
       ],
       ...(status ? { status: status as PaymentStatus } : {}),
-      ...(q.trim()
+      // serviceId and the customer search both filter on "booking" — merged
+      // into one key rather than two spread objects, since a later spread
+      // key of the same name would silently overwrite the earlier one.
+      ...(serviceId || q.trim()
         ? {
             booking: {
-              customer: {
-                OR: [
-                  { forename: { contains: q.trim(), mode: "insensitive" } },
-                  { surname: { contains: q.trim(), mode: "insensitive" } },
-                  { email: { contains: q.trim(), mode: "insensitive" } },
-                  // Also matches a customer number typed into this field —
-                  // "CUST-00019", "00019", or plain "19" all extract to the
-                  // same digits, so any of those forms works.
-                  ...(digitsOf(q) !== null ? [{ customerNumber: digitsOf(q)! }] : []),
-                ],
-              },
+              ...(serviceId ? { serviceId } : {}),
+              ...(q.trim()
+                ? {
+                    customer: {
+                      OR: [
+                        { forename: { contains: q.trim(), mode: "insensitive" } },
+                        { surname: { contains: q.trim(), mode: "insensitive" } },
+                        { email: { contains: q.trim(), mode: "insensitive" } },
+                        // Also matches a customer number typed into this field —
+                        // "CUST-00019", "00019", or plain "19" all extract to the
+                        // same digits, so any of those forms works.
+                        ...(digitsOf(q) !== null ? [{ customerNumber: digitsOf(q)! }] : []),
+                      ],
+                    },
+                  }
+                : {}),
             },
           }
         : {}),
@@ -143,6 +166,7 @@ export default async function AdminAccountingPage({
   if (status) exportParams.set("status", status)
   if (q.trim()) exportParams.set("q", q.trim())
   if (bookingNumber.trim()) exportParams.set("booking", bookingNumber.trim())
+  if (serviceId) exportParams.set("service", serviceId)
 
   // Clicking an unsorted column starts it ascending; clicking the column
   // that's already active flips its direction. Every other filter carries
@@ -170,7 +194,7 @@ export default async function AdminAccountingPage({
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4">
+      <div className="flex flex-wrap items-center gap-6 rounded-lg border border-border p-4">
         <div className="flex items-center gap-3 text-sm">
           <Link
             href={`/admin/accounting?${new URLSearchParams({ ...Object.fromEntries(exportParams), period: vatPeriodParam(prevPeriod) })}`}
@@ -234,6 +258,22 @@ export default async function AdminAccountingPage({
             {STATUS_OPTIONS.map((s) => (
               <option key={s} value={s}>
                 {s.charAt(0) + s.slice(1).toLowerCase()}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="service">Service</Label>
+          <select
+            id="service"
+            name="service"
+            defaultValue={serviceId || "ALL"}
+            className="h-9 w-48 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="ALL">All</option>
+            {services.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
               </option>
             ))}
           </select>
@@ -321,7 +361,22 @@ export default async function AdminAccountingPage({
                       {payment.booking.bookingDogs.map((bd) => bd.dog.name).join(", ") || "—"}
                     </td>
                     <td className="p-3">{payment.booking.service.name}</td>
-                    <td className="p-3">{payment.type}</td>
+                    <td className="p-3">
+                      {
+                        // Stored as DEPOSIT for a pay-in-full service too — the
+                        // PaymentType enum has no "FULL" value, since the rest
+                        // of the app treats "paid" as a boolean per stored type
+                        // rather than a running total (see lib/payments.ts).
+                        // depositPence is set equal to totalPence for
+                        // FULL_UPFRONT services, so amountPence === depositPence
+                        // here always means this row is the whole payment, not
+                        // a partial deposit — label it accordingly without
+                        // touching the stored value or any gating logic.
+                        payment.type === "DEPOSIT" && payment.amountPence === payment.booking.depositPence && payment.booking.service.paymentTiming === "FULL_UPFRONT"
+                          ? "FULL"
+                          : payment.type
+                      }
+                    </td>
                     <td className="p-3">
                       <Badge
                         variant={

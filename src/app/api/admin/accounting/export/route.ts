@@ -35,6 +35,7 @@ export async function GET(request: Request) {
   const status = searchParams.get("status")
   const q = searchParams.get("q")?.trim()
   const bookingNumber = searchParams.get("booking")?.trim()
+  const serviceId = searchParams.get("service")?.trim()
 
   const vat = await getVatSettings()
   const referenceDate = periodParam ? new Date(periodParam) : new Date()
@@ -51,9 +52,14 @@ export async function GET(request: Request) {
         { succeededAt: { gte: period.start, lt: period.end } },
       ],
       ...(status && status !== "ALL" ? { status: status as PaymentStatus } : {}),
+      // serviceId and the customer search both filter on "booking" — merged
+      // into one key rather than two spread objects, since a later spread
+      // key of the same name would silently overwrite the earlier one.
+      ...(serviceId && serviceId !== "ALL" ? { booking: { serviceId } } : {}),
       ...(q
         ? {
             booking: {
+              ...(serviceId && serviceId !== "ALL" ? { serviceId } : {}),
               customer: {
                 OR: [
                   { forename: { contains: q, mode: "insensitive" } },
