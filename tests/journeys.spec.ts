@@ -9,28 +9,39 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('contact / enquiry form', () => {
-  test.skip(true, 'TODO: remove this skip and set the selectors for your form');
-
   test('submits successfully with valid input', async ({ page }) => {
     await page.goto('/contact');
-    await page.getByLabel('Name').fill('Test User');
-    await page.getByLabel('Email').fill('test@example.com');
-    await page.getByLabel('Message').fill('This is an automated test enquiry.');
-    await page.getByRole('button', { name: /send|submit/i }).click();
+    await page.getByLabel('Name', { exact: true }).fill('Test User');
+    await page.getByLabel('Email', { exact: true }).fill('test@example.com');
+    await page.getByLabel('Message', { exact: true }).fill('This is an automated test enquiry.');
+    await page.getByRole('button', { name: 'Send message' }).click();
     await expect(page.getByText(/thank you|we'll be in touch|message sent/i)).toBeVisible();
   });
 
   test('rejects an invalid email', async ({ page }) => {
     await page.goto('/contact');
-    await page.getByLabel('Email').fill('not-an-email');
-    await page.getByRole('button', { name: /send|submit/i }).click();
+    await page.getByLabel('Name', { exact: true }).fill('Test User');
+    await page.getByLabel('Message', { exact: true }).fill('This is an automated test enquiry.');
+    await page.getByLabel('Email', { exact: true }).fill('not-an-email');
+    // The email field is type="email", so the browser's own validation
+    // would otherwise block submission with a native tooltip before the
+    // app's own "Enter a valid email address" message (the thing actually
+    // under test here) ever gets a chance to render.
+    await page.evaluate(() => document.querySelector('form')?.setAttribute('novalidate', ''));
+    await page.getByRole('button', { name: 'Send message' }).click();
     await expect(page.getByText(/valid email/i)).toBeVisible();
   });
 
   test('rejects an empty required field', async ({ page }) => {
     await page.goto('/contact');
-    await page.getByRole('button', { name: /send|submit/i }).click();
-    await expect(page.getByText(/required/i).first()).toBeVisible();
+    // Name/email/message all carry the native `required` attribute, which
+    // would otherwise block submission with a browser tooltip instead of
+    // exercising the app's own server-rendered validation messages.
+    await page.evaluate(() => {
+      document.querySelectorAll('[required]').forEach((el) => el.removeAttribute('required'));
+    });
+    await page.getByRole('button', { name: 'Send message' }).click();
+    await expect(page.getByText(/is required/i).first()).toBeVisible();
   });
 });
 
@@ -63,14 +74,9 @@ test.describe('navigation', () => {
   });
 });
 
-test.describe('booking / checkout', () => {
-  test.skip(true, 'TODO: enable once you have a test mode that does not charge a real card');
-
-  test('completes a booking end to end', async ({ page }) => {
-    // With Stripe, use test mode and card 4242 4242 4242 4242.
-    // Never point this at live keys.
-    await page.goto('/book');
-    // ...steps...
-    await expect(page.getByText(/booking confirmed/i)).toBeVisible();
-  });
-});
+// A full booking-and-payment journey (real Stripe test-mode checkout,
+// card 4242 4242 4242 4242) lives in tests/e2e/payment-flow.spec.ts instead
+// of here — it needs a seeded customer/dog with a passed trial visit (see
+// tests/e2e/seed.ts) to get past this app's vaccination/trial gates, which
+// this generic suite's throwaway browser context has no way to set up.
+// Run it with `npm run test:e2e`.

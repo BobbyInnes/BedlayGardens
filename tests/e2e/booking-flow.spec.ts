@@ -28,7 +28,11 @@ test("customer can book daycare for multiple dates end to end", async ({ page })
   await page.getByRole("button", { name: "Log in" }).click()
   await page.waitForURL("**/portal")
 
-  await page.goto("/book/daycare")
+  // "daycare" was the old, pre-split slug — Day Care is now two services,
+  // "dayfull" and "dayhalf" (see lib/service-slugs.ts) — but the wizard
+  // underneath is unchanged: /book/dayfull still shows the same multi-date
+  // picker exercised below.
+  await page.goto("/book/dayfull")
 
   const today = new Date()
   // Two distinct weekdays, a few days apart so they can't land on the same day.
@@ -54,18 +58,27 @@ test("customer can book daycare for multiple dates end to end", async ({ page })
   await page.getByRole("checkbox").click()
   await page.getByRole("button", { name: "Continue" }).click()
 
-  await expect(page.getByRole("button", { name: "Confirm booking" })).toBeVisible()
+  // "Confirm booking" only shows for INVOICE_AFTER services — every other
+  // paymentTiming (Day Care included) shows "Reserve booking" instead (see
+  // booking-wizard.tsx), since payment is a separate step after this one.
+  await expect(page.getByRole("button", { name: "Reserve booking" })).toBeVisible()
   await page.getByRole("checkbox", { name: /Terms & Conditions/ }).click()
-  await page.getByRole("button", { name: "Confirm booking" }).click()
+  await page.getByRole("button", { name: "Reserve booking" }).click()
 
   await page.waitForURL("**/book/confirmation/multi**", { timeout: 10_000 })
   await expect(page.getByRole("heading", { name: /2 .* bookings reserved/i })).toBeVisible()
   // Match the daycare service however it's named/renamed (e.g. "Day Care : (Half Day)").
   await expect(page.getByText(/day\s*care/i).first()).toBeVisible()
 
-  // Regression check for the bug where daycare bookings never got a
-  // balanceDueDate, so the charge-balances/send-reminders crons silently
-  // skipped them and the balance sat uncollected. Run as a standalone tsx
+  // Day Care is FULL_UPFRONT (see lib/service-slugs.ts / payment-timing.ts)
+  // — balanceDueDateFor() deliberately returns null for anything that isn't
+  // DEPOSIT_THEN_BALANCE, since there's no future balance left to remind
+  // about once the whole amount is paid at booking time. This used to be a
+  // regression check for the inverse bug (a DEPOSIT_THEN_BALANCE booking
+  // silently missing its balanceDueDate, so the charge-balances/
+  // send-reminders crons skipped it) from back when daycare itself was
+  // DEPOSIT_THEN_BALANCE — kept here, flipped, as a check that a FULL_UPFRONT
+  // service doesn't accidentally pick one up either. Run as a standalone tsx
   // process — see verify-balance-due-date.ts for why it can't be imported
   // directly into the spec.
   const output = execFileSync(
@@ -76,6 +89,6 @@ test("customer can book daycare for multiple dates end to end", async ({ page })
   const bookings = JSON.parse(output) as { id: string; balanceDueDate: string | null }[]
   expect(bookings).toHaveLength(2)
   for (const booking of bookings) {
-    expect(booking.balanceDueDate, `booking ${booking.id} is missing balanceDueDate`).not.toBeNull()
+    expect(booking.balanceDueDate, `booking ${booking.id} unexpectedly has a balanceDueDate`).toBeNull()
   }
 })

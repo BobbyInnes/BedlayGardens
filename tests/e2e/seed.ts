@@ -141,9 +141,38 @@ async function seed() {
     })
   }
 
-  // A service to hang the bookings off — prefer daycare (from the main seed).
+  // Day care and overnight boarding both require a PASSED trial (Meet &
+  // Greet) on file before a dog's first booking — without this, any spec
+  // that books daycare/boarding for E2E_DOG_NAME through the real app UI
+  // (not a booking created directly via prisma, like the two below) hits
+  // the "hasn't had a Meet & Greet evaluation yet" gate instead. Mirrors
+  // concurrency-race.ts's own givePassedTrial helper.
+  const meetGreetService = await prisma.service.findUnique({ where: { slug: "meet-greet" } })
+  if (!meetGreetService) {
+    throw new Error("No 'meet-greet' service in the test database")
+  }
+  const trialDate = new Date()
+  trialDate.setDate(trialDate.getDate() - 7)
+  const trialBooking = await prisma.booking.create({
+    data: {
+      customerId: customer.id,
+      serviceId: meetGreetService.id,
+      startDate: trialDate,
+      endDate: trialDate,
+      status: "COMPLETED",
+      totalPence: 0,
+      depositPence: 0,
+      bookingDogs: { create: { dogId: dog.id } },
+    },
+  })
+  await prisma.trialVisit.create({
+    data: { dogId: dog.id, bookingId: trialBooking.id, outcome: "PASSED", completedAt: new Date() },
+  })
+
+  // A service to hang the bookings off — prefer Day Care Full Day (from the
+  // main seed). "daycare" was the old, pre-split slug (see lib/service-slugs.ts).
   const service =
-    (await prisma.service.findUnique({ where: { slug: "daycare" } })) ??
+    (await prisma.service.findUnique({ where: { slug: "dayfull" } })) ??
     (await prisma.service.findFirst())
   if (!service) {
     throw new Error(

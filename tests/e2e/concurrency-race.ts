@@ -30,16 +30,24 @@ import { toDateInputValue } from "../../src/lib/dates"
 const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL })
 const prisma = new PrismaClient({ adapter })
 
+// Every calendar-day Date elsewhere in this app is a UTC-midnight instant
+// (see the note atop lib/dates.ts) — built and read via local Date methods
+// instead, this used to work when the local timezone happened to equal UTC
+// but silently produced a Date one UTC day early on any machine ahead of UTC
+// (e.g. BST): toDateInputValue() below reads UTC components, so the string
+// handed to resolveBookingCreation() named the wrong day, and the server's
+// own UTC-based weekend check (isWeekend() in lib/dates.ts) then rejected an
+// intended weekday as a Saturday/Sunday.
 function daysFromNow(n: number): Date {
   const d = new Date()
-  d.setDate(d.getDate() + n)
-  d.setHours(0, 0, 0, 0)
+  d.setUTCDate(d.getUTCDate() + n)
+  d.setUTCHours(0, 0, 0, 0)
   return d
 }
 
 function nextWeekdayFromNow(n: number): Date {
   const d = daysFromNow(n)
-  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1)
+  while (d.getUTCDay() === 0 || d.getUTCDay() === 6) d.setUTCDate(d.getUTCDate() + 1)
   return d
 }
 
@@ -103,7 +111,25 @@ async function makeThrowawayCustomer(tag: string, index: number) {
 }
 
 async function kennelRace() {
-  const N = 2 // matches the single LARGE kennel unit in the seed data
+  const N = 2
+
+  // The seed used to create exactly one LARGE kennel unit, which is what
+  // this race actually needs contention over — it now creates ten (see
+  // prisma/seed.ts), so with N=2 both would simply succeed on two different
+  // kennels and never exercise the race at all. Temporarily deactivate every
+  // LARGE kennel but one — same "shrink capacity, then restore in `finally`"
+  // approach daycareRace() below takes with daycare_max_capacity — so
+  // exactly one is actually contended for, restored no matter what happens.
+  const largeKennels = await prisma.kennelUnit.findMany({ where: { size: "LARGE", active: true } })
+  if (largeKennels.length === 0) throw new Error("No active LARGE kennel units in the test database")
+  const toDeactivate = largeKennels.slice(1) // keep the first one active
+  if (toDeactivate.length > 0) {
+    await prisma.kennelUnit.updateMany({
+      where: { id: { in: toDeactivate.map((k) => k.id) } },
+      data: { active: false },
+    })
+  }
+
   const customers = await Promise.all(
     Array.from({ length: N }, (_, i) => makeThrowawayCustomer("kennel", i))
   )
@@ -119,55 +145,67 @@ async function kennelRace() {
   const startDate = daysFromNow(10)
   const endDate = daysFromNow(12)
 
-  const results = await Promise.all(
-    customers.map((c, i) =>
-      resolveBookingCreation(
-        c.id,
-        {
-          serviceSlug: "overnight-boarding",
-          dogIds: [dogs[i].id],
-          addons: [],
-          startDate: toDateInputValue(startDate),
-          endDate: toDateInputValue(endDate),
-        },
-        { skipVaccinationGate: true }
+  try {
+    const results = await Promise.all(
+      customers.map((c, i) =>
+        resolveBookingCreation(
+          c.id,
+          {
+            serviceSlug: "overnight-boarding",
+            dogIds: [dogs[i].id],
+            addons: [],
+            startDate: toDateInputValue(startDate),
+            endDate: toDateInputValue(endDate),
+          },
+          { skipVaccinationGate: true }
+        )
       )
     )
-  )
 
-  const succeeded = results.filter((r) => r.status !== "error")
-  const failed = results.filter((r) => r.status === "error")
+    const succeeded = results.filter((r) => r.status !== "error")
+    const failed = results.filter((r) => r.status === "error")
 
-  const occupancies = await prisma.kennelOccupancy.findMany({
-    where: { date: { gte: startDate, lt: endDate } },
-  })
-  const nightKey = (o: { kennelUnitId: string; date: Date }) => `${o.kennelUnitId}|${o.date.toISOString()}`
-  const seen = new Set<string>()
-  let doubleBooked = 0
-  for (const o of occupancies) {
-    const key = nightKey(o)
-    if (seen.has(key)) doubleBooked++
-    seen.add(key)
-  }
+    const occupancies = await prisma.kennelOccupancy.findMany({
+      where: { date: { gte: startDate, lt: endDate } },
+    })
+    const nightKey = (o: { kennelUnitId: string; date: Date }) => `${o.kennelUnitId}|${o.date.toISOString()}`
+    const seen = new Set<string>()
+    let doubleBooked = 0
+    for (const o of occupancies) {
+      const key = nightKey(o)
+      if (seen.has(key)) doubleBooked++
+      seen.add(key)
+    }
 
-  // Cleanup — bookings first (deleteCustomerAndAllData handles the rest per customer).
-  for (const c of customers) {
-    await deleteCustomerAndAllData(prisma, c.id).catch(() => {})
-  }
-
-  return {
-    attempted: N,
-    succeeded: succeeded.length,
-    failed: failed.length,
-    failureMessages: failed.map((r) => r.message),
-    distinctKennelNightsBooked: seen.size,
-    doubleBookedNights: doubleBooked,
+    return {
+      attempted: N,
+      succeeded: succeeded.length,
+      failed: failed.length,
+      failureMessages: failed.map((r) => r.message),
+      distinctKennelNightsBooked: seen.size,
+      doubleBookedNights: doubleBooked,
+    }
+  } finally {
+    // Cleanup — bookings first (deleteCustomerAndAllData handles the rest per customer).
+    for (const c of customers) {
+      await deleteCustomerAndAllData(prisma, c.id).catch(() => {})
+    }
+    if (toDeactivate.length > 0) {
+      await prisma.kennelUnit.updateMany({
+        where: { id: { in: toDeactivate.map((k) => k.id) } },
+        data: { active: true },
+      })
+    }
   }
 }
 
 async function daycareRace() {
-  const service = await prisma.service.findUnique({ where: { slug: "daycare" } })
-  if (!service) throw new Error("No 'daycare' service in the test database")
+  // "daycare" was the old, pre-split service slug — Day Care is now two
+  // services, "dayfull" and "dayhalf" (see lib/service-slugs.ts), sharing
+  // one capacity pool (the "daycare_max_capacity" Setting below, which was
+  // NOT renamed). "dayfull" stands in as the representative one here.
+  const service = await prisma.service.findUnique({ where: { slug: "dayfull" } })
+  if (!service) throw new Error("No 'dayfull' service in the test database")
 
   // Firing dozens of fully-concurrent SERIALIZABLE transactions exhausts the
   // Neon pooled-connection limit in a hurry (P2028 "unable to start a
@@ -184,7 +222,7 @@ async function daycareRace() {
     where: {
       booking: {
         startDate: date,
-        service: { slug: "daycare" },
+        service: { slug: "dayfull" },
         status: { notIn: ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] },
       },
     },
@@ -203,7 +241,7 @@ async function daycareRace() {
 
   let customers: Awaited<ReturnType<typeof makeThrowawayCustomer>>[] = []
   try {
-    customers = await Promise.all(Array.from({ length: N }, (_, i) => makeThrowawayCustomer("daycare", i)))
+    customers = await Promise.all(Array.from({ length: N }, (_, i) => makeThrowawayCustomer("dayfull", i)))
     const dogs = await Promise.all(
       customers.map((c) => prisma.dog.create({ data: { ownerId: c.id, name: `Race Dog ${c.id.slice(-4)}`, breed: "Beagle" } }))
     )
@@ -217,11 +255,12 @@ async function daycareRace() {
         resolveBookingCreation(
           c.id,
           {
-            serviceSlug: "daycare",
+            // daycareDuration is no longer read — duration is implied by
+            // which of dayfull/dayhalf is booked (see book/actions.ts).
+            serviceSlug: "dayfull",
             dogIds: [dogs[i].id],
             addons: [],
             date: toDateInputValue(date),
-            daycareDuration: "FULL_DAY",
           },
           { skipVaccinationGate: true }
         )
@@ -236,7 +275,7 @@ async function daycareRace() {
       where: {
         booking: {
           startDate: date,
-          service: { slug: "daycare" },
+          service: { slug: "dayfull" },
           status: { notIn: ["CANCELLED_BY_CUSTOMER", "CANCELLED_BY_ADMIN", "NO_SHOW"] },
         },
       },

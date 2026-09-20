@@ -89,7 +89,7 @@ That's the point. A brand-new site typically fails on missing security headers, 
 
 ## CI
 
-`.github/workflows/qa.yml` runs the whole thing on every push. GitHub Actions is free for public repos and includes a monthly allowance for private ones.
+Not set up yet — `.github/workflows/` is currently empty. GitHub Actions is free for public repos and includes a monthly allowance for private ones, so a `qa.yml` workflow that runs this suite (and `npm run test:e2e`) on every push would be a reasonable thing to add; until then, run these suites locally before pushing.
 
 ## One caution
 
