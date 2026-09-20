@@ -167,7 +167,7 @@ export default async function AdminHomeBoardingPage({
                               matches ? "" : "opacity-25"
                             }`}
                           >
-                            {label}
+                            {label} — {fullName(owner)}
                           </Link>
                         </td>
                       )
