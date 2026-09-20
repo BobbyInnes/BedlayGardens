@@ -134,6 +134,10 @@ export default async function HomePage() {
           heading/paragraph/buttons (which used to set this height via
           their own content) have been removed from the hero. */}
       <section className="relative min-h-[420px] overflow-hidden bg-navy sm:min-h-[520px] lg:min-h-[620px]">
+        {/* The hero is a full-bleed image/video with no visible heading text
+            by design — this keeps exactly one real <h1> on the page (every
+            other heading here is an <h2>) without changing how it looks. */}
+        <h1 className="sr-only">{businessName}</h1>
         <div className="absolute inset-0">
           {hero && hero.type === "VIDEO" ? (
             <HeroVideo src={hero.url} poster={hero.thumbnailUrl} />
@@ -408,7 +412,9 @@ export default async function HomePage() {
           <h2 className="font-heading text-3xl font-extrabold tracking-tight sm:text-4xl">
             Ready to Book Your Dog&rsquo;s Next Stay?
           </h2>
-          <p className="mx-auto mt-3 max-w-xl text-primary-foreground/80">
+          {/* Full-opacity, not /80 — that faded below the 4.5:1 contrast
+              minimum for normal-size text against bg-primary. */}
+          <p className="mx-auto mt-3 max-w-xl text-primary-foreground">
             Create an account, add your dog, and book your first stay in minutes.
           </p>
           <Button
@@ -421,7 +427,7 @@ export default async function HomePage() {
               Create an Account
             </Link>
           </Button>
-          <p className="mt-4 text-sm text-primary-foreground/80">
+          <p className="mt-4 text-sm text-primary-foreground">
             Already registered?{" "}
             <Link
               href="/login"
