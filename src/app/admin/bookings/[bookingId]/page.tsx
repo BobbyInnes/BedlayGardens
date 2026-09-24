@@ -27,6 +27,12 @@ export const metadata: Metadata = {
   title: "Booking | Admin",
 }
 
+const VACCINATION_STATUS_LABELS = {
+  UNVERIFIED: "Unverified",
+  VERIFIED: "Verified",
+  EXPIRED: "Expired",
+} as const
+
 const NON_MODIFIABLE_STATUSES = [
   "CHECKED_IN",
   "CHECKED_OUT",
@@ -50,7 +56,11 @@ export default async function AdminBookingDetailPage({
         customer: true,
         service: true,
         kennelUnit: true,
-        bookingDogs: { include: { dog: true } },
+        bookingDogs: {
+          include: {
+            dog: { include: { vaccinationRecords: { orderBy: { expiryDate: "desc" } } } },
+          },
+        },
         bookingAddons: { include: { addon: true } },
         payments: { orderBy: { createdAt: "asc" } },
         incidentReports: {
@@ -336,6 +346,65 @@ export default async function AdminBookingDetailPage({
               </div>
             </div>
           )}
+      </section>
+
+      {/* Read live from each dog's vaccination records (the same ones shown on
+          the customer/dog pages), so this card always matches them. */}
+      <section className="space-y-3 rounded-lg border border-border bg-gray-100 p-4 dark:bg-gray-800">
+        <h2 className="text-sm font-semibold">Vaccinations</h2>
+        {booking.bookingDogs.map(({ dog }) => (
+          <div key={dog.id} className="space-y-2">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase">
+              {dog.name} ({formatDogNumber(dog.dogNumber)})
+            </h3>
+            {dog.vaccinationRecords.length > 0 ? (
+              <ul className="divide-y divide-border text-sm">
+                {dog.vaccinationRecords.map((record) => (
+                  <li
+                    key={record.id}
+                    className="flex flex-wrap items-center justify-between gap-2 py-2"
+                  >
+                    <span>
+                      {record.type} — given {record.dateGiven.toLocaleDateString("en-GB")}, expires{" "}
+                      {record.expiryDate.toLocaleDateString("en-GB")}
+                      {record.documentUrl && (
+                        <>
+                          {" — "}
+                          <a
+                            href={`/api/files/${record.documentUrl}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-primary hover:underline"
+                          >
+                            certificate
+                          </a>
+                        </>
+                      )}
+                    </span>
+                    <Badge
+                      variant={
+                        record.status === "VERIFIED"
+                          ? "default"
+                          : record.status === "EXPIRED"
+                            ? "destructive"
+                            : "outline"
+                      }
+                    >
+                      {VACCINATION_STATUS_LABELS[record.status]}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">No vaccination records.</p>
+            )}
+            {dog.bypassVaccinationChecks && (
+              <p className="text-xs text-muted-foreground">
+                Vaccination checks are bypassed for this dog.
+              </p>
+            )}
+          </div>
+        ))}
       </section>
 
       <h2 className="text-lg font-semibold text-blue-900 underline dark:text-blue-300">
