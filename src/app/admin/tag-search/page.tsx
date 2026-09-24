@@ -163,17 +163,22 @@ export default async function AdminTagSearchPage({
           {resultCount === 0 ? (
             <p className="text-sm text-muted-foreground">Nothing matches those tags.</p>
           ) : type === "dog" ? (
-            <ul className="divide-y divide-border rounded-lg border border-border">
+            <ul className="divide-y-2 divide-gray-400 rounded-lg border border-border dark:divide-gray-500">
               {dogs.map((dog) => (
                 <li key={dog.id}>
                   <Link
-                    href={`/admin/customers/${dog.owner.id}`}
+                    href={`/admin/customers/${dog.owner.id}#dog-${dog.id}`}
                     className="block space-y-1 p-4 text-sm hover:bg-muted/50"
                   >
-                    <p className="font-medium">
-                      {dog.name}{" "}
-                      <span className="font-normal text-muted-foreground">
-                        ({formatDogNumber(dog.dogNumber)}) — {dog.breed}
+                    <p>
+                      <span className="font-bold text-blue-700 underline dark:text-blue-300">
+                        {dog.name}
+                      </span>{" "}
+                      <span className="text-muted-foreground">
+                        ({formatDogNumber(dog.dogNumber)}) —
+                      </span>{" "}
+                      <span className="font-bold text-blue-700 underline dark:text-blue-300">
+                        {dog.breed}
                       </span>
                     </p>
                     <p className="text-muted-foreground">
@@ -191,7 +196,7 @@ export default async function AdminTagSearchPage({
               ))}
             </ul>
           ) : (
-            <ul className="divide-y divide-border rounded-lg border border-border">
+            <ul className="divide-y-2 divide-gray-400 rounded-lg border border-border dark:divide-gray-500">
               {customers.map((customer) => (
                 <li key={customer.id}>
                   <Link

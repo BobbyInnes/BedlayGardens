@@ -311,7 +311,11 @@ export default async function AdminCustomerDetailPage({
                 {customer.dogs.map((dog) => {
                   const latestOutcome = dog.trialVisits[0]
                   return (
-                    <li key={dog.id} className="space-y-3 py-4 first:pt-0 last:pb-0">
+                    <li
+                      key={dog.id}
+                      id={`dog-${dog.id}`}
+                      className="scroll-mt-4 space-y-3 py-4 first:pt-0 last:pb-0"
+                    >
                       <div className="flex items-start gap-3">
                         {dog.photoUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
