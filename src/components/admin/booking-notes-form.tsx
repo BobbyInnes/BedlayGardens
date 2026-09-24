@@ -33,16 +33,18 @@ export function BookingNotesForm({
   return (
     <div className="flex flex-col gap-3">
       <div className="space-y-2">
-        <Label htmlFor="bookingNotes">Booking notes</Label>
         <Textarea
           id="bookingNotes"
+          aria-label="Booking notes"
           value={notesValue}
           onChange={(e) => setNotesValue(e.target.value)}
           rows={3}
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="bookingBelongings">Belongings</Label>
+        <Label htmlFor="bookingBelongings" className="font-bold">
+          Belongings
+        </Label>
         <Textarea
           id="bookingBelongings"
           value={belongingsValue}

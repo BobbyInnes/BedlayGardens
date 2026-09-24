@@ -408,7 +408,7 @@ export default async function AdminBookingDetailPage({
       </section>
 
       <h2 className="text-lg font-semibold text-blue-900 underline dark:text-blue-300">
-        Administration specific operations/details
+        Admin Operations
       </h2>
 
       <section className="space-y-3 rounded-lg border border-border bg-blue-100 p-4 dark:bg-blue-900">
