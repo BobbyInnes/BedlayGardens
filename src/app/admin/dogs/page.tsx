@@ -122,7 +122,11 @@ export default async function AdminDogsPage({
                     <div className="mt-2">
                       <TagPicker
                         subject={dog.name}
-                        assigned={dog.adminTags.map((a) => ({ id: a.tag.id, name: a.tag.name }))}
+                        assigned={dog.adminTags.map((a) => ({
+                          id: a.tag.id,
+                          name: a.tag.name,
+                          description: a.tag.description,
+                        }))}
                         available={dogTagOptions
                           .filter((t) => !dog.adminTags.some((a) => a.tagId === t.id))
                           .map((t) => ({ id: t.id, name: t.name }))}

@@ -36,6 +36,7 @@ export default async function AdminTagsPage() {
           tags={customerTags.map((t) => ({
             id: t.id,
             name: t.name,
+            description: t.description,
             active: t.active,
             usageCount: t._count.assignments,
           }))}
@@ -50,6 +51,7 @@ export default async function AdminTagsPage() {
           tags={dogTags.map((t) => ({
             id: t.id,
             name: t.name,
+            description: t.description,
             active: t.active,
             usageCount: t._count.assignments,
           }))}

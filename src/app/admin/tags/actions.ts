@@ -10,6 +10,7 @@ export type TagActionState = { status: "idle" | "error"; message?: string }
 export type TagKind = "customer" | "dog"
 
 const MAX_TAG_NAME_LENGTH = 40
+const MAX_TAG_DESCRIPTION_LENGTH = 500
 
 async function requireAdmin() {
   const session = await auth()
@@ -26,6 +27,17 @@ function validateName(raw: string): { name: string } | { error: string } {
     return { error: `Tag names can be at most ${MAX_TAG_NAME_LENGTH} characters.` }
   }
   return { name }
+}
+
+// Optional — empty/whitespace-only means "no description" (stored as null).
+function validateDescription(raw: string): { description: string | null } | { error: string } {
+  const description = raw.trim()
+  if (description.length > MAX_TAG_DESCRIPTION_LENGTH) {
+    return {
+      error: `Descriptions can be at most ${MAX_TAG_DESCRIPTION_LENGTH} characters.`,
+    }
+  }
+  return { description: description || null }
 }
 
 // Tag names are unique per list, ignoring case ("VIP" and "vip" would just
@@ -48,18 +60,25 @@ function revalidateTagPages() {
   revalidatePath("/admin/dogs")
 }
 
-export async function createTag(kind: TagKind, rawName: string): Promise<TagActionState> {
+export async function createTag(
+  kind: TagKind,
+  rawName: string,
+  rawDescription: string
+): Promise<TagActionState> {
   const session = await requireAdmin()
   const parsed = validateName(rawName)
   if ("error" in parsed) return { status: "error", message: parsed.error }
+  const parsedDescription = validateDescription(rawDescription)
+  if ("error" in parsedDescription) return { status: "error", message: parsedDescription.error }
   if (await nameTaken(kind, parsed.name)) {
     return { status: "error", message: "A tag with that name already exists." }
   }
 
+  const data = { name: parsed.name, description: parsedDescription.description }
   const tag =
     kind === "customer"
-      ? await prisma.customerTag.create({ data: { name: parsed.name } })
-      : await prisma.dogTag.create({ data: { name: parsed.name } })
+      ? await prisma.customerTag.create({ data })
+      : await prisma.dogTag.create({ data })
 
   await logAudit({
     actorId: session.user.id,
@@ -72,14 +91,17 @@ export async function createTag(kind: TagKind, rawName: string): Promise<TagActi
   return { status: "idle" }
 }
 
-export async function renameTag(
+export async function updateTag(
   kind: TagKind,
   tagId: string,
-  rawName: string
+  rawName: string,
+  rawDescription: string
 ): Promise<TagActionState> {
   const session = await requireAdmin()
   const parsed = validateName(rawName)
   if ("error" in parsed) return { status: "error", message: parsed.error }
+  const parsedDescription = validateDescription(rawDescription)
+  if ("error" in parsedDescription) return { status: "error", message: parsedDescription.error }
   if (await nameTaken(kind, parsed.name, tagId)) {
     return { status: "error", message: "A tag with that name already exists." }
   }
@@ -89,18 +111,24 @@ export async function renameTag(
       ? await prisma.customerTag.findUniqueOrThrow({ where: { id: tagId } })
       : await prisma.dogTag.findUniqueOrThrow({ where: { id: tagId } })
 
+  const data = { name: parsed.name, description: parsedDescription.description }
   if (kind === "customer") {
-    await prisma.customerTag.update({ where: { id: tagId }, data: { name: parsed.name } })
+    await prisma.customerTag.update({ where: { id: tagId }, data })
   } else {
-    await prisma.dogTag.update({ where: { id: tagId }, data: { name: parsed.name } })
+    await prisma.dogTag.update({ where: { id: tagId }, data })
   }
+
+  const changes = [
+    before.name !== data.name ? `name: ${before.name} → ${data.name}` : null,
+    (before.description ?? null) !== data.description ? "description changed" : null,
+  ].filter(Boolean)
 
   await logAudit({
     actorId: session.user.id,
-    action: kind === "customer" ? "RENAME_CUSTOMER_TAG" : "RENAME_DOG_TAG",
+    action: kind === "customer" ? "UPDATE_CUSTOMER_TAG" : "UPDATE_DOG_TAG",
     entity: kind === "customer" ? "CustomerTag" : "DogTag",
     entityId: tagId,
-    meta: `${before.name} → ${parsed.name}`,
+    meta: `${data.name}${changes.length > 0 ? ` — ${changes.join("; ")}` : ""}`,
   })
   revalidateTagPages()
   return { status: "idle" }

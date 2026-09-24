@@ -73,7 +73,11 @@ export default async function AdminCustomersPage({
                   {customer.adminTags.length > 0 && (
                     <div className="mt-1 flex flex-wrap gap-1">
                       {customer.adminTags.map((a) => (
-                        <Badge key={a.tagId} variant="secondary">
+                        <Badge
+                          key={a.tagId}
+                          variant="secondary"
+                          title={a.tag.description ?? undefined}
+                        >
                           {a.tag.name}
                         </Badge>
                       ))}

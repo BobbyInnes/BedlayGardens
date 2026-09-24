@@ -876,10 +876,12 @@ model BookingBelongingPhoto {
 // or email-facing query, so customers can't see them. Deactivating a tag hides
 // it from the dropdown but keeps it on records that already have it.
 model CustomerTag {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  name        String   @unique
+  // Optional free-text note for admins on what the tag means.
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
 
   assignments CustomerTagAssignment[]
 }
@@ -896,10 +898,12 @@ model CustomerTagAssignment {
 }
 
 model DogTag {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  name        String   @unique
+  // Optional free-text note for admins on what the tag means.
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
 
   assignments DogTagAssignment[]
 }

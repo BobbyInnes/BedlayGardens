@@ -10,6 +10,7 @@ import {
   BookOpen,
   Tag,
   Tags,
+  Search,
   Settings,
   Truck,
   Dog,
@@ -44,7 +45,14 @@ const navItems: NavEntry[] = [
   { href: "/admin", label: "Admin Control Panel", icon: LayoutDashboard },
   { href: "/admin/customers", label: "Customers", icon: UserCircle },
   { href: "/admin/dogs", label: "Dogs", icon: Dog },
-  { href: "/admin/tags", label: "Tags", icon: Tags },
+  {
+    label: "Tags",
+    icon: Tags,
+    children: [
+      { href: "/admin/tags", label: "Manage Tags", icon: Tag },
+      { href: "/admin/tag-search", label: "Find by Tag", icon: Search },
+    ],
+  },
   { href: "/admin/calendar", label: "Calendar", icon: CalendarRange },
   {
     label: "Occupancy",

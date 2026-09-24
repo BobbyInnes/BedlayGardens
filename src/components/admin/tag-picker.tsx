@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select"
 import type { TagActionState } from "@/app/admin/tags/actions"
 
-type Tag = { id: string; name: string }
+type Tag = { id: string; name: string; description?: string | null }
 
 // Admin-only tag chips plus a dropdown of the not-yet-applied, active tags.
 // Add/remove are server actions bound to the customer/dog by the page.
@@ -59,6 +59,7 @@ export function TagPicker({
         {assigned.map((tag) => (
           <span
             key={tag.id}
+            title={tag.description ?? undefined}
             className="inline-flex items-center gap-2 rounded-full bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground"
           >
             {tag.name}
