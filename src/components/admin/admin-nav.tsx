@@ -9,6 +9,7 @@ import {
   CalendarRange,
   BookOpen,
   Tag,
+  Tags,
   Settings,
   Truck,
   Dog,
@@ -43,6 +44,7 @@ const navItems: NavEntry[] = [
   { href: "/admin", label: "Admin Control Panel", icon: LayoutDashboard },
   { href: "/admin/customers", label: "Customers", icon: UserCircle },
   { href: "/admin/dogs", label: "Dogs", icon: Dog },
+  { href: "/admin/tags", label: "Tags", icon: Tags },
   { href: "/admin/calendar", label: "Calendar", icon: CalendarRange },
   {
     label: "Occupancy",

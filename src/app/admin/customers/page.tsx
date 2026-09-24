@@ -33,7 +33,10 @@ export default async function AdminCustomersPage({
         : {}),
     },
     orderBy: { createdAt: "desc" },
-    include: { _count: { select: { dogs: true, bookings: true } } },
+    include: {
+      _count: { select: { dogs: true, bookings: true } },
+      adminTags: { include: { tag: true }, orderBy: { tag: { name: "asc" } } },
+    },
     take: 100,
   })
 
@@ -67,6 +70,15 @@ export default async function AdminCustomersPage({
                     </span>
                   </p>
                   <p className="text-muted-foreground">{customer.email}</p>
+                  {customer.adminTags.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {customer.adminTags.map((a) => (
+                        <Badge key={a.tagId} variant="secondary">
+                          {a.tag.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-muted-foreground">

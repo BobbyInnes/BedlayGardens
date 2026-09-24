@@ -250,6 +250,7 @@ model User {
   toDoTasksAssigned      ToDoTask[]              @relation("ToDoAssignee")
   toDoTasksCreated       ToDoTask[]              @relation("ToDoCreatedBy")
   assignedBookings       Booking[]               @relation("BookingAssignedStaff")
+  adminTags              CustomerTagAssignment[]
 
   @@index([role])
 }
@@ -380,6 +381,7 @@ model Dog {
   medications        DogMedication[]
   feedingItems       DogFeedingItem[]
   belongingPhotos    BookingBelongingPhoto[]
+  adminTags          DogTagAssignment[]
 
   @@index([ownerId])
 }
@@ -866,6 +868,51 @@ model BookingBelongingPhoto {
 
   @@index([bookingId])
   @@index([dogId])
+}
+
+// Admin-only labels (Admin -> Tags). Two independent lists — one applied to
+// customers, one to dogs — each edited by admins and picked from a dropdown on
+// the customer/dog admin pages. Never selected by any customer-, portal-, staff-
+// or email-facing query, so customers can't see them. Deactivating a tag hides
+// it from the dropdown but keeps it on records that already have it.
+model CustomerTag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  assignments CustomerTagAssignment[]
+}
+
+model CustomerTagAssignment {
+  customerId String
+  customer   User        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tagId      String
+  tag        CustomerTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt  DateTime    @default(now())
+
+  @@id([customerId, tagId])
+  @@index([tagId])
+}
+
+model DogTag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  assignments DogTagAssignment[]
+}
+
+model DogTagAssignment {
+  dogId     String
+  dog       Dog      @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       DogTag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([dogId, tagId])
+  @@index([tagId])
 }
 
 model Subscription {

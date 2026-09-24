@@ -12,6 +12,8 @@ import { formatDogNumber } from "@/lib/customer-dog-numbers"
 import { fullName } from "@/lib/format"
 import { DogBypassCheckboxes } from "@/components/admin/dog-bypass-checkboxes"
 import { deleteDogAdmin } from "@/app/admin/dogs/actions"
+import { TagPicker } from "@/components/admin/tag-picker"
+import { assignDogTag, removeDogTag } from "@/app/admin/tags/actions"
 
 export const metadata: Metadata = {
   title: "Dogs | Admin",
@@ -41,8 +43,15 @@ export default async function AdminDogsPage({
           }
         : {}),
     },
-    include: { owner: true },
+    include: {
+      owner: true,
+      adminTags: { include: { tag: true }, orderBy: { tag: { name: "asc" } } },
+    },
     orderBy: { createdAt: "desc" },
+  })
+  const dogTagOptions = await prisma.dogTag.findMany({
+    where: { active: true },
+    orderBy: { name: "asc" },
   })
 
   const trialVisits = await prisma.trialVisit.findMany({
@@ -110,6 +119,17 @@ export default async function AdminDogsPage({
                     <p className="text-muted-foreground">
                       Added {dog.createdAt.toLocaleDateString("en-GB")}
                     </p>
+                    <div className="mt-2">
+                      <TagPicker
+                        subject={dog.name}
+                        assigned={dog.adminTags.map((a) => ({ id: a.tag.id, name: a.tag.name }))}
+                        available={dogTagOptions
+                          .filter((t) => !dog.adminTags.some((a) => a.tagId === t.id))
+                          .map((t) => ({ id: t.id, name: t.name }))}
+                        onAdd={assignDogTag.bind(null, dog.id)}
+                        onRemove={removeDogTag.bind(null, dog.id)}
+                      />
+                    </div>
                   </div>
                 </div>
 

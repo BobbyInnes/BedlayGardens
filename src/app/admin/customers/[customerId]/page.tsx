@@ -14,6 +14,13 @@ import { CustomerNotificationSettingsForm } from "@/components/admin/customer-no
 import { DogFlagsManager } from "@/components/admin/dog-flags-manager"
 import { DogCareProfileForm } from "@/components/admin/dog-care-profile-form"
 import { AddVaccinationForm } from "@/components/admin/add-vaccination-form"
+import { TagPicker } from "@/components/admin/tag-picker"
+import {
+  assignCustomerTag,
+  removeCustomerTag,
+  assignDogTag,
+  removeDogTag,
+} from "@/app/admin/tags/actions"
 import { GoodwillCreditForm } from "@/components/admin/goodwill-credit-form"
 import { PromoteCustomerForm } from "@/components/admin/promote-customer-form"
 import { BookingDogTag } from "@/components/ui/booking-dog-tag"
@@ -80,14 +87,16 @@ export default async function AdminCustomerDetailPage({
   params: Promise<{ customerId: string }>
 }) {
   const { customerId } = await params
-  const [session, customer] = await Promise.all([
+  const [session, customer, customerTagOptions, dogTagOptions] = await Promise.all([
     auth(),
     prisma.user.findFirst({
       where: { id: customerId, role: "CUSTOMER" },
       include: {
+        adminTags: { include: { tag: true }, orderBy: { tag: { name: "asc" } } },
         dogs: {
           orderBy: { name: "asc" },
           include: {
+            adminTags: { include: { tag: true }, orderBy: { tag: { name: "asc" } } },
             flags: true,
             vaccinationRecords: { orderBy: { expiryDate: "desc" } },
             trialVisits: { orderBy: { completedAt: "desc" }, take: 1, where: { outcome: { not: null } } },
@@ -101,6 +110,8 @@ export default async function AdminCustomerDetailPage({
         },
       },
     }),
+    prisma.customerTag.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+    prisma.dogTag.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
   ])
   if (!customer) notFound()
   const [creditBalancePence, petCareUpdates, marketingOptedOut] = await Promise.all([
@@ -180,6 +191,21 @@ export default async function AdminCustomerDetailPage({
               addressLine2={customer.addressLine2 ?? ""}
               addressCity={customer.addressCity ?? ""}
               addressPostcode={customer.addressPostcode ?? ""}
+            />
+          </section>
+
+          <section className="space-y-3 rounded-lg border border-gray-200 bg-gray-100 p-4">
+            <h2 className="text-sm font-semibold">
+              Tags <span className="font-normal text-muted-foreground">(not visible to customer)</span>
+            </h2>
+            <TagPicker
+              subject={fullName(customer)}
+              assigned={customer.adminTags.map((a) => ({ id: a.tag.id, name: a.tag.name }))}
+              available={customerTagOptions
+                .filter((t) => !customer.adminTags.some((a) => a.tagId === t.id))
+                .map((t) => ({ id: t.id, name: t.name }))}
+              onAdd={assignCustomerTag.bind(null, customer.id)}
+              onRemove={removeCustomerTag.bind(null, customer.id)}
             />
           </section>
 
@@ -415,6 +441,21 @@ export default async function AdminCustomerDetailPage({
                         ) : (
                           <Badge variant="outline">No vaccination records</Badge>
                         )}
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground">
+                          Tags (not visible to customer)
+                        </p>
+                        <TagPicker
+                          subject={dog.name}
+                          assigned={dog.adminTags.map((a) => ({ id: a.tag.id, name: a.tag.name }))}
+                          available={dogTagOptions
+                            .filter((t) => !dog.adminTags.some((a) => a.tagId === t.id))
+                            .map((t) => ({ id: t.id, name: t.name }))}
+                          onAdd={assignDogTag.bind(null, dog.id)}
+                          onRemove={removeDogTag.bind(null, dog.id)}
+                        />
                       </div>
 
                       <AddVaccinationForm customerId={customer.id} dogId={dog.id} />
