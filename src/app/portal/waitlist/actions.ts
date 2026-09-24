@@ -11,6 +11,7 @@ import { getSettings } from "@/lib/settings"
 import { waitlistJoinedEmail } from "@/lib/email-templates"
 import { resolveBookingCreation } from "@/app/(marketing)/book/actions"
 import { DAYCARE_SLUGS } from "@/lib/service-slugs"
+import { customerBookingDateError } from "@/lib/customer-booking-window"
 
 export type WaitlistActionState = { status: "idle" | "error"; message?: string }
 
@@ -95,6 +96,13 @@ export async function claimWaitlistOffer(entryId: string): Promise<WaitlistActio
   }
 
   const dateStr = toDateInputValue(entry.date)
+  // A waitlist claim is a customer booking too, so the Day Care / Dog Walking
+  // booking window (no same-day, tomorrow closes at 10pm) applies to it.
+  const windowError = customerBookingDateError(entry.service.slug, [
+    entry.endDate ? undefined : dateStr,
+  ])
+  if (windowError) return { status: "error", message: windowError }
+
   const result = await resolveBookingCreation(session.user.id, {
     serviceSlug: entry.service.slug,
     dogIds: [entry.dogId],

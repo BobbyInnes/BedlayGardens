@@ -89,6 +89,57 @@ export function isSameDay(a: Date, b: Date): boolean {
   return toDateInputValue(a) === toDateInputValue(b)
 }
 
+/**
+ * Today's calendar date in the UK as "YYYY-MM-DD" — whatever timezone the
+ * server (Vercel is UTC) or browser is in, since the business's "today" is
+ * the UK one. (en-CA formats as year-month-day.)
+ */
+export function todayInUkISO(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now)
+}
+
+// Day Care and Dog Walking booking window (customers): today is never
+// bookable, and from this UK-clock hour onwards tomorrow closes too — so the
+// earliest bookable date is tomorrow before the cutoff, the day after
+// tomorrow from the cutoff on. Shared by the booking date picker and the
+// customer booking actions so the two can't disagree.
+const NEXT_DAY_BOOKING_CUTOFF_HOUR = 22 // 10pm UK time
+
+/** Current hour (0-23) on the UK clock. */
+function ukHour(now: Date): number {
+  const hour = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).format(now)
+  return Number(hour)
+}
+
+/** True once it's 10pm or later on the UK clock. */
+export function isPastNextDayBookingCutoff(now: Date = new Date()): boolean {
+  return ukHour(now) >= NEXT_DAY_BOOKING_CUTOFF_HOUR
+}
+
+/**
+ * Earliest date a customer can book Day Care / Dog Walking, as "YYYY-MM-DD":
+ * tomorrow (UK), or the day after tomorrow once it's past the 10pm cutoff.
+ */
+export function earliestCustomerBookableDateISO(now: Date = new Date()): string {
+  const [year, month, day] = todayInUkISO(now).split("-").map(Number)
+  const daysAhead = isPastNextDayBookingCutoff(now) ? 2 : 1
+  return toDateInputValue(new Date(Date.UTC(year, month - 1, day + daysAhead)))
+}
+
+/** True if this calendar day (UTC-midnight instant) is before the earliest bookable date. */
+export function isBeforeEarliestCustomerBookableDate(date: Date, now: Date = new Date()): boolean {
+  return toDateInputValue(startOfDay(date)) < earliestCustomerBookableDateISO(now)
+}
+
 // Day Care half-day AM sessions run in the morning — once it's this late in
 // the day, "AM" no longer describes a real window for a same-day booking, so
 // the half-day slot is forced to PM past this point. Only matters for a

@@ -29,6 +29,14 @@ export function isDogWalkingSlug(slug: string): slug is DogWalkingSlug {
   return (DOG_WALKING_SLUGS as readonly string[]).includes(slug)
 }
 
+// Day Care (Full/Half Day) and Dog Walking (Group/Solo) can't be booked by a
+// customer for the current day — the earliest bookable date is tomorrow. Used
+// by the customer booking date picker and enforced in the customer booking
+// actions (admin manual bookings are exempt).
+export function isSameDayBookingBlocked(slug: string): boolean {
+  return isDaycareSlug(slug) || isDogWalkingSlug(slug)
+}
+
 // Same-site, weekday-scheduled services shown in the admin "today" dashboard
 // and staff on-site lists — see admin/page.tsx's SCHEDULED_SERVICE_SLUGS and
 // the several ON_SITE_SERVICE_SLUGS copies (care-tasks.ts, staff pages).

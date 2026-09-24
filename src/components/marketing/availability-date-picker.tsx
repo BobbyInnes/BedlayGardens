@@ -5,6 +5,8 @@ import { CalendarIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { isSameDayBookingBlocked } from "@/lib/service-slugs"
+import { earliestCustomerBookableDateISO, isPastNextDayBookingCutoff } from "@/lib/dates"
 import type { WalkType } from "@/generated/prisma/client"
 
 // NOT src/lib/dates.ts's toDateInputValue — that one deliberately reads UTC
@@ -73,8 +75,24 @@ export function AvailabilityDatePicker(props: SingleProps | MultipleProps) {
     }
   }, [serviceSlug, walkType, month])
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  // Day Care and Dog Walking can't be booked for the current day, and from
+  // 10pm UK time tomorrow closes too — so their earliest selectable date is
+  // tomorrow, or the day after tomorrow once it's past 10pm (everything
+  // before it is greyed out). Meet & Greet can still be booked from today.
+  // The earliest date is worked out on the UK clock by the shared helper (the
+  // same one the server enforces), then turned into a local-midnight Date to
+  // match the day-picker's cells.
+  const blocksSameDay = isSameDayBookingBlocked(serviceSlug)
+  const pastCutoff = blocksSameDay && isPastNextDayBookingCutoff()
+  const earliest = blocksSameDay
+    ? new Date(`${earliestCustomerBookableDateISO()}T00:00:00`)
+    : (() => {
+        const d = new Date()
+        d.setHours(0, 0, 0, 0)
+        return d
+      })()
+  const isAvailableDay = (date: Date) =>
+    date >= earliest && availableDays.has(toLocalDateInputValue(date))
 
   const triggerLabel = multiple
     ? props.value.length === 0
@@ -101,8 +119,8 @@ export function AvailabilityDatePicker(props: SingleProps | MultipleProps) {
             selected={props.value.map((v) => new Date(`${v}T00:00:00`))}
             month={month}
             onMonthChange={setMonth}
-            disabled={[{ before: today }, { dayOfWeek: [0, 6] }]}
-            modifiers={{ available: (date) => availableDays.has(toLocalDateInputValue(date)) }}
+            disabled={[{ before: earliest }, { dayOfWeek: [0, 6] }]}
+            modifiers={{ available: isAvailableDay }}
             modifiersClassNames={{ available: "ring-2 ring-primary ring-inset rounded-full" }}
             onSelect={(dates) => props.onChange((dates ?? []).map(toLocalDateInputValue).sort())}
           />
@@ -112,8 +130,8 @@ export function AvailabilityDatePicker(props: SingleProps | MultipleProps) {
             selected={props.value ? new Date(`${props.value}T00:00:00`) : undefined}
             month={month}
             onMonthChange={setMonth}
-            disabled={[{ before: today }, { dayOfWeek: [0, 6] }]}
-            modifiers={{ available: (date) => availableDays.has(toLocalDateInputValue(date)) }}
+            disabled={[{ before: earliest }, { dayOfWeek: [0, 6] }]}
+            modifiers={{ available: isAvailableDay }}
             modifiersClassNames={{ available: "ring-2 ring-primary ring-inset rounded-full" }}
             onSelect={(date) => {
               if (date) {
@@ -125,6 +143,11 @@ export function AvailabilityDatePicker(props: SingleProps | MultipleProps) {
         )}
         <p className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
           Circled days have space available.
+          {blocksSameDay
+            ? pastCutoff
+              ? " It's after 10pm, so today and tomorrow can't be booked — the earliest date is the day after tomorrow."
+              : " Today can't be booked — the earliest date is tomorrow (bookings for tomorrow close at 10pm)."
+            : ""}
           {multiple ? " Click as many dates as you'd like — each becomes its own booking." : ""}
         </p>
         {multiple && (

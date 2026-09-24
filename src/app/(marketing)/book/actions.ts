@@ -8,10 +8,21 @@ import { Prisma, type PaymentTiming, type WalkType, type DaycareDuration } from 
 import { isDriverAdapterError } from "@prisma/driver-adapter-utils"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import { nightsBetween, startOfDay, isWeekend, isPastDaycareHalfDayAmCutoff } from "@/lib/dates"
+import {
+  nightsBetween,
+  startOfDay,
+  isWeekend,
+  isPastDaycareHalfDayAmCutoff,
+} from "@/lib/dates"
+import { customerBookingDateError } from "@/lib/customer-booking-window"
 import { findAvailableKennelUnit, isDaycareAvailable, isMeetGreetAvailable } from "@/lib/availability"
 import { WALK_TYPE_MAX_PER_DAY, WALK_TYPE_SERVICE_SLUG, DEFAULT_WALK_TYPE } from "@/lib/walk-types"
-import { DAYCARE_SLUGS, isDaycareSlug, isDogWalkingSlug, type DaycareSlug } from "@/lib/service-slugs"
+import {
+  DAYCARE_SLUGS,
+  isDaycareSlug,
+  isDogWalkingSlug,
+  type DaycareSlug,
+} from "@/lib/service-slugs"
 import { checkVaccinationGate } from "@/lib/vaccination-gate"
 import { computeBookingPrice } from "@/lib/booking-pricing"
 import { paymentFieldsForGate } from "@/lib/payment-timing"
@@ -857,6 +868,9 @@ export async function createBooking(
   const session = await auth()
   if (!session?.user) return { status: "error", message: "Please log in to book." }
 
+  const sameDayError = customerBookingDateError(input.serviceSlug, [input.date])
+  if (sameDayError) return { status: "error", message: sameDayError }
+
   const result = await resolveBookingCreation(session.user.id, input)
   if (result.status === "error") return result
 
@@ -912,6 +926,8 @@ export async function createDaycareBookings(
   const session = await auth()
   if (!session?.user) return { status: "error", message: "Please log in to book." }
   if (dates.length === 0) return { status: "error", message: "Select at least one date." }
+  const sameDayError = customerBookingDateError(daycareSlug, dates)
+  if (sameDayError) return { status: "error", message: sameDayError }
 
   const bookingIds: string[] = []
   const failedDates: string[] = []
@@ -993,6 +1009,8 @@ export async function createDogWalkingBookings(
   const session = await auth()
   if (!session?.user) return { status: "error", message: "Please log in to book." }
   if (dates.length === 0) return { status: "error", message: "Select at least one date." }
+  const sameDayError = customerBookingDateError(WALK_TYPE_SERVICE_SLUG[walkType], dates)
+  if (sameDayError) return { status: "error", message: sameDayError }
 
   const bookingIds: string[] = []
   const failedDates: string[] = []
