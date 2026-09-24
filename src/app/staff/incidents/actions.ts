@@ -45,5 +45,6 @@ export async function createIncident(
   })
 
   revalidatePath("/staff/incidents")
+  revalidatePath(`/admin/bookings/${parsed.data.bookingId}`)
   return { status: "idle" }
 }

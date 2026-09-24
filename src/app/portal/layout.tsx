@@ -24,7 +24,7 @@ export default async function PortalLayout({
         isSuperAdmin={session.user.isSuperAdmin}
       />
       <div className="flex flex-1 flex-col md:flex-row">
-        <PortalNav waitlistCount={waitlistCount} />
+        <PortalNav waitlistCount={waitlistCount} role={session.user.role} />
         <main className="flex-1 px-4 py-8 sm:px-6">{children}</main>
       </div>
     </div>

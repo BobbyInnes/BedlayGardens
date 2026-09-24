@@ -12,9 +12,11 @@ import {
   ListOrdered,
   Star,
   Home,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import type { Role } from "@/generated/prisma/client"
 
 type NavLeaf = { href: string; label: string; icon: LucideIcon }
 // A leaf that also carries children — always rendered, no collapse/expand,
@@ -40,7 +42,13 @@ const navItems: (NavLeaf | NavParent)[] = [
 const linkClasses =
   "flex shrink-0 items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium whitespace-nowrap text-muted-foreground hover:bg-muted hover:text-foreground"
 
-export function PortalNav({ waitlistCount = 0 }: { waitlistCount?: number }) {
+export function PortalNav({
+  waitlistCount = 0,
+  role,
+}: {
+  waitlistCount?: number
+  role: Role
+}) {
   const pathname = usePathname()
 
   return (
@@ -84,6 +92,13 @@ export function PortalNav({ waitlistCount = 0 }: { waitlistCount?: number }) {
       })}
 
       <div className="my-2 border-t border-border md:mx-3" />
+
+      {role === "ADMIN" && (
+        <Link href="/admin" className={linkClasses}>
+          <ShieldCheck className="size-4" aria-hidden="true" />
+          Admin
+        </Link>
+      )}
 
       <Link href="/" className={linkClasses}>
         <Home className="size-4" aria-hidden="true" />

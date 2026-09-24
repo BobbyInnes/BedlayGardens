@@ -989,3 +989,120 @@ export async function updateBookingSchedule(
   revalidatePath("/admin")
   return { status: "idle", message: "Schedule updated." }
 }
+
+export type UpdateBookingNotesResult = { status: "idle" | "error"; message?: string }
+
+export async function updateBookingNotes(
+  bookingId: string,
+  notes: string,
+  belongings: string
+): Promise<UpdateBookingNotesResult> {
+  const session = await requireAdmin()
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { service: true, customer: true },
+  })
+  if (!booking) return { status: "error", message: "Booking not found." }
+
+  const trimmedNotes = notes.trim()
+  const trimmedBelongings = belongings.trim()
+  await prisma.booking.update({
+    where: { id: bookingId },
+    data: {
+      notes: trimmedNotes || null,
+      belongings: trimmedBelongings || null,
+    },
+  })
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_BOOKING_NOTES",
+    entity: "Booking",
+    entityId: bookingId,
+    meta: `${booking.service.name} — ${fullName(booking.customer)}`,
+  })
+
+  revalidatePath(`/admin/bookings/${bookingId}`)
+  return { status: "idle", message: "Saved." }
+}
+
+export type UpdateBookingCheckTimesResult = { status: "idle" | "error"; message?: string }
+
+export async function updateBookingCheckTimes(
+  bookingId: string,
+  checkedInAt: string | null,
+  checkedOutAt: string | null
+): Promise<UpdateBookingCheckTimesResult> {
+  const session = await requireAdmin()
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { service: true, customer: true },
+  })
+  if (!booking) return { status: "error", message: "Booking not found." }
+
+  const parsedCheckedInAt = checkedInAt ? new Date(checkedInAt) : null
+  const parsedCheckedOutAt = checkedOutAt ? new Date(checkedOutAt) : null
+  if (
+    (parsedCheckedInAt && Number.isNaN(parsedCheckedInAt.getTime())) ||
+    (parsedCheckedOutAt && Number.isNaN(parsedCheckedOutAt.getTime()))
+  ) {
+    return { status: "error", message: "Invalid date/time." }
+  }
+
+  await prisma.booking.update({
+    where: { id: bookingId },
+    data: { checkedInAt: parsedCheckedInAt, checkedOutAt: parsedCheckedOutAt },
+  })
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_BOOKING_CHECK_TIMES",
+    entity: "Booking",
+    entityId: bookingId,
+    meta: `${booking.service.name} — ${fullName(booking.customer)}`,
+  })
+
+  revalidatePath(`/admin/bookings/${bookingId}`)
+  return { status: "idle", message: "Saved." }
+}
+
+export type UploadBookingBelongingPhotosResult = { status: "idle" | "error"; message?: string }
+
+export async function uploadBookingBelongingPhotos(
+  bookingId: string,
+  formData: FormData
+): Promise<UploadBookingBelongingPhotosResult> {
+  const session = await requireAdmin()
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { bookingDogs: true },
+  })
+  if (!booking) return { status: "error", message: "Booking not found." }
+
+  const dogId = formData.get("dogId") as string | null
+  if (!dogId || !booking.bookingDogs.some((bd) => bd.dogId === dogId)) {
+    return { status: "error", message: "Choose a dog." }
+  }
+
+  const files = formData.getAll("files").filter((f): f is File => f instanceof File && f.size > 0)
+  if (files.length === 0) {
+    return { status: "error", message: "Choose at least one photo." }
+  }
+
+  for (const file of files) {
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const key = await saveUpload(`belongings/${dogId}`, file.name, buffer)
+    await prisma.bookingBelongingPhoto.create({
+      data: { bookingId, dogId, staffId: session.user.id, url: key },
+    })
+  }
+
+  revalidatePath(`/admin/bookings/${bookingId}`)
+  return {
+    status: "idle",
+    message: `${files.length} photo${files.length === 1 ? "" : "s"} uploaded.`,
+  }
+}

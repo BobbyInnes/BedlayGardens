@@ -379,6 +379,7 @@ model Dog {
   trialVisits        TrialVisit[]
   medications        DogMedication[]
   feedingItems       DogFeedingItem[]
+  belongingPhotos    BookingBelongingPhoto[]
 
   @@index([ownerId])
 }
@@ -508,6 +509,14 @@ model Booking {
   walkType           WalkType?
   pickupAddress      String?
   accessNotes        String?
+  // Free-text admin fields, set/edited from the booking detail page.
+  notes              String?
+  belongings         String?
+  // When the dog actually arrived/left the premises — auto-set by the staff
+  // check-in/check-out flow (checkInBooking/checkOutBooking), editable by
+  // admins from the booking detail page for corrections.
+  checkedInAt        DateTime?
+  checkedOutAt       DateTime?
 
   bookingDogs       BookingDog[]
   bookingAddons     BookingAddon[]
@@ -520,6 +529,7 @@ model Booking {
   trialVisits       TrialVisit[]
   kennelOccupancies KennelOccupancy[]
   review            Review?
+  belongingPhotos   BookingBelongingPhoto[]
 
   @@index([customerId])
   @@index([serviceId])
@@ -839,6 +849,23 @@ model Pupdate {
   mediaItem   MediaItem? @relation(fields: [mediaItemId], references: [id])
   note        String?
   createdAt   DateTime   @default(now())
+}
+
+// A photo of belongings the customer dropped off with a dog for a booking
+// (lead, bed, food, toys, etc.) — staff can take/upload several at once, one
+// row per photo, mirroring Pupdate's shape.
+model BookingBelongingPhoto {
+  id        String   @id @default(cuid())
+  bookingId String
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  dogId     String
+  dog       Dog      @relation(fields: [dogId], references: [id])
+  staffId   String
+  url       String
+  createdAt DateTime @default(now())
+
+  @@index([bookingId])
+  @@index([dogId])
 }
 
 model Subscription {

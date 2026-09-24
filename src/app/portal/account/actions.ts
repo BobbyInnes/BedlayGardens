@@ -202,7 +202,16 @@ export async function updateEmergencyContact(
     labels: emergencyContactLabels,
   })
 
-  const changeRows = diffFieldRows(before, after, emergencyContactLabels)
+  // The email is already about the emergency contact, so drop the repeated
+  // "Emergency contact" prefix from each field name (the audit log keeps it).
+  const emailLabels = Object.fromEntries(
+    Object.entries(emergencyContactLabels).map(([key, label]) => {
+      const trimmed = label.replace(/^Emergency contact /, "")
+      return [key, trimmed.charAt(0).toUpperCase() + trimmed.slice(1)]
+    })
+  ) as typeof emergencyContactLabels
+
+  const changeRows = diffFieldRows(before, after, emailLabels)
   if (changeRows.length > 0) {
     try {
       const settings = await getSettings()

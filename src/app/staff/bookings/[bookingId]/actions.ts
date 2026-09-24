@@ -65,7 +65,10 @@ export async function checkInBooking(
     }
   }
 
-  await prisma.booking.update({ where: { id: bookingId }, data: { status: "CHECKED_IN" } })
+  await prisma.booking.update({
+    where: { id: bookingId },
+    data: { status: "CHECKED_IN", checkedInAt: new Date() },
+  })
 
   if (!gate.ok && overrideReason) {
     await logAudit({
@@ -109,7 +112,10 @@ export async function checkOutBooking(
     }
   }
 
-  await prisma.booking.update({ where: { id: bookingId }, data: { status: "CHECKED_OUT" } })
+  await prisma.booking.update({
+    where: { id: bookingId },
+    data: { status: "CHECKED_OUT", checkedOutAt: new Date() },
+  })
 
   if (booking.service.paymentTiming === "INVOICE_AFTER") {
     // Invoice failure must not block the check-out itself — admins can

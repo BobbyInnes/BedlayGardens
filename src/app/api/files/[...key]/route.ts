@@ -21,7 +21,12 @@ export async function GET(
     if (!isOwner && !isStaffOrAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
-  } else if (category === "dogs" || category === "vaccinations" || category === "pupdates") {
+  } else if (
+    category === "dogs" ||
+    category === "vaccinations" ||
+    category === "pupdates" ||
+    category === "belongings"
+  ) {
     const dog = await prisma.dog.findUnique({ where: { id: secondSegment } })
     if (!dog) {
       return NextResponse.json({ error: "Not found" }, { status: 404 })
