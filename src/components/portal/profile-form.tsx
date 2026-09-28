@@ -22,6 +22,7 @@ export function ProfileForm({
   addressLine2,
   addressCity,
   addressPostcode,
+  referralSource,
 }: {
   salutation: string
   forename: string
@@ -33,6 +34,9 @@ export function ProfileForm({
   addressLine2: string
   addressCity: string
   addressPostcode: string
+  // Name of the option chosen on the create-account form ("" if none) —
+  // display only, it's captured once at sign-up.
+  referralSource: string
 }) {
   const [state, formAction, pending] = useActionState(updateProfile, initialState)
   const { formRef, dirty, handleChange, markClean } = useFormDirty()
@@ -102,6 +106,10 @@ export function ProfileForm({
           <Label htmlFor="addressPostcode">Postcode</Label>
           <Input id="addressPostcode" name="addressPostcode" defaultValue={addressPostcode} />
         </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="referralSource">How did you hear about us?</Label>
+        <Input id="referralSource" value={referralSource || "Not recorded"} disabled />
       </div>
 
       <Button type="submit" disabled={pending || !dirty}>

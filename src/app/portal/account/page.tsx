@@ -19,7 +19,10 @@ export const metadata: Metadata = {
 export default async function AccountPage() {
   const session = await auth()
   const [user, petCareUpdates, marketingOptedOut] = await Promise.all([
-    prisma.user.findUnique({ where: { id: session!.user.id } }),
+    prisma.user.findUnique({
+      where: { id: session!.user.id },
+      include: { referralSource: true },
+    }),
     getPetCareUpdatesPreference(session!.user.id),
     isOptedOut(session!.user.id, "ABANDONED_BOOKING_REMINDER"),
   ])
@@ -54,6 +57,7 @@ export default async function AccountPage() {
             addressLine2={user?.addressLine2 ?? ""}
             addressCity={user?.addressCity ?? ""}
             addressPostcode={user?.addressPostcode ?? ""}
+            referralSource={user?.referralSource?.name ?? ""}
           />
         </section>
 

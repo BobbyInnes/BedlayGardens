@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { AlertTriangle } from "lucide-react"
 import { auth } from "@/auth"
+import { prisma } from "@/lib/prisma"
 import { RegisterForm } from "@/components/marketing/register-form"
 import { LogoutButton } from "@/components/portal/logout-button"
 
@@ -12,6 +13,11 @@ export const metadata: Metadata = {
 
 export default async function RegisterPage() {
   const session = await auth()
+  const referralSources = await prisma.referralSource.findMany({
+    where: { active: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: { id: true, name: true },
+  })
 
   return (
     <div className="mx-auto max-w-md px-4 py-16 sm:px-6">
@@ -42,7 +48,7 @@ export default async function RegisterPage() {
           </div>
         </div>
       ) : (
-        <RegisterForm />
+        <RegisterForm referralSources={referralSources} />
       )}
     </div>
   )

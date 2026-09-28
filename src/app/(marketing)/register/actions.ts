@@ -27,6 +27,7 @@ const registerSchema = z
     addressLine2: z.string().trim().max(200).optional().or(z.literal("")),
     addressCity: z.string().trim().max(100).optional().or(z.literal("")),
     addressPostcode: z.string().trim().max(20).optional().or(z.literal("")),
+    referralSourceId: z.string().trim().max(100).optional().or(z.literal("")),
   })
   .refine((data) => !!data.homePhone || !!data.phone || !!data.workPhone, {
     message: "Enter at least one phone number (Home, Mobile, or Works).",
@@ -45,6 +46,7 @@ type RegisterFieldValues = {
   addressLine2: string
   addressCity: string
   addressPostcode: string
+  referralSourceId: string
   notifyPetCareEmail: boolean
   notifyMarketingEmail: boolean
   notifyPetCareSms: boolean
@@ -66,7 +68,8 @@ export type RegisterState = {
       | "addressLine1"
       | "addressLine2"
       | "addressCity"
-      | "addressPostcode",
+      | "addressPostcode"
+      | "referralSourceId",
       string
     >
   >
@@ -91,6 +94,7 @@ export async function registerAction(
     addressLine2: String(formData.get("addressLine2") ?? ""),
     addressCity: String(formData.get("addressCity") ?? ""),
     addressPostcode: String(formData.get("addressPostcode") ?? ""),
+    referralSourceId: String(formData.get("referralSourceId") ?? ""),
     // Notification-settings toggles aren't part of registerSchema below —
     // they're plain on/off switches with nothing to validate, same
     // convention as other boolean form fields in this codebase (e.g.
@@ -128,7 +132,25 @@ export async function registerAction(
     addressLine2,
     addressCity,
     addressPostcode,
+    referralSourceId,
   } = parsed.data
+
+  // Optional, but if one was sent it must be a real, currently-offered option
+  // (the dropdown only lists active ones, so this only trips on a stale page
+  // or a tampered form).
+  if (referralSourceId) {
+    const source = await prisma.referralSource.findFirst({
+      where: { id: referralSourceId, active: true },
+      select: { id: true },
+    })
+    if (!source) {
+      return {
+        status: "error",
+        fieldErrors: { referralSourceId: "That option is no longer available — please choose again." },
+        values: { ...values, referralSourceId: "" },
+      }
+    }
+  }
 
   const existing = await prisma.user.findUnique({ where: { email } })
   if (existing) {
@@ -155,6 +177,7 @@ export async function registerAction(
       addressLine2: addressLine2 || null,
       addressCity: addressCity || null,
       addressPostcode: addressPostcode || null,
+      referralSourceId: referralSourceId || null,
     },
   })
 

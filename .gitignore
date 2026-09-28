@@ -64,3 +64,6 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# Customer data files for the admin importer — personal data, never commit
+/imports/

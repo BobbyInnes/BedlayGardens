@@ -92,6 +92,7 @@ export default async function AdminCustomerDetailPage({
     prisma.user.findFirst({
       where: { id: customerId, role: "CUSTOMER" },
       include: {
+        referralSource: true,
         adminTags: { include: { tag: true }, orderBy: { tag: { name: "asc" } } },
         dogs: {
           orderBy: { name: "asc" },
@@ -157,8 +158,7 @@ export default async function AdminCustomerDetailPage({
             </span>
           </h1>
           <p className="text-sm text-muted-foreground">
-            Customer since {customer.createdAt.toLocaleDateString("en-GB")}
-          </p>
+            Customer since {customer.createdAt.toLocaleDateString("en-GB")}          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-3">
           <Badge variant={customer.active ? "secondary" : "destructive"}>
@@ -191,6 +191,7 @@ export default async function AdminCustomerDetailPage({
               addressLine2={customer.addressLine2 ?? ""}
               addressCity={customer.addressCity ?? ""}
               addressPostcode={customer.addressPostcode ?? ""}
+              referralSource={customer.referralSource?.name ?? ""}
             />
           </section>
 

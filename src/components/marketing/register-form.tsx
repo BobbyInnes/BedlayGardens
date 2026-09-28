@@ -12,7 +12,11 @@ import { SALUTATIONS } from "@/lib/salutations"
 
 const initialState: RegisterState = { status: "idle" }
 
-export function RegisterForm() {
+export function RegisterForm({
+  referralSources,
+}: {
+  referralSources: { id: string; name: string }[]
+}) {
   const [state, formAction, pending] = useActionState(registerAction, initialState)
   // On error, the action echoes back whatever was submitted (password
   // excluded) so a failed submission refills the form instead of blanking
@@ -150,6 +154,28 @@ export function RegisterForm() {
           />
         </div>
       </div>
+
+      {referralSources.length > 0 && (
+        <div className="space-y-2">
+          <Label htmlFor="referralSourceId">How did you hear about us? (optional)</Label>
+          <select
+            id="referralSourceId"
+            name="referralSourceId"
+            defaultValue={values?.referralSourceId ?? ""}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+          >
+            <option value="">Please select…</option>
+            {referralSources.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+          {state.fieldErrors?.referralSourceId && (
+            <p className="text-sm text-destructive">{state.fieldErrors.referralSourceId}</p>
+          )}
+        </div>
+      )}
 
       <Separator />
 

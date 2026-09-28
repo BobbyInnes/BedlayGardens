@@ -11,6 +11,8 @@ import {
   Tag,
   Tags,
   Search,
+  Megaphone,
+  Upload,
   Settings,
   Truck,
   Dog,
@@ -44,6 +46,7 @@ function isGroup(item: NavEntry): item is NavGroup {
 const navItems: NavEntry[] = [
   { href: "/admin", label: "Admin Control Panel", icon: LayoutDashboard },
   { href: "/admin/customers", label: "Customers", icon: UserCircle },
+  { href: "/admin/import", label: "Import Customers", icon: Upload },
   { href: "/admin/dogs", label: "Dogs", icon: Dog },
   {
     label: "Tags",
@@ -53,6 +56,7 @@ const navItems: NavEntry[] = [
       { href: "/admin/tag-search", label: "Find by Tag", icon: Search },
     ],
   },
+  { href: "/admin/referral-sources", label: "Referral Sources", icon: Megaphone },
   { href: "/admin/calendar", label: "Calendar", icon: CalendarRange },
   {
     label: "Occupancy",
