@@ -325,6 +325,10 @@ export default async function DogsPage({
               No vaccination details on file yet.
             </p>
           )}
+          <div className="space-y-1 text-sm">
+            <p className="text-muted-foreground">Vaccination notes:</p>
+            <p className="font-medium whitespace-pre-line">{selectedDog.vaccinationNotes || "—"}</p>
+          </div>
         </div>
       )}
 

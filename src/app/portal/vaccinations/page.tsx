@@ -5,7 +5,9 @@ import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { deleteVaccination } from "@/app/portal/vaccinations/actions"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { deleteVaccination, saveVaccinationNotes } from "@/app/portal/vaccinations/actions"
 
 export const metadata: Metadata = {
   title: "Vaccinations",
@@ -150,6 +152,27 @@ export default async function VaccinationsPage({
                 ) : (
                   <p className="text-sm text-muted-foreground">No vaccination records yet.</p>
                 )}
+
+                <form
+                  action={saveVaccinationNotes.bind(null, selectedDog.id)}
+                  className="space-y-2 rounded-lg border border-border p-4"
+                >
+                  <Label htmlFor="vaccinationNotes" className="text-sm font-semibold">
+                    Vaccination notes
+                  </Label>
+                  <Textarea
+                    id="vaccinationNotes"
+                    name="vaccinationNotes"
+                    key={selectedDog.id}
+                    defaultValue={selectedDog.vaccinationNotes ?? ""}
+                    rows={3}
+                    maxLength={2000}
+                    placeholder="Anything we should know about this dog's vaccinations"
+                  />
+                  <Button type="submit" size="sm" variant="outline">
+                    Save notes
+                  </Button>
+                </form>
               </div>
             </div>
           )}

@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { z } from "zod"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { logAudit } from "@/lib/audit"
@@ -15,6 +16,31 @@ async function requireStaff() {
     throw new Error("Unauthorized")
   }
   return session
+}
+
+export async function saveDogVaccinationNotes(dogId: string, formData: FormData) {
+  const session = await requireStaff()
+
+  const parsed = z.string().trim().max(2000).safeParse(String(formData.get("vaccinationNotes") ?? ""))
+  if (!parsed.success) throw new Error("Vaccination notes are too long (2000 characters max).")
+
+  const dog = await prisma.dog.findUniqueOrThrow({ where: { id: dogId }, include: { owner: true } })
+  const vaccinationNotes = parsed.data || null
+  if (vaccinationNotes === dog.vaccinationNotes) return
+
+  await prisma.dog.update({ where: { id: dogId }, data: { vaccinationNotes } })
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_DOG_VACCINATION_NOTES",
+    entity: "Dog",
+    entityId: dogId,
+    meta: `Vaccination notes for ${dog.name}, owner ${fullName(dog.owner)} <${dog.owner.email}> — updated by staff`,
+  })
+
+  revalidatePath("/staff/vaccinations")
+  revalidatePath("/admin/dogs")
+  revalidatePath("/portal/vaccinations")
+  revalidatePath("/portal/dogs")
 }
 
 export async function verifyVaccinationRecord(

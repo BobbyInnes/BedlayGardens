@@ -5,7 +5,9 @@ import { prisma } from "@/lib/prisma"
 import { VaccinationVerifyButtons } from "@/components/staff/vaccination-verify-buttons"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
+import { saveDogVaccinationNotes } from "@/app/staff/vaccinations/actions"
 import { fullName } from "@/lib/format"
 
 export const metadata: Metadata = {
@@ -110,6 +112,23 @@ export default async function StaffVaccinationsPage({
                     From Date: {record.dateGiven.toLocaleDateString("en-GB")} · Expiry Date:{" "}
                     {record.expiryDate.toLocaleDateString("en-GB")}
                   </p>
+                  <form
+                    action={saveDogVaccinationNotes.bind(null, record.dog.id)}
+                    className="mt-2 flex items-end gap-2"
+                  >
+                    <Textarea
+                      name="vaccinationNotes"
+                      aria-label={`Vaccination notes for ${record.dog.name}`}
+                      defaultValue={record.dog.vaccinationNotes ?? ""}
+                      rows={2}
+                      maxLength={2000}
+                      placeholder="Vaccination notes"
+                      className="w-80"
+                    />
+                    <Button type="submit" size="sm" variant="outline">
+                      Save notes
+                    </Button>
+                  </form>
                 </div>
               </div>
               <VaccinationVerifyButtons recordId={record.id} />

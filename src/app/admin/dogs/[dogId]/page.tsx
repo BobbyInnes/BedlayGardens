@@ -177,6 +177,10 @@ export default async function AdminDogDetailPage({
         ) : (
           <p className="text-sm text-muted-foreground">No vaccination details on file yet.</p>
         )}
+        <div className="space-y-1 text-sm">
+          <p className="text-muted-foreground">Vaccination notes:</p>
+          <p className="font-medium whitespace-pre-line">{dog.vaccinationNotes || "—"}</p>
+        </div>
       </div>
 
       <div className="space-y-3 rounded-lg border border-border bg-card p-5">

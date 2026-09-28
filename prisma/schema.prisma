@@ -359,6 +359,10 @@ model Dog {
   behaviourNotes   String?
   allergies        String?
   medicalHistorySummary String?
+  // Free-text notes related to the dog's vaccinations (e.g. a vet's exemption
+  // or a note on a delayed booster). Customer-editable from the portal
+  // Vaccinations page; shown alongside the vaccination records.
+  vaccinationNotes String?
   microchipNumber  String?
   color            String?
   runType          String?

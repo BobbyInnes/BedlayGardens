@@ -168,6 +168,31 @@ export async function createVaccinationManual(
   redirect("/portal/vaccinations")
 }
 
+const vaccinationNotesSchema = z.string().trim().max(2000)
+
+export async function saveVaccinationNotes(dogId: string, formData: FormData) {
+  const { session, dog } = await requireDogOwnership(dogId)
+
+  const parsed = vaccinationNotesSchema.safeParse(String(formData.get("vaccinationNotes") ?? ""))
+  if (!parsed.success) throw new Error("Vaccination notes are too long (2000 characters max).")
+
+  const vaccinationNotes = parsed.data || null
+  if (vaccinationNotes === dog.vaccinationNotes) return
+
+  await prisma.dog.update({ where: { id: dogId }, data: { vaccinationNotes } })
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPDATE_DOG_VACCINATION_NOTES",
+    entity: "Dog",
+    entityId: dogId,
+    meta: `Vaccination notes for ${dog.name}, owner ${session.user.name} <${session.user.email}>`,
+  })
+
+  revalidatePath("/portal/vaccinations")
+  revalidatePath("/portal/dogs")
+}
+
 export async function deleteVaccination(recordId: string) {
   const session = await auth()
   if (!session?.user) throw new Error("Unauthorized")
