@@ -512,6 +512,20 @@ export function DogForm({
       <div className="space-y-3 rounded-lg bg-muted p-4">
         <input type="hidden" name="feed-count" value={feedingRows.length} />
         <Label>Feeding instructions</Label>
+
+        <div className="space-y-1">
+          <Label htmlFor="feedingNotes" className="text-xs font-normal">
+            Summary
+          </Label>
+          <Textarea
+            id="feedingNotes"
+            name="feedingNotes"
+            placeholder="e.g. dietary requirements, food sensitivities, feeding routine"
+            defaultValue={values ? values.feedingNotes : (dog?.feedingNotes ?? "")}
+            rows={2}
+          />
+        </div>
+
         <div className="space-y-3">
           {feedingRows.map((row, index) => (
             <div key={row.key} className="space-y-3 rounded-md border border-border bg-background p-3">

@@ -94,21 +94,25 @@ export default async function AdminDogsPage({
             return (
               <li key={dog.id} className="flex flex-wrap items-center justify-between gap-4 p-4 text-sm">
                 <div className="flex items-center gap-4">
-                  {dog.photoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={`/api/files/${dog.photoUrl}`}
-                      alt={dog.name}
-                      className="size-14 shrink-0 rounded-lg object-cover"
-                    />
-                  ) : (
-                    <div className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-muted text-[10px] text-muted-foreground">
-                      No photo
-                    </div>
-                  )}
+                  <Link href={`/admin/dogs/${dog.id}`} className="shrink-0">
+                    {dog.photoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={`/api/files/${dog.photoUrl}`}
+                        alt={dog.name}
+                        className="size-14 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="flex size-14 items-center justify-center rounded-lg bg-muted text-[10px] text-muted-foreground">
+                        No photo
+                      </div>
+                    )}
+                  </Link>
                   <div>
                     <p className="font-medium">
-                      {dog.name}{" "}
+                      <Link href={`/admin/dogs/${dog.id}`} className="underline">
+                        {dog.name}
+                      </Link>{" "}
                       <span className="font-normal text-muted-foreground">
                         ({formatDogNumber(dog.dogNumber)}) — {dog.breed}
                       </span>

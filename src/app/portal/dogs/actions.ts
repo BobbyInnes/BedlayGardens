@@ -296,11 +296,11 @@ export async function updateDog(
     size: data.size,
     neutered: !!data.neutered,
     weightKg: data.weightKg,
-    // feedingNotes and medicationNotes are no longer form fields (their free-text
-    // boxes were removed in favour of the structured Feeding instructions / Medical
-    // history lists) — preserve whatever's on record rather than silently wiping it
-    // since the form can no longer submit them.
-    feedingNotes: dog.feedingNotes,
+    // feedingNotes is a form field again (the dietary-requirements Summary box,
+    // alongside the structured Feeding instructions list — same pairing as
+    // medicalHistorySummary/medications). medicationNotes has no UI box —
+    // preserve whatever's on record rather than silently wiping it.
+    feedingNotes: data.feedingNotes || null,
     medicationNotes: dog.medicationNotes,
     behaviourNotes: data.behaviourNotes || null,
     allergies: data.allergies || null,

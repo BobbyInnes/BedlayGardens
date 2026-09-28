@@ -20,7 +20,10 @@ export default async function EditDogPage({
   const session = await auth()
   const dog = await prisma.dog.findUnique({
     where: { id: dogId },
-    include: { medications: { orderBy: { sortOrder: "asc" } } },
+    include: {
+      medications: { orderBy: { sortOrder: "asc" } },
+      feedingItems: { orderBy: { sortOrder: "asc" } },
+    },
   })
 
   if (!dog || dog.ownerId !== session!.user.id) {
