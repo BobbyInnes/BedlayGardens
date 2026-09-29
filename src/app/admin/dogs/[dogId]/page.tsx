@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { formatDogNumber } from "@/lib/customer-dog-numbers"
 import { fullName } from "@/lib/format"
 import { ageYearsMonths, formatAge, vaccineStatus, TONE_TEXT_CLASSES } from "@/lib/dog-details"
+import { evaluationView } from "@/lib/evaluation-display"
 
 export const metadata: Metadata = {
   title: "Dog Details | Admin",
@@ -35,6 +36,7 @@ export default async function AdminDogDetailPage({
   if (!dog) notFound()
 
   const trial = dog.trialVisits[0]
+  const evaluation = evaluationView(dog, trial)
 
   return (
     <div className="space-y-6">
@@ -186,7 +188,9 @@ export default async function AdminDogDetailPage({
       <div className="space-y-3 rounded-lg border border-border bg-card p-5">
         <h2 className="text-lg font-semibold">
           Evaluation Information
-          {dog.bypassMeetGreetChecks ? (
+          {evaluation.fromImport ? (
+            <span className="ml-2 text-sm font-normal text-muted-foreground">(Imported)</span>
+          ) : dog.bypassMeetGreetChecks ? (
             <span className="ml-2 text-sm font-normal text-destructive">(Bypassed by Admin)</span>
           ) : (
             !trial?.outcome && (
@@ -196,17 +200,15 @@ export default async function AdminDogDetailPage({
         </h2>
         <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5 text-sm">
           <dt className="text-muted-foreground">Evaluation Complete:</dt>
-          <dd className="font-medium">{trial ? (trial.outcome ? "Yes" : "No") : "—"}</dd>
+          <dd className="font-medium">{evaluation.complete}</dd>
           <dt className="text-muted-foreground">Evaluation Passed:</dt>
-          <dd className="font-medium">
-            {trial ? (trial.outcome && trial.outcome !== "NOT_SUITABLE" ? "Yes" : "No") : "—"}
-          </dd>
+          <dd className="font-medium">{evaluation.passed}</dd>
           <dt className="text-muted-foreground">Evaluation Date:</dt>
-          <dd className="font-medium">{trial?.completedAt ? trial.completedAt.toLocaleDateString("en-GB") : "—"}</dd>
+          <dd className="font-medium">{evaluation.date}</dd>
           <dt className="col-span-2 text-muted-foreground">Evaluation Notes:</dt>
-          <dd className="col-span-2 font-medium">{trial?.notes || "—"}</dd>
+          <dd className="col-span-2 font-medium whitespace-pre-line">{evaluation.notes}</dd>
         </dl>
-        {!trial && (
+        {!evaluation.hasRecord && (
           <p className="text-sm text-muted-foreground">This will be completed after a Meet &amp; Greet.</p>
         )}
       </div>

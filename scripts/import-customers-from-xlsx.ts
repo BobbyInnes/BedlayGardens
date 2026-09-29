@@ -162,11 +162,21 @@ async function main() {
               medicalHistorySummary: d.medicalHistorySummary,
               feedingNotes: d.feedingNotes,
               vaccinationNotes: d.vaccinationNotes,
+              // An evaluation supplied by the import file bypasses the
+              // Meet & Greet checks for that dog.
+              bypassMeetGreetChecks: d.evaluationComplete,
+              importedEvaluationComplete: d.evaluationComplete,
+              importedEvaluationDate: d.evaluationDate ? new Date(d.evaluationDate) : null,
+              importedEvaluationNotes: d.evaluationNotes,
               vaccinationRecords: {
                 create: d.vaccinations.map((v) => ({
                   type: v.type,
                   dateGiven: new Date(v.dateGiven),
                   expiryDate: new Date(v.expiryDate),
+                  status: v.status === "VERIFIED" && !admin ? "UNVERIFIED" : v.status,
+                  ...(v.status === "VERIFIED" && admin
+                    ? { verifiedBy: { connect: { id: admin.id } }, verifiedAt: new Date() }
+                    : {}),
                 })),
               },
               ...(d.dob ? { dob: new Date(d.dob) } : {}),

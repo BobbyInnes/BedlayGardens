@@ -375,6 +375,13 @@ model Dog {
   // / checkTrialGate.
   bypassVaccinationChecks Boolean @default(false)
   bypassMeetGreetChecks   Boolean @default(false)
+  // Meet & Greet evaluation carried over from a customer import file. A
+  // TrialVisit can't hold it (that needs a booking), so it lives here and the
+  // Evaluation Information panels fall back to it when the dog has no real
+  // TrialVisit outcome. Imported dogs also get bypassMeetGreetChecks set.
+  importedEvaluationComplete Boolean   @default(false)
+  importedEvaluationDate     DateTime?
+  importedEvaluationNotes    String?
   createdAt        DateTime  @default(now())
 
   vaccinationRecords VaccinationRecord[]

@@ -196,6 +196,9 @@ type FieldTarget =
   | "dogMedicalSummary"
   | "dogFeedingNotes"
   | "vaccinationNotes"
+  | "evaluationComplete"
+  | "evaluationDate"
+  | "evaluationOutcome"
   | "dhppFrom"
   | "dhppExpiry"
   | "kennelCoughFrom"
@@ -243,6 +246,9 @@ const FIELD_MAP: Record<string, FieldTarget> = {
   // level with identical content; both feed the dog's vaccination notes.
   "vaccinations|vaccinationnotes|vaccinationnotes": "vaccinationNotes",
   "vaccinations|vaccinationsnotes|vaccinationsnotes": "vaccinationNotes",
+  "customer|evaluationinformation|evaluationcomplete": "evaluationComplete",
+  "customer|evaluationinformation|evaluationdate": "evaluationDate",
+  "meetgreetreview|meetgreetreview|awaitingoutcome": "evaluationOutcome",
   "vaccinations|dhpp|fromdate": "dhppFrom",
   "vaccinations|dhpp|expirydate": "dhppExpiry",
   "vaccinations|kennelcough|fromdate": "kennelCoughFrom",
@@ -312,6 +318,12 @@ export type PlanDog = {
   medicalHistorySummary: string | null
   feedingNotes: string | null
   vaccinationNotes: string | null
+  // From the sheet's Evaluation Complete / Date / outcome columns. When
+  // evaluationComplete is true the dog is created with the Meet & Greet
+  // checks bypassed.
+  evaluationComplete: boolean
+  evaluationDate: string | null
+  evaluationNotes: string | null
   vaccinations: PlanVaccination[]
 }
 
@@ -319,6 +331,10 @@ export type PlanVaccination = {
   type: string
   dateGiven: string
   expiryDate: string
+  // VERIFIED when all three vaccines are in date, EXPIRED (shown as lapsed)
+  // when this one's expiry has passed, otherwise UNVERIFIED for a normal
+  // admin check.
+  status: "VERIFIED" | "EXPIRED" | "UNVERIFIED"
 }
 
 export type PlanRow = {
@@ -529,8 +545,28 @@ export function planCustomerImport(
         const expiry =
           cellToDate(expiryCell, true) ??
           new Date(Date.UTC(from.getUTCFullYear() + v.validityYears, from.getUTCMonth(), from.getUTCDate(), 12))
-        vaccinations.push({ type: v.type, dateGiven: from.toISOString(), expiryDate: expiry.toISOString() })
+        vaccinations.push({
+          type: v.type,
+          dateGiven: from.toISOString(),
+          expiryDate: expiry.toISOString(),
+          status: "UNVERIFIED",
+        })
       }
+
+      // All three vaccines with a future expiry -> all verified. Any vaccine
+      // whose expiry has already passed -> lapsed (EXPIRED).
+      const now = Date.now()
+      const allInDate =
+        vaccinations.length === VACCINE_COLUMNS.length &&
+        vaccinations.every((v) => new Date(v.expiryDate).getTime() > now)
+      for (const v of vaccinations) {
+        if (allInDate) v.status = "VERIFIED"
+        else if (new Date(v.expiryDate).getTime() <= now) v.status = "EXPIRED"
+      }
+
+      const evaluationComplete = truthy(cellToText(get(row, "evaluationComplete")))
+      const evaluationDate = cellToDate(get(row, "evaluationDate"))
+      const evaluationNotes = cellToText(get(row, "evaluationOutcome")) || null
 
       plan.dogs.push({
         rowNumber,
@@ -546,6 +582,9 @@ export function planCustomerImport(
         medicalHistorySummary: getJoined(row, "dogMedicalSummary"),
         feedingNotes: getJoined(row, "dogFeedingNotes"),
         vaccinationNotes: getJoined(row, "vaccinationNotes"),
+        evaluationComplete,
+        evaluationDate: evaluationDate ? evaluationDate.toISOString() : null,
+        evaluationNotes: truncate(evaluationNotes, 2000),
         vaccinations,
       })
     } else if (targets.size > 0 && row.some((c, idx) => idx > 0 && cellToText(c) !== "")) {
