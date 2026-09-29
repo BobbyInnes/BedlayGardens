@@ -55,17 +55,17 @@ function cleanPhone(v: CellValue): string | null {
   return n.length >= 6 && n.length <= 50 ? n : null
 }
 
-function buildDate(y: number, mo: number, d: number): Date | null {
+function buildDate(y: number, mo: number, d: number, allowFuture = false): Date | null {
   const date = new Date(Date.UTC(y, mo, d, 12))
   if (date.getUTCFullYear() !== y || date.getUTCMonth() !== mo || date.getUTCDate() !== d) return null
-  return date.getTime() > Date.now() ? null : date
+  return !allowFuture && date.getTime() > Date.now() ? null : date
 }
 
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
 
 // Accepts 01-Oct-24 / 01-Oct-2024, UK 25/09/2021 (day first), and 2021-09-25
 // — only used as a fallback when the cell wasn't a real Excel date.
-function parseDateText(raw: string): Date | null {
+function parseDateText(raw: string, allowFuture = false): Date | null {
   const s = raw.trim()
   if (!s) return null
   let m = s.match(/^(\d{1,2})[-\s]([A-Za-z]{3})[A-Za-z]*[-\s](\d{2}|\d{4})$/)
@@ -73,21 +73,49 @@ function parseDateText(raw: string): Date | null {
     const mo = MONTHS.indexOf(m[2].toLowerCase())
     if (mo === -1) return null
     const y = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3])
-    return buildDate(y, mo, Number(m[1]))
+    return buildDate(y, mo, Number(m[1]), allowFuture)
   }
   m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/)
-  if (m) return buildDate(Number(m[3]), Number(m[2]) - 1, Number(m[1]))
+  if (m) return buildDate(Number(m[3]), Number(m[2]) - 1, Number(m[1]), allowFuture)
   m = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
-  if (m) return buildDate(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  if (m) return buildDate(Number(m[1]), Number(m[2]) - 1, Number(m[3]), allowFuture)
   return null
 }
 
-function cellToDate(v: CellValue): Date | null {
+// allowFuture is for vaccination expiry dates, which legitimately sit ahead
+// of today; a dog's date of birth and a vaccine's from date never do.
+function cellToDate(v: CellValue, allowFuture = false): Date | null {
   if (v instanceof Date) {
-    return buildDate(v.getUTCFullYear(), v.getUTCMonth(), v.getUTCDate())
+    return buildDate(v.getUTCFullYear(), v.getUTCMonth(), v.getUTCDate(), allowFuture)
   }
   const text = cellToText(v)
-  return text ? parseDateText(text) : null
+  return text ? parseDateText(text, allowFuture) : null
+}
+
+// "5 Years 10 Months", "4 Years", "8 months", "12 weeks" -> an estimated date
+// of birth that far back from today. Only a fallback for when the real Date of
+// Birth cell is empty.
+function estimateDobFromAge(v: CellValue): Date | null {
+  const text = cellToText(v).toLowerCase()
+  if (!text) return null
+  const years = Number(text.match(/(\d+)\s*(?:years?|yrs?|y)\b/)?.[1] ?? 0)
+  const months = Number(text.match(/(\d+)\s*(?:months?|mths?|mos?)\b/)?.[1] ?? 0)
+  const weeks = Number(text.match(/(\d+)\s*(?:weeks?|wks?)\b/)?.[1] ?? 0)
+  if (!years && !months && !weeks) return null
+  const now = new Date()
+  return new Date(Date.UTC(now.getUTCFullYear() - years, now.getUTCMonth() - months, now.getUTCDate() - weeks * 7, 12))
+}
+
+export type DogSizeValue = "MINIATURE" | "SMALL" | "MEDIUM" | "LARGE" | "GIANT"
+
+function mapDogSize(v: CellValue): DogSizeValue | null {
+  const s = cellToText(v).toLowerCase()
+  if (/mini/.test(s)) return "MINIATURE"
+  if (/small/.test(s)) return "SMALL"
+  if (/medium/.test(s)) return "MEDIUM"
+  if (/giant/.test(s)) return "GIANT"
+  if (/large/.test(s)) return "LARGE"
+  return null
 }
 
 // "20", "21kg", "38.5kgs", "45.04kg" → kilograms. Sanity-bounded so a stray
@@ -162,6 +190,18 @@ type FieldTarget =
   | "dogColor"
   | "dogDob"
   | "dogWeight"
+  | "dogAge"
+  | "dogSize"
+  | "dogAllergies"
+  | "dogMedicalSummary"
+  | "dogFeedingNotes"
+  | "vaccinationNotes"
+  | "dhppFrom"
+  | "dhppExpiry"
+  | "kennelCoughFrom"
+  | "kennelCoughExpiry"
+  | "leptospirosisFrom"
+  | "leptospirosisExpiry"
 
 // Keyed by normalized `${section}|${card}|${field name}`, read from rows 2-4
 // of the template. A column whose field-name row is blank (e.g. "Age" — the
@@ -179,6 +219,8 @@ const FIELD_MAP: Record<string, FieldTarget> = {
   "account|contactdetails|workstelno": "workPhone",
   "account|notificationsettings|markettingemails": "marketingOk",
   "account|notificationsettings|howdidyouhearaboutus": "howHeard",
+  // The current template files the question under Contact Details instead.
+  "account|contactdetails|howdidyouhearaboutus": "howHeard",
   "account|vetpractice|practicename": "vetPracticeName",
   "account|vetpractice|consultantsname": "vetContactName",
   "account|vetpractice|addressline1": "vetAddressLine1",
@@ -193,6 +235,20 @@ const FIELD_MAP: Record<string, FieldTarget> = {
   "addadog|dogdetails|colour": "dogColor",
   "addadog|dogdetails|dateofbirth": "dogDob",
   "addadog|dogdetails|weight": "dogWeight",
+  "addadog|dogdetails|size": "dogSize",
+  "addadog|dogdetails|allergies": "dogAllergies",
+  "addadog|medicalhistory|summary": "dogMedicalSummary",
+  "addadog|feedinginstructions|summary": "dogFeedingNotes",
+  // The template repeats the vaccination notes at customer level and dog
+  // level with identical content; both feed the dog's vaccination notes.
+  "vaccinations|vaccinationnotes|vaccinationnotes": "vaccinationNotes",
+  "vaccinations|vaccinationsnotes|vaccinationsnotes": "vaccinationNotes",
+  "vaccinations|dhpp|fromdate": "dhppFrom",
+  "vaccinations|dhpp|expirydate": "dhppExpiry",
+  "vaccinations|kennelcough|fromdate": "kennelCoughFrom",
+  "vaccinations|kennelcough|expirydate": "kennelCoughExpiry",
+  "vaccinations|leptospirosis|fromdate": "leptospirosisFrom",
+  "vaccinations|leptospirosis|expirydate": "leptospirosisExpiry",
 }
 
 function buildColumnMap(rows: CellValue[][]): { targets: Map<number, FieldTarget>; unusedColumns: string[] } {
@@ -211,7 +267,10 @@ function buildColumnMap(rows: CellValue[][]): { targets: Map<number, FieldTarget
     const label = cellToText(fieldRow[col]) || cellToText(cardRow[col]) || cellToText(sectionRow[col])
     if (!section && !card && !field) continue // fully blank column, nothing to report
 
-    const target = field ? FIELD_MAP[`${section}|${card}|${field}`] : undefined
+    let target = field ? FIELD_MAP[`${section}|${card}|${field}`] : undefined
+    // The dog's Age column has no field name in rows 2-4 (only "Age" in the
+    // machine-key row 1), so it's recognised by that plus its dog section.
+    if (!target && !field && section === "addadog" && normalizeLabel(rows[0]?.[col]) === "age") target = "dogAge"
     if (target) {
       targets.set(col, target)
     } else {
@@ -239,6 +298,8 @@ export type PlanVet = {
 }
 
 export type PlanDog = {
+  // Spreadsheet row this dog came from, so a caller can report per-row results.
+  rowNumber: number
   name: string
   breed: string
   neutered: boolean
@@ -246,6 +307,18 @@ export type PlanDog = {
   color: string | null
   dob: string | null
   weightKg: number | null
+  size: DogSizeValue | null
+  allergies: string | null
+  medicalHistorySummary: string | null
+  feedingNotes: string | null
+  vaccinationNotes: string | null
+  vaccinations: PlanVaccination[]
+}
+
+export type PlanVaccination = {
+  type: string
+  dateGiven: string
+  expiryDate: string
 }
 
 export type PlanRow = {
@@ -276,6 +349,15 @@ export type ImportPlan =
   | { ok: true; rows: PlanRow[]; unusedColumns: string[] }
   | { ok: false; message: string }
 
+// Expiry is taken from the sheet when present; otherwise calculated from the
+// from date using the same validity as the portal's fixed vaccines
+// (src/app/portal/vaccinations/vaccine-types.ts).
+const VACCINE_COLUMNS = [
+  { type: "DHPP", from: "dhppFrom", expiry: "dhppExpiry", validityYears: 3 },
+  { type: "Kennel Cough", from: "kennelCoughFrom", expiry: "kennelCoughExpiry", validityYears: 1 },
+  { type: "Leptospirosis", from: "leptospirosisFrom", expiry: "leptospirosisExpiry", validityYears: 1 },
+] as const
+
 const emailSchema = z.string().email().max(200)
 const DATA_START_ROW_INDEX = 4 // spreadsheet row 5 (0-indexed rows array)
 
@@ -294,6 +376,18 @@ export function planCustomerImport(
   const get = (row: CellValue[], target: FieldTarget): CellValue => {
     for (const [col, t] of targets) if (t === target) return row[col]
     return undefined
+  }
+
+  // Text of every column mapped to a target, de-duplicated and joined, for
+  // the notes that appear twice in the template with identical content.
+  const getJoined = (row: CellValue[], target: FieldTarget): string | null => {
+    const seen: string[] = []
+    for (const [col, t] of targets) {
+      if (t !== target) continue
+      const text = cellToText(row[col])
+      if (text && !seen.includes(text)) seen.push(text)
+    }
+    return seen.length ? seen.join("\n") : null
   }
 
   const plans = new Map<string, PlanRow>()
@@ -414,8 +508,32 @@ export function planCustomerImport(
       if (weightCell !== undefined && cellToText(weightCell) !== "" && weightKg === null) {
         plan.warnings.push(`${dogName}: couldn't read weight "${cellToText(weightCell)}"`)
       }
-      const dob = cellToDate(get(row, "dogDob"))
+      const dob = cellToDate(get(row, "dogDob")) ?? estimateDobFromAge(get(row, "dogAge"))
+
+      const sizeCell = get(row, "dogSize")
+      const size = mapDogSize(sizeCell)
+      if (cellToText(sizeCell) !== "" && !size) {
+        plan.warnings.push(`${dogName}: couldn't read size "${cellToText(sizeCell)}"`)
+      }
+
+      const vaccinations: PlanVaccination[] = []
+      for (const v of VACCINE_COLUMNS) {
+        const fromCell = get(row, v.from)
+        const expiryCell = get(row, v.expiry)
+        if (cellToText(fromCell) === "" && cellToText(expiryCell) === "") continue
+        const from = cellToDate(fromCell)
+        if (!from) {
+          plan.warnings.push(`${dogName}: ${v.type} skipped - no readable from date`)
+          continue
+        }
+        const expiry =
+          cellToDate(expiryCell, true) ??
+          new Date(Date.UTC(from.getUTCFullYear() + v.validityYears, from.getUTCMonth(), from.getUTCDate(), 12))
+        vaccinations.push({ type: v.type, dateGiven: from.toISOString(), expiryDate: expiry.toISOString() })
+      }
+
       plan.dogs.push({
+        rowNumber,
         name: dogName,
         breed: breed.slice(0, 100),
         neutered: mapNeutered(get(row, "dogSpayed")),
@@ -423,6 +541,12 @@ export function planCustomerImport(
         color: truncate(collapse(cellToText(get(row, "dogColor"))) || null, 100),
         dob: dob ? dob.toISOString() : null,
         weightKg,
+        size,
+        allergies: getJoined(row, "dogAllergies"),
+        medicalHistorySummary: getJoined(row, "dogMedicalSummary"),
+        feedingNotes: getJoined(row, "dogFeedingNotes"),
+        vaccinationNotes: getJoined(row, "vaccinationNotes"),
+        vaccinations,
       })
     } else if (targets.size > 0 && row.some((c, idx) => idx > 0 && cellToText(c) !== "")) {
       // Row has other data but no dog name — only worth flagging once we

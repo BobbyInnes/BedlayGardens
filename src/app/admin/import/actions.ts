@@ -145,6 +145,18 @@ export async function runCustomerImport(formData: FormData): Promise<ImportResul
               sex: d.sex,
               color: d.color,
               weightKg: d.weightKg,
+              size: d.size,
+              allergies: d.allergies,
+              medicalHistorySummary: d.medicalHistorySummary,
+              feedingNotes: d.feedingNotes,
+              vaccinationNotes: d.vaccinationNotes,
+              vaccinationRecords: {
+                create: d.vaccinations.map((v) => ({
+                  type: v.type,
+                  dateGiven: new Date(v.dateGiven),
+                  expiryDate: new Date(v.expiryDate),
+                })),
+              },
               ...(d.dob ? { dob: new Date(d.dob) } : {}),
             })),
           },
