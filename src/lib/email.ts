@@ -15,16 +15,52 @@ const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KE
 // unreachable by any real mail client (and by Gmail's image proxy even on
 // the same machine). Embedding the file as an inline `cid:` attachment makes
 // the logo render everywhere, including npm run dev:test, with zero env
-// config. Read once at module load rather than per-send.
-let logoAttachment: { filename: string; content: Buffer; contentId: string } | null = null
-try {
-  logoAttachment = {
-    filename: "logo.png",
-    content: readFileSync(path.join(process.cwd(), "public/images/logo.png")),
-    contentId: "logo",
+// config.
+//
+// The logo is the one an admin uploaded (Admin -> Media -> Site logo, the
+// `logo_url` setting) when there is one, otherwise the bundled default. Both
+// are cached in memory — the uploaded one by URL, so a replaced logo (new
+// URL) is fetched fresh on the next send.
+type LogoAttachment = { filename: string; content: Buffer; contentId: string }
+
+let defaultLogo: LogoAttachment | null | undefined
+let customLogo: { url: string; attachment: LogoAttachment } | null = null
+
+function loadDefaultLogo(): LogoAttachment | null {
+  if (defaultLogo !== undefined) return defaultLogo
+  try {
+    defaultLogo = {
+      filename: "logo.png",
+      content: readFileSync(path.join(process.cwd(), "public/images/logo.png")),
+      contentId: "logo",
+    }
+  } catch (error) {
+    console.warn("[email] Could not load public/images/logo.png for inline embedding", error)
+    defaultLogo = null
   }
-} catch (error) {
-  console.warn("[email] Could not load public/images/logo.png for inline embedding", error)
+  return defaultLogo
+}
+
+async function getLogoAttachment(): Promise<LogoAttachment | null> {
+  const url = await getSetting("logo_url")
+  if (url) {
+    if (customLogo?.url === url) return customLogo.attachment
+    try {
+      const response = await fetch(url)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const ext = /\.(png|jpe?g|webp)$/i.exec(url)?.[0].toLowerCase() ?? ".png"
+      const attachment = {
+        filename: `logo${ext}`,
+        content: Buffer.from(await response.arrayBuffer()),
+        contentId: "logo",
+      }
+      customLogo = { url, attachment }
+      return attachment
+    } catch (error) {
+      console.warn("[email] Could not load the uploaded logo, using the default", error)
+    }
+  }
+  return loadDefaultLogo()
 }
 
 export async function sendEmail(options: { to: string; subject: string; html: string }) {
@@ -47,6 +83,8 @@ export async function sendEmail(options: { to: string; subject: string; html: st
     await logSentEmail(options, "SKIPPED")
     return
   }
+
+  const logoAttachment = await getLogoAttachment()
 
   try {
     // The SDK never throws for an API-level rejection (unverified/sandbox

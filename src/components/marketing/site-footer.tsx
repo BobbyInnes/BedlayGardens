@@ -31,7 +31,7 @@ export async function SiteFooter() {
           {/* Logo artwork has a solid white background baked in — pad it in
               a rounded white card so it reads cleanly on the dark footer. */}
           <div className="inline-block rounded-lg bg-white px-3 py-2">
-            <Logo businessName={businessName} />
+            <Logo businessName={businessName} logoUrl={settings.logo_url || null} />
           </div>
           <p className="text-sm leading-relaxed text-white/70">
             Safe, caring, and fully managed stays for your dog — licensed,

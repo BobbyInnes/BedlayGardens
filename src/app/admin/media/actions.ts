@@ -283,3 +283,77 @@ export async function deleteGalleryCategory(categoryId: string) {
   revalidatePath("/admin/media")
   revalidatePath("/gallery")
 }
+
+// ---------------------------------------------------------------------------
+// Site logo — the `logo_url` setting. Shown in the website header/footer and
+// embedded in every outgoing email; the bundled public/images/logo.png is used
+// whenever the setting is empty.
+// ---------------------------------------------------------------------------
+
+const LOGO_TYPES = ["image/png", "image/jpeg", "image/webp"]
+const LOGO_MAX_BYTES = 2 * 1024 * 1024
+
+function revalidateLogoPaths() {
+  revalidatePath("/", "layout")
+  revalidatePath("/admin/media")
+}
+
+export async function uploadLogo(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  const session = await requireAdmin()
+
+  const file = formData.get("file")
+  if (!(file instanceof File) || file.size === 0) {
+    return { status: "error", message: "Choose an image file to upload." }
+  }
+  // PNG/JPG/WebP only — SVG isn't supported by most email clients, and the
+  // logo goes into every email.
+  if (!LOGO_TYPES.includes(file.type)) {
+    return { status: "error", message: "The logo must be a PNG, JPG or WebP image." }
+  }
+  if (file.size > LOGO_MAX_BYTES) {
+    return { status: "error", message: "The logo must be 2 MB or smaller." }
+  }
+
+  const previous = await prisma.setting.findUnique({ where: { key: "logo_url" } })
+  const url = await savePublicUpload("logo", file.name, Buffer.from(await file.arrayBuffer()))
+  await prisma.setting.upsert({
+    where: { key: "logo_url" },
+    update: { value: url },
+    create: { key: "logo_url", value: url },
+  })
+  if (previous?.value) await deletePublicUpload(previous.value)
+
+  await logAudit({
+    actorId: session.user.id,
+    action: "UPLOAD_LOGO",
+    entity: "Setting",
+    entityId: "logo_url",
+    meta: `Site logo replaced with ${file.name}`,
+  })
+
+  revalidateLogoPaths()
+  return { status: "idle" }
+}
+
+export async function resetLogo(): Promise<AdminActionState> {
+  const session = await requireAdmin()
+
+  const previous = await prisma.setting.findUnique({ where: { key: "logo_url" } })
+  if (previous) {
+    await prisma.setting.delete({ where: { key: "logo_url" } })
+    if (previous.value) await deletePublicUpload(previous.value)
+    await logAudit({
+      actorId: session.user.id,
+      action: "RESET_LOGO",
+      entity: "Setting",
+      entityId: "logo_url",
+      meta: "Site logo reset to the default",
+    })
+  }
+
+  revalidateLogoPaths()
+  return { status: "idle" }
+}

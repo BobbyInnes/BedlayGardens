@@ -22,7 +22,7 @@ export default async function MarketingLayout({
   return (
     <div className="flex min-h-full flex-col">
       <LocalBusinessSchema />
-      <SiteHeader businessName={businessName} navLinks={navLinks} />
+      <SiteHeader businessName={businessName} logoUrl={settings.logo_url || null} navLinks={navLinks} />
       <main className="flex-1 pb-16 md:pb-0">{children}</main>
       <SiteFooter />
       <FloatingBookCta />

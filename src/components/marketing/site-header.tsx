@@ -60,9 +60,11 @@ function useSessionUser() {
 
 export function SiteHeader({
   businessName,
+  logoUrl,
   navLinks,
 }: {
   businessName: string
+  logoUrl?: string | null
   navLinks: NavLinkDef[]
 }) {
   const pathname = usePathname()
@@ -84,7 +86,7 @@ export function SiteHeader({
     <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/90">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link href="/" aria-label={`${businessName} — home`}>
-          <Logo businessName={businessName} />
+          <Logo businessName={businessName} logoUrl={logoUrl} />
         </Link>
 
         <nav className="hidden items-center gap-6 lg:flex">
@@ -155,7 +157,7 @@ export function SiteHeader({
           <SheetContent side="right" className="w-72">
             <SheetHeader>
               <SheetTitle>
-                <Logo businessName={businessName} />
+                <Logo businessName={businessName} logoUrl={logoUrl} />
               </SheetTitle>
             </SheetHeader>
             <nav className="flex flex-col gap-1 px-4">

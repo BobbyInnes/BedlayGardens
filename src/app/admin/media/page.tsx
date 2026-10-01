@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { MediaForm } from "@/components/admin/media-form"
+import { SiteLogoForm } from "@/components/admin/site-logo-form"
+import { getSetting } from "@/lib/settings"
 import { ConfirmDeleteButton } from "@/components/admin/confirm-delete-button"
 import { GalleryCategoryCreateForm } from "@/components/admin/gallery-category-create-form"
 import { GalleryCategoryListItem } from "@/components/admin/gallery-category-list-item"
@@ -14,6 +16,7 @@ export const metadata: Metadata = {
 }
 
 export default async function AdminMediaPage() {
+  const logoUrl = (await getSetting("logo_url")) || null
   const [items, galleryCategories] = await Promise.all([
     prisma.mediaItem.findMany({
       where: { usage: { not: "PUPDATE" } },
@@ -31,6 +34,15 @@ export default async function AdminMediaPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Media</h1>
       </div>
+
+      <section className="space-y-4 rounded-lg border border-border bg-gray-100 p-4 dark:bg-gray-800">
+        <h2 className="text-lg font-semibold">Site logo</h2>
+        <p className="text-sm text-muted-foreground">
+          Shown in the website header and footer and at the top of every email we send. PNG, JPG or
+          WebP, up to 2 MB.
+        </p>
+        <SiteLogoForm logoUrl={logoUrl} />
+      </section>
 
       <section className="space-y-4 rounded-lg border border-border bg-gray-100 p-4 dark:bg-gray-800">
         <h2 className="text-lg font-semibold">Gallery categories</h2>
